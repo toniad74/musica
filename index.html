@@ -1138,7 +1138,19 @@
                 playsinline: 1,
                 rel: 0,
                 iv_load_policy: 3,
-                enablejsapi: 1
+                cc_load_policy: 0,
+                enablejsapi: 1,
+                // Parámetros adicionales para minimizar anuncios en móvil
+                widget_referrer: safeOrigin,
+                host: 'https://www.youtube-nocookie.com',
+                showinfo: 0,
+                autohide: 1,
+                theme: 'dark',
+                color: 'white',
+                hl: 'es',
+                cc_lang_pref: 'es',
+                loop: 0,
+                playlist: ''
             };
 
             if (safeOrigin) playerVars.origin = safeOrigin;
@@ -1146,6 +1158,8 @@
             player = new YT.Player('youtubePlayer', {
                 height: '90',
                 width: '160',
+                // Usar youtube-nocookie.com para reducir anuncios
+                host: 'https://www.youtube-nocookie.com',
                 playerVars,
                 events: {
                     onReady: onPlayerReady,
