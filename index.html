@@ -304,20 +304,10 @@
                 padding-bottom: max(8px, env(safe-area-inset-bottom));
             }
         }
-
-        /* Anti-injected ads (algunos hostings gratuitos inyectan banners/iframes, sobre todo en móvil)
-           Nota: esto NO elimina anuncios de YouTube dentro del reproductor (eso lo controla YouTube). */
-        ins.adsbygoogle, .adsbygoogle { display: none !important; }
-        [id^="ad_"], [id^="ad-"], [id^="ads_"], [id^="ads-"], [id^="google_ads"], [id^="googleads"] { display: none !important; }
-        [class^="ad_"], [class^="ad-"], [class^="ads_"], [class^="ads-"], [class*=" adsbygoogle"] { display: none !important; }
-        iframe[src*="doubleclick.net"], iframe[src*="googlesyndication.com"], iframe[src*="adservice"], iframe[src*="adsystem"],
-        iframe[src*="taboola"], iframe[src*="outbrain"], iframe[src*="mgid"], iframe[src*="propeller"], iframe[src*="criteo"], iframe[src*="adnxs"], iframe[src*="rubiconproject"] { display: none !important; }
-        /* Muchos hostings inyectan iframes/banners como hijos directos del <body> (sobre todo en móvil) */
-        body > iframe, body > ins { display: none !important; }
     </style>
 </head>
 <body class="bg-black text-white min-h-screen">
-    <div id="appRoot" class="flex h-screen pb-24">
+    <div class="flex h-screen pb-24">
         <!-- Sidebar -->
         <aside class="w-64 bg-black flex flex-col flex-shrink-0 hidden md:flex">
             <!-- Logo -->
@@ -1136,7 +1126,7 @@
         }
 
         window.onYouTubeIframeAPIReady = function() {
-            // Evitar pasar origin='null' cuando se abre como file://
+            // Evitar pasar origin='null' cuando se abre comme file://
             const safeOrigin = (window.location.origin && window.location.origin !== 'null') ? window.location.origin : undefined;
 
             const playerVars = {
@@ -1148,7 +1138,33 @@
                 playsinline: 1,
                 rel: 0,
                 iv_load_policy: 3,
-                enablejsapi: 1
+                cc_load_policy: 0,
+                enablejsapi: 1,
+                // Parámetros anti-anuncios más agresivos
+                widget_referrer: safeOrigin,
+                host: 'https://www.youtube-nocookie.com',
+                showinfo: 0,
+                autohide: 1,
+                theme: 'dark',
+                color: 'white',
+                hl: 'es',
+                cc_lang_pref: 'es',
+                loop: 0,
+                playlist: '',
+                // Parámetros para evitar anuncios en móvil
+                playsinline: 1,
+                disableOpt: true,
+                forceSSL: true,
+                // Desactivar completamente la publicidad
+                enablejsapi: 1,
+                origin: safeOrigin || undefined,
+                widget_referer: safeOrigin,
+                version: 3,
+                // Intentar evitar anuncios pre-roll
+                preventFullScreen: true,
+                // Parámetros de optimización móvil
+                disableProgressive: false,
+                disableProgressiveLoading: false
             };
 
             if (safeOrigin) playerVars.origin = safeOrigin;
@@ -1156,6 +1172,8 @@
             player = new YT.Player('youtubePlayer', {
                 height: '90',
                 width: '160',
+                // Forzar youtube-nocookie.com
+                host: 'https://www.youtube-nocookie.com',
                 playerVars,
                 events: {
                     onReady: onPlayerReady,
@@ -1180,8 +1198,19 @@
                 updatePlayPauseButton();
                 startProgressUpdate();
                 updateEqualizerState();
+                
+                // Intentar detectar y saltar anuncios automáticamente
+                detectAndSkipAds();
             } else if (event.data === YT.PlayerState.ENDED) {
                 handleSongEnd();
+            } else if (event.data === YT.PlayerState.PAUSED) {
+                // Si se pausa inesperadamente, podría ser un anuncio
+                setTimeout(() => {
+                    if (player && isPlaying && player.getPlayerState() === YT.PlayerState.PAUSED) {
+                        // Intentar reanudar la reproducción
+                        player.playVideo();
+                    }
+                }, 1000);
             } else {
                 isPlaying = false;
                 updatePlayPauseButton();
@@ -1203,6 +1232,80 @@
                     playMusic(song.videoId, song.title, song.channel, song.thumbnail);
                 }
             }
+        }
+
+        // Función para detectar y saltar anuncios automáticamente
+        function detectAndSkipAds() {
+            if (!player) return;
+            
+            let adDetectionAttempts = 0;
+            const maxAttempts = 10;
+            
+            const checkForAd = () => {
+                if (!player || !isPlaying) return;
+                
+                adDetectionAttempts++;
+                
+                // Verificar si el video está en una posición inusual (posible anuncio)
+                const currentTime = player.getCurrentTime();
+                const duration = player.getDuration();
+                
+                // Si el tiempo actual es 0 pero el video debería estar reproduciéndose
+                if (currentTime === 0 && adDetectionAttempts > 2) {
+                    console.log('Posible anuncio detectado, intentando saltar...');
+                    
+                    // Intentar buscar a los 5 segundos para saltar posibles anuncios cortos
+                    setTimeout(() => {
+                        if (player && isPlaying) {
+                            try {
+                                const newTime = player.getCurrentTime();
+                                if (newTime < 1) {
+                                    console.log('Saltando a los 5 segundos para evitar anuncio');
+                                    player.seekTo(5);
+                                }
+                            } catch (e) {
+                                console.warn('Error al intentar saltar anuncio:', e);
+                            }
+                        }
+                    }, 500);
+                }
+                
+                // Verificar si el video se detiene inesperadamente después de 1-2 segundos
+                if (currentTime > 0 && currentTime < 3 && adDetectionAttempts > 3) {
+                    setTimeout(() => {
+                        if (player && isPlaying) {
+                            const checkTime = player.getCurrentTime();
+                            if (checkTime < 3) {
+                                console.log('Video detenido en tiempo corto, posible anuncio');
+                                try {
+                                    player.playVideo();
+                                    // Si sigue pausado, buscar más adelante
+                                    setTimeout(() => {
+                                        if (player && isPlaying && player.getCurrentTime() < 5) {
+                                            player.seekTo(10);
+                                        }
+                                    }, 1000);
+                                } catch (e) {
+                                    console.warn('Error al intentar reanudar:', e);
+                                }
+                            }
+                        }
+                    }, 1000);
+                }
+                
+                // Detener las verificaciones después de maxAttempts o si el video lleva más de 30 segundos reproduciéndose
+                if (adDetectionAttempts >= maxAttempts || currentTime > 30) {
+                    return;
+                }
+                
+                // Continuar verificando cada 500ms
+                if (player && isPlaying) {
+                    setTimeout(checkForAd, 500);
+                }
+            };
+            
+            // Iniciar la detección de anuncios
+            setTimeout(checkForAd, 500);
         }
 
         function playMusic(videoId, title, channel, thumbnail) {
@@ -1649,89 +1752,6 @@
             }
         });
         
-        // Anti injected ads removal (MutationObserver)
-        // Nota: esto NO quita anuncios de YouTube dentro del reproductor.
-        (function setupAntiInjectedAds() {
-            const suspiciousText = /(advert|ads|anuncio|publicidad|sponsor|promoted)/i;
-            const suspiciousIdClass = /(ad-|ads-|ad_|ads_|advert|adsbygoogle|doubleclick|googlesyndication|taboola|outbrain)/i;
-
-            function isOurElement(el) {
-                if (!el || el.nodeType !== 1) return false;
-                // Nunca tocar el reproductor ni sus ancestros
-                if (el.id === 'ytStage' || el.id === 'youtubePlayer' || el.closest?.('#ytStage') || el.closest?.('#youtubePlayer')) return true;
-                return false;
-            }
-
-            function looksLikeInjectedAd(el) {
-                if (!el || el.nodeType !== 1) return false;
-                if (isOurElement(el)) return false;
-
-                const id = (el.id || '').toLowerCase();
-                const cls = (el.className || '').toString().toLowerCase();
-
-                if (suspiciousIdClass.test(id) || suspiciousIdClass.test(cls)) return true;
-
-                // Iframes típicos de publicidad inyectada
-                if (el.tagName === 'IFRAME') {
-                    const src = (el.getAttribute('src') || '').toLowerCase();
-                    if (src.includes('doubleclick') || src.includes('googlesyndication') || src.includes('adservice') || src.includes('adsystem')) return true;
-                    // Algunos hostings inyectan iframes sin src pero con tamaño grande y z-index alto
-                    const r = el.getBoundingClientRect?.();
-                    if (r && (r.width > 250 || r.height > 250) && getComputedStyle(el).position === 'fixed') return true;
-                }
-
-                // Banners flotantes
-                try {
-                    const st = getComputedStyle(el);
-                    if (st.position === 'fixed') {
-                        const r = el.getBoundingClientRect();
-                        const area = r.width * r.height;
-                        if (area > 45000 && (parseInt(st.zIndex || '0', 10) >= 999 || id.includes('banner') || cls.includes('banner'))) {
-                            // Evitar falsos positivos: no eliminar nuestros overlays
-                            if (el.closest('#mobileMenu') || el.closest('#instructionsModal') || el.closest('#createPlaylistModal') || el.closest('#deletePlaylistModal')) return false;
-                            return true;
-                        }
-                    }
-                } catch (_) {}
-
-                // Texto sospechoso
-                const text = (el.textContent || '').trim();
-                if (text && text.length < 200 && suspiciousText.test(text) && (el.tagName === 'DIV' || el.tagName === 'SECTION' || el.tagName === 'ASIDE')) {
-                    return true;
-                }
-
-                return false;
-            }
-
-            function removeIfAd(el) {
-                if (!el || el.nodeType !== 1) return;
-                if (looksLikeInjectedAd(el)) {
-                    el.remove();
-                    return;
-                }
-                // Revisar hijos directos (escape rápido)
-                const children = Array.from(el.children || []);
-                for (const child of children) {
-                    if (looksLikeInjectedAd(child)) child.remove();
-                }
-            }
-
-            // Limpieza inicial
-            removeIfAd(document.body);
-
-            const obs = new MutationObserver((mutations) => {
-                for (const m of mutations) {
-                    for (const n of m.addedNodes) {
-                        if (n && n.nodeType === 1) {
-                            removeIfAd(n);
-                        }
-                    }
-                }
-            });
-
-            obs.observe(document.documentElement, { childList: true, subtree: true });
-        })();
-
         // Adjust toast position for mobile
         const originalShowToast = showToast;
         showToast = function(message) {
