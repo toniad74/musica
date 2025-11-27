@@ -93,15 +93,42 @@
             box-shadow: 0 15px 40px rgba(0,0,0,0.6);
             z-index: 40;
             transition: opacity 0.2s ease, transform 0.2s ease;
+            opacity: 0;
+            pointer-events: none;
         }
         .yt-stage iframe {
             width: 100% !important;
             height: 100% !important;
         }
-        .yt-stage.yt-stage-hidden {
-            opacity: 0;
-            pointer-events: none;
-            transform: translateY(12px) scale(0.98);
+        .yt-stage.yt-stage-visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        /* Botón para mostrar/ocultar el mini-player */
+        .yt-toggle-btn {
+            position: fixed;
+            right: 16px;
+            bottom: 104px;
+            z-index: 41;
+            background: #282828;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #b3b3b3;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .yt-toggle-btn:hover {
+            background: #3e3e3e;
+            color: white;
+        }
+        .yt-toggle-btn.yt-visible {
+            bottom: 296px;
         }
     </style>
 </head>
@@ -273,10 +300,16 @@
         </main>
     </div>
 
-    <!-- Offscreen YouTube Player (no usar display:none para evitar pausas) -->
-    <div class="yt-offscreen" aria-hidden="true">
+    <!-- YouTube Mini-Player (visible para evitar el corte a los 59 segundos) -->
+    <div id="ytStage" class="yt-stage">
         <div id="youtubePlayer"></div>
     </div>
+    
+    <!-- Botón para mostrar/ocultar mini-player -->
+    <button id="ytToggleBtn" class="yt-toggle-btn hidden" onclick="toggleYtStage()">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
+        <span id="ytToggleBtnText">Ocultar video</span>
+    </button>
 
     <!-- Player Bar -->
     <div id="playerSection" class="hidden fixed bottom-0 left-0 right-0 bg-[#181818] border-t border-[#282828] px-4 py-3 z-50 flex items-center justify-between h-24">
@@ -1132,6 +1165,42 @@
                 if (e.target === this) this.classList.add('hidden');
             });
         });
+
+        // YouTube Mini-Player visibility
+        let isYtStageVisible = false; // Por defecto oculto
+        
+        function toggleYtStage() {
+            isYtStageVisible = !isYtStageVisible;
+            updateYtStageVisibility();
+        }
+        
+        function updateYtStageVisibility() {
+            const stage = document.getElementById('ytStage');
+            const btn = document.getElementById('ytToggleBtn');
+            const btnText = document.getElementById('ytToggleBtnText');
+            
+            if (isYtStageVisible) {
+                stage.classList.add('yt-stage-visible');
+                btn.classList.add('yt-visible');
+                btnText.textContent = 'Ocultar video';
+            } else {
+                stage.classList.remove('yt-stage-visible');
+                btn.classList.remove('yt-visible');
+                btnText.textContent = 'Mostrar video';
+            }
+        }
+        
+        function showYtToggleBtn() {
+            document.getElementById('ytToggleBtn').classList.remove('hidden');
+            updateYtStageVisibility(); // Asegura que el estado inicial sea "oculto"
+        }
+        
+        // Update playMusic to show the toggle button
+        const originalPlayMusic = playMusic;
+        playMusic = function(videoId, title, channel, thumbnail) {
+            originalPlayMusic(videoId, title, channel, thumbnail);
+            showYtToggleBtn();
+        };
     </script>
 </body>
 </html>
