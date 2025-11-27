@@ -8,13 +8,14 @@
     <style>
         .result-row { transition: all 0.2s ease; }
         .result-row:hover { background-color: rgba(255, 255, 255, 0.1); }
+        .result-row:active { background-color: rgba(255, 255, 255, 0.15); }
         .play-button-hover { opacity: 0; transition: opacity 0.2s ease; }
         .result-row:hover .play-button-hover { opacity: 1; }
         .result-row:hover .track-number { opacity: 0; }
         .track-thumbnail { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); }
         .spotify-range { -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer; outline: none; }
-        .spotify-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; background: transparent; cursor: pointer; }
-        .spotify-range::-moz-range-thumb { appearance: none; width: 12px; height: 12px; background: transparent; cursor: pointer; border: none; }
+        .spotify-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; background: transparent; cursor: pointer; }
+        .spotify-range::-moz-range-thumb { appearance: none; width: 16px; height: 16px; background: transparent; cursor: pointer; border: none; }
         .sidebar { scrollbar-width: thin; scrollbar-color: #535353 transparent; }
         .sidebar::-webkit-scrollbar { width: 8px; }
         .sidebar::-webkit-scrollbar-track { background: transparent; }
@@ -78,12 +79,11 @@
             transform: scaleY(0.3);
         }
 
-        /* YouTube mini-player: mantenerlo en el viewport sin display:none ni tamaño 0
-           (algunos navegadores/YouTube pueden pausar si el iframe está oculto/0x0) */
+        /* YouTube mini-player */
         .yt-stage {
             position: fixed;
             right: 16px;
-            bottom: 104px; /* encima de la barra del reproductor */
+            bottom: 140px;
             width: 320px;
             height: 180px;
             background: #000;
@@ -109,7 +109,7 @@
         .yt-toggle-btn {
             position: fixed;
             right: 16px;
-            bottom: 104px;
+            bottom: 140px;
             z-index: 41;
             background: #282828;
             border: 1px solid rgba(255,255,255,0.1);
@@ -128,7 +128,181 @@
             color: white;
         }
         .yt-toggle-btn.yt-visible {
-            bottom: 296px;
+            bottom: 332px;
+        }
+        
+        /* Mobile-specific styles */
+        @media (max-width: 768px) {
+            .yt-stage {
+                right: 8px;
+                left: 8px;
+                width: auto;
+                bottom: 180px;
+                height: 160px;
+            }
+            .yt-toggle-btn {
+                right: 8px;
+                bottom: 180px;
+                padding: 6px 10px;
+                font-size: 11px;
+            }
+            .yt-toggle-btn.yt-visible {
+                bottom: 352px;
+            }
+        }
+        
+        /* Mobile Player Bar */
+        .mobile-player-mini {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-player-mini {
+                display: flex;
+                position: fixed;
+                bottom: 56px;
+                left: 0;
+                right: 0;
+                background: linear-gradient(to top, #282828, #181818);
+                padding: 8px 12px;
+                z-index: 45;
+                align-items: center;
+                gap: 12px;
+                border-top: 1px solid #333;
+            }
+            .mobile-player-mini .progress-bar-mini {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 2px;
+                background: #4d4d4d;
+            }
+            .mobile-player-mini .progress-fill-mini {
+                height: 100%;
+                background: #1db954;
+                width: 0%;
+                transition: width 0.3s linear;
+            }
+        }
+        
+        /* Mobile Bottom Navigation */
+        .mobile-nav {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-nav {
+                display: flex;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: #121212;
+                border-top: 1px solid #282828;
+                z-index: 50;
+                padding: 8px 0;
+                padding-bottom: max(8px, env(safe-area-inset-bottom));
+            }
+            .mobile-nav-item {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 4px;
+                color: #b3b3b3;
+                font-size: 10px;
+                padding: 4px;
+                transition: color 0.2s;
+            }
+            .mobile-nav-item.active {
+                color: white;
+            }
+            .mobile-nav-item svg {
+                width: 24px;
+                height: 24px;
+            }
+        }
+        
+        /* Desktop Player adjustments */
+        @media (max-width: 768px) {
+            #playerSection {
+                display: none !important;
+            }
+        }
+        
+        /* Main content adjustments for mobile */
+        @media (max-width: 768px) {
+            .flex.h-screen.pb-24 {
+                padding-bottom: 130px !important;
+            }
+            .max-w-5xl {
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+        }
+        
+        /* Playlist view mobile */
+        @media (max-width: 640px) {
+            #playlistView .flex.items-end.gap-6 {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+            #playlistView #playlistCover {
+                width: 180px !important;
+                height: 180px !important;
+            }
+            #playlistTitle {
+                font-size: 2rem !important;
+            }
+            #playlistView .flex.items-center.gap-6.mb-6 {
+                justify-content: center;
+            }
+        }
+        
+        /* Full screen mobile player */
+        .mobile-player-full {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(to bottom, #1a1a1a, #121212);
+            z-index: 60;
+            flex-direction: column;
+            padding: 16px;
+            padding-top: max(16px, env(safe-area-inset-top));
+            padding-bottom: max(16px, env(safe-area-inset-bottom));
+        }
+        .mobile-player-full.active {
+            display: flex;
+        }
+        
+        /* Touch-friendly buttons */
+        @media (max-width: 768px) {
+            button {
+                min-height: 44px;
+                min-width: 44px;
+            }
+            .result-row {
+                padding-top: 12px !important;
+                padding-bottom: 12px !important;
+            }
+        }
+        
+        /* Hide scrollbar on mobile playlists */
+        #playlistsMobile {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        #playlistsMobile::-webkit-scrollbar {
+            display: none;
+        }
+        
+        /* Safe area for notched devices */
+        @supports (padding: max(0px)) {
+            .mobile-nav {
+                padding-bottom: max(8px, env(safe-area-inset-bottom));
+            }
         }
     </style>
 </head>
@@ -436,6 +610,128 @@
             <button onclick="hideApiInstructions()" class="mt-6 bg-green-500 hover:bg-green-400 px-8 py-3 rounded-full font-bold text-black w-full">
                 Entendido
             </button>
+        </div>
+    </div>
+
+    <!-- Mobile Mini Player -->
+    <div id="mobilePlayerMini" class="mobile-player-mini hidden" onclick="openMobilePlayer()">
+        <div class="progress-bar-mini">
+            <div id="progressFillMini" class="progress-fill-mini"></div>
+        </div>
+        <img id="mobileThumb" src="" class="w-12 h-12 rounded object-cover">
+        <div class="flex-1 min-w-0">
+            <h4 id="mobileTitle" class="text-white text-sm font-medium truncate"></h4>
+            <p id="mobileChannel" class="text-gray-400 text-xs truncate"></p>
+        </div>
+        <button id="mobilePlayPauseBtn" onclick="event.stopPropagation(); togglePlayPause()" class="w-10 h-10 flex items-center justify-center">
+            <svg id="mobilePlayPauseIcon" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Mobile Full Player -->
+    <div id="mobilePlayerFull" class="mobile-player-full">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
+            <button onclick="closeMobilePlayer()" class="p-2">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+            </button>
+            <span class="text-xs text-gray-400 uppercase tracking-wider">Reproduciendo</span>
+            <button onclick="showMobileMenu()" class="p-2">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+            </button>
+        </div>
+        
+        <!-- Album Art -->
+        <div class="flex-1 flex items-center justify-center px-4">
+            <img id="mobileFullThumb" src="" class="w-full max-w-[300px] aspect-square rounded-lg shadow-2xl object-cover">
+        </div>
+        
+        <!-- Song Info -->
+        <div class="text-center mt-8 mb-4 px-4">
+            <h2 id="mobileFullTitle" class="text-xl font-bold text-white truncate"></h2>
+            <p id="mobileFullChannel" class="text-gray-400 text-sm mt-1 truncate"></p>
+        </div>
+        
+        <!-- Progress Bar -->
+        <div class="px-4 mb-4">
+            <div class="relative h-1 bg-[#4d4d4d] rounded-full">
+                <input type="range" id="mobileProgressBar" class="spotify-range absolute inset-0 w-full h-full z-10" min="0" max="100" value="0" oninput="seekMobile(this.value)">
+                <div id="mobileProgressFill" class="h-full bg-white rounded-full" style="width: 0%"></div>
+            </div>
+            <div class="flex justify-between mt-2 text-xs text-gray-400">
+                <span id="mobileCurrentTime">0:00</span>
+                <span id="mobileRemainingTime">-0:00</span>
+            </div>
+        </div>
+        
+        <!-- Controls -->
+        <div class="flex items-center justify-center gap-6 mb-8">
+            <button id="mobileShuffleBtn" onclick="toggleShuffle()" class="text-[#b3b3b3] p-3">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+            </button>
+            <button onclick="playPrevious()" class="text-white p-3">
+                <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+            </button>
+            <button id="mobileMainPlayBtn" onclick="togglePlayPause()" class="bg-white text-black rounded-full p-4">
+                <svg id="mobileMainPlayIcon" class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z"/>
+                </svg>
+            </button>
+            <button onclick="playNext()" class="text-white p-3">
+                <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+            </button>
+            <button id="mobileRepeatBtn" onclick="toggleRepeat()" class="text-[#b3b3b3] p-3">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+            </button>
+        </div>
+        
+        <!-- Extra Controls -->
+        <div class="flex items-center justify-between px-8 pb-4">
+            <button onclick="showAddToPlaylistMenu(event)" class="text-[#b3b3b3] p-2">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            </button>
+            <button onclick="toggleYtStage()" class="text-[#b3b3b3] p-2">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav id="mobileNav" class="mobile-nav">
+        <button onclick="showHome(); setActiveNav('home')" class="mobile-nav-item active" id="navHome">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 3L4 9v12h5v-7h6v7h5V9l-8-6z"/></svg>
+            <span>Inicio</span>
+        </button>
+        <button onclick="document.getElementById('searchInput').focus(); setActiveNav('search')" class="mobile-nav-item" id="navSearch">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 001.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 00-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 005.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            <span>Buscar</span>
+        </button>
+        <button onclick="showLibraryMobile(); setActiveNav('library')" class="mobile-nav-item" id="navLibrary">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z"/></svg>
+            <span>Biblioteca</span>
+        </button>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div id="mobileMenu" class="hidden fixed inset-0 bg-black/90 z-70 flex items-end">
+        <div class="bg-[#282828] w-full rounded-t-2xl p-4 pb-8">
+            <div class="w-12 h-1 bg-gray-600 rounded-full mx-auto mb-6"></div>
+            <div class="space-y-2">
+                <button onclick="showAddToPlaylistMenu(event); hideMobileMenu()" class="w-full flex items-center gap-4 p-4 hover:bg-[#3e3e3e] rounded-lg">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    <span>Añadir a playlist</span>
+                </button>
+                <button onclick="toggleYtStage(); hideMobileMenu()" class="w-full flex items-center gap-4 p-4 hover:bg-[#3e3e3e] rounded-lg">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
+                    <span>Mostrar video</span>
+                </button>
+                <button onclick="hideMobileMenu()" class="w-full flex items-center gap-4 p-4 hover:bg-[#3e3e3e] rounded-lg text-gray-400">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                    <span>Cerrar</span>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -1195,11 +1491,167 @@
             updateYtStageVisibility(); // Asegura que el estado inicial sea "oculto"
         }
         
-        // Update playMusic to show the toggle button
+        // Update playMusic to show the toggle button and mobile player
         const originalPlayMusic = playMusic;
         playMusic = function(videoId, title, channel, thumbnail) {
             originalPlayMusic(videoId, title, channel, thumbnail);
             showYtToggleBtn();
+            updateMobilePlayer(title, channel, thumbnail);
+        };
+        
+        // Mobile Player Functions
+        function updateMobilePlayer(title, channel, thumbnail) {
+            // Update mini player
+            document.getElementById('mobileThumb').src = thumbnail;
+            document.getElementById('mobileTitle').textContent = title;
+            document.getElementById('mobileChannel').textContent = channel;
+            document.getElementById('mobilePlayerMini').classList.remove('hidden');
+            
+            // Update full player
+            document.getElementById('mobileFullThumb').src = thumbnail;
+            document.getElementById('mobileFullTitle').textContent = title;
+            document.getElementById('mobileFullChannel').textContent = channel;
+        }
+        
+        function openMobilePlayer() {
+            document.getElementById('mobilePlayerFull').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeMobilePlayer() {
+            document.getElementById('mobilePlayerFull').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        
+        function togglePlayPause() {
+            if (player) {
+                isPlaying ? player.pauseVideo() : player.playVideo();
+            }
+        }
+        
+        function seekMobile(value) {
+            if (player?.getDuration) {
+                const seekTime = (value / 100) * player.getDuration();
+                player.seekTo(seekTime, true);
+            }
+        }
+        
+        function showMobileMenu() {
+            document.getElementById('mobileMenu').classList.remove('hidden');
+        }
+        
+        function hideMobileMenu() {
+            document.getElementById('mobileMenu').classList.add('hidden');
+        }
+        
+        function setActiveNav(tab) {
+            document.querySelectorAll('.mobile-nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            document.getElementById('nav' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+        }
+        
+        function showLibraryMobile() {
+            // Scroll to playlists section on mobile
+            const playlistsSection = document.getElementById('playlistsMobile');
+            if (playlistsSection) {
+                playlistsSection.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+        
+        // Update the original updatePlayPauseButton to also update mobile buttons
+        const originalUpdatePlayPauseButton = updatePlayPauseButton;
+        updatePlayPauseButton = function() {
+            originalUpdatePlayPauseButton();
+            
+            // Update mobile mini player button
+            const mobileIcon = document.getElementById('mobilePlayPauseIcon');
+            if (mobileIcon) {
+                mobileIcon.innerHTML = isPlaying 
+                    ? '<path d="M6 4h4v16H6zm8 0h4v16h-4z"/>'
+                    : '<path d="M8 5v14l11-7z"/>';
+            }
+            
+            // Update mobile full player button
+            const mobileMainIcon = document.getElementById('mobileMainPlayIcon');
+            if (mobileMainIcon) {
+                mobileMainIcon.innerHTML = isPlaying 
+                    ? '<path d="M6 4h4v16H6zm8 0h4v16h-4z"/>'
+                    : '<path d="M8 5v14l11-7z"/>';
+            }
+        };
+        
+        // Update the original updateProgress to also update mobile progress
+        const originalUpdateProgress = updateProgress;
+        updateProgress = function() {
+            originalUpdateProgress();
+            
+            if (player?.getCurrentTime && player?.getDuration) {
+                const current = player.getCurrentTime();
+                const duration = player.getDuration();
+                if (duration > 0) {
+                    const progress = (current / duration) * 100;
+                    
+                    // Update mobile mini player progress
+                    const progressFillMini = document.getElementById('progressFillMini');
+                    if (progressFillMini) {
+                        progressFillMini.style.width = progress + '%';
+                    }
+                    
+                    // Update mobile full player progress
+                    const mobileProgressBar = document.getElementById('mobileProgressBar');
+                    const mobileProgressFill = document.getElementById('mobileProgressFill');
+                    const mobileCurrentTime = document.getElementById('mobileCurrentTime');
+                    const mobileRemainingTime = document.getElementById('mobileRemainingTime');
+                    
+                    if (mobileProgressBar) mobileProgressBar.value = progress;
+                    if (mobileProgressFill) mobileProgressFill.style.width = progress + '%';
+                    if (mobileCurrentTime) mobileCurrentTime.textContent = formatTime(current);
+                    if (mobileRemainingTime) mobileRemainingTime.textContent = '-' + formatTime(duration - current);
+                }
+            }
+        };
+        
+        // Update the original toggleShuffle to also update mobile button
+        const originalToggleShuffle = toggleShuffle;
+        toggleShuffle = function() {
+            originalToggleShuffle();
+            
+            const mobileShuffleBtn = document.getElementById('mobileShuffleBtn');
+            if (mobileShuffleBtn) {
+                mobileShuffleBtn.classList.toggle('text-green-500', isShuffle);
+                mobileShuffleBtn.classList.toggle('text-[#b3b3b3]', !isShuffle);
+            }
+        };
+        
+        // Update the original toggleRepeat to also update mobile button
+        const originalToggleRepeat = toggleRepeat;
+        toggleRepeat = function() {
+            originalToggleRepeat();
+            
+            const mobileRepeatBtn = document.getElementById('mobileRepeatBtn');
+            if (mobileRepeatBtn) {
+                mobileRepeatBtn.classList.toggle('text-green-500', repeatMode > 0);
+                mobileRepeatBtn.classList.toggle('text-[#b3b3b3]', repeatMode === 0);
+            }
+        };
+        
+        // Close mobile menu on outside click
+        document.getElementById('mobileMenu').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideMobileMenu();
+            }
+        });
+        
+        // Adjust toast position for mobile
+        const originalShowToast = showToast;
+        showToast = function(message) {
+            const toast = document.createElement('div');
+            const isMobile = window.innerWidth < 768;
+            toast.className = `fixed ${isMobile ? 'bottom-36' : 'bottom-28'} left-1/2 transform -translate-x-1/2 bg-[#282828] text-white px-6 py-3 rounded-lg shadow-2xl z-[100] animate-pulse text-sm`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
         };
     </script>
 </body>
