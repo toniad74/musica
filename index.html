@@ -550,8 +550,8 @@
 
     <!-- Create Playlist Modal -->
     <div id="createPlaylistModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-        <div class="bg-[#282828] rounded-lg p-6 w-full max-w-md">
-            <h3 class="text-2xl font-bold mb-6">Crear playlist</h3>
+        <div class="bg-[#282828] rounded-lg p-6 w-full max-w-md mx-auto">
+            <h3 class="text-2xl font-bold mb-6 text-center">Crear playlist</h3>
             <input type="text" id="newPlaylistName" placeholder="Nombre de la playlist" 
                 class="w-full bg-[#3e3e3e] text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 mb-6"
                 onkeypress="if(event.key === 'Enter') createPlaylist()">
@@ -1009,8 +1009,35 @@
                 </button>
             `).join('');
             
-            menu.style.left = `${event.clientX}px`;
-            menu.style.top = `${event.clientY - menu.offsetHeight - 10}px`;
+            // Calcular posición asegurando que el menú esté siempre visible
+            const rect = menu.getBoundingClientRect();
+            const menuWidth = 200; // Ancho aproximado del menú
+            const menuHeight = Math.min(playlists.length * 44 + 40, 300); // Altura basada en número de playlists
+            
+            let left = event.clientX - 100; // Centrar respecto al clic
+            let top = event.clientY - menuHeight - 10;
+            
+            // Asegurar que el menú no se salga de la pantalla
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            // Ajustar posición horizontal
+            if (left < 10) left = 10;
+            if (left + menuWidth > viewportWidth) left = viewportWidth - menuWidth - 10;
+            
+            // Ajustar posición vertical
+            if (top < 10) top = event.clientY + 10; // Mostrar abajo si no cabe arriba
+            if (top + menuHeight > viewportHeight) {
+                if (event.clientY - menuHeight - 10 > 10) {
+                    top = event.clientY - menuHeight - 10;
+                } else {
+                    top = 10;
+                }
+            }
+            
+            menu.style.left = `${left}px`;
+            menu.style.top = `${top}px`;
+            menu.style.minWidth = `${menuWidth}px`;
             menu.classList.remove('hidden');
             
             setTimeout(() => {
