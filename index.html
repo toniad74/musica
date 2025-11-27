@@ -22,6 +22,78 @@
         .playlist-item:hover .playlist-play { opacity: 1; }
         .context-menu { animation: fadeIn 0.15s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+        .result-row.now-playing { 
+            background-color: rgba(29, 185, 84, 0.15); 
+            position: relative;
+        }
+        .result-row.now-playing::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: #1db954;
+            border-radius: 0 2px 2px 0;
+        }
+        .result-row.now-playing .track-number {
+            display: none !important;
+        }
+        .result-row.now-playing .play-button-hover {
+            display: none !important;
+        }
+        .result-row.now-playing .now-playing-indicator {
+            display: flex !important;
+        }
+        .result-row.now-playing .song-title {
+            color: #1db954 !important;
+        }
+        
+        /* Animación de barras de ecualización */
+        .equalizer-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 16px;
+        }
+        .equalizer-bar {
+            width: 3px;
+            background-color: #1db954;
+            border-radius: 1px;
+            animation: equalize 0.8s ease-in-out infinite;
+        }
+        .equalizer-bar:nth-child(1) { animation-delay: 0s; height: 60%; }
+        .equalizer-bar:nth-child(2) { animation-delay: 0.2s; height: 100%; }
+        .equalizer-bar:nth-child(3) { animation-delay: 0.4s; height: 40%; }
+        .equalizer-bar:nth-child(4) { animation-delay: 0.1s; height: 80%; }
+        
+        @keyframes equalize {
+            0%, 100% { transform: scaleY(0.3); }
+            50% { transform: scaleY(1); }
+        }
+        
+        .equalizer-bars.paused .equalizer-bar {
+            animation-play-state: paused;
+            transform: scaleY(0.3);
+        }
+
+        /* Mantener el iframe de YouTube fuera de pantalla sin usar display:none
+           (display:none puede pausar/detener el reproductor en algunos navegadores) */
+        .yt-offscreen {
+            position: fixed;
+            left: -10000px;
+            top: -10000px;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .yt-offscreen iframe {
+            width: 1px !important;
+            height: 1px !important;
+        }
     </style>
 </head>
 <body class="bg-black text-white min-h-screen">
@@ -77,23 +149,31 @@
                 </header>
 
                 <!-- API Key Section -->
-                <div id="apiKeySection" class="mb-6">
-                    <!-- API Key Warning -->
-                    <div id="apiWarning" class="bg-yellow-600/20 border border-yellow-500/50 rounded-lg p-4 mb-6">
-                        <p class="text-yellow-300 text-sm">
-                            ⚠️ <strong>Importante:</strong> Necesitas una API Key de YouTube Data API v3.
-                            <button onclick="showApiInstructions()" class="underline ml-2 hover:text-yellow-200">¿Cómo obtenerla?</button>
-                        </p>
+                <div class="mb-6">
+                    <div class="flex justify-end mb-3">
+                        <button id="apiKeyToggleButton" onclick="toggleApiKeySection()" aria-expanded="true"
+                            class="text-sm px-4 py-2 rounded-full border border-white/20 text-[#b3b3b3] hover:text-white hover:border-white transition-colors">
+                            Ocultar API Key
+                        </button>
                     </div>
+                    <div id="apiKeySection">
+                        <!-- API Key Warning -->
+                        <div id="apiWarning" class="bg-yellow-600/20 border border-yellow-500/50 rounded-lg p-4 mb-6">
+                            <p class="text-yellow-300 text-sm">
+                                ⚠️ <strong>Importante:</strong> Necesitas una API Key de YouTube Data API v3.
+                                <button onclick="showApiInstructions()" class="underline ml-2 hover:text-yellow-200">¿Cómo obtenerla?</button>
+                            </p>
+                        </div>
 
-                    <!-- API Key Input -->
-                    <div class="bg-[#282828] rounded-lg p-4 mb-6">
-                        <div class="flex flex-col sm:flex-row gap-3">
-                            <input type="password" id="apiKeyInput" placeholder="Pega tu API Key de YouTube aquí" 
-                                class="flex-1 bg-[#3e3e3e] border-none text-white px-4 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500">
-                            <button onclick="saveApiKey()" class="bg-green-500 hover:bg-green-400 px-8 py-3 rounded-full font-bold transition-all text-black">
-                                Guardar
-                            </button>
+                        <!-- API Key Input -->
+                        <div class="bg-[#282828] rounded-lg p-4">
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <input type="password" id="apiKeyInput" placeholder="Pega tu API Key de YouTube aquí" 
+                                    class="flex-1 bg-[#3e3e3e] border-none text-white px-4 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <button onclick="saveApiKey()" class="bg-green-500 hover:bg-green-400 px-8 py-3 rounded-full font-bold transition-all text-black">
+                                    Guardar
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -181,9 +261,13 @@
         </main>
     </div>
 
+    <!-- Offscreen YouTube Player (no usar display:none para evitar pausas) -->
+    <div class="yt-offscreen" aria-hidden="true">
+        <div id="youtubePlayer"></div>
+    </div>
+
     <!-- Player Bar -->
     <div id="playerSection" class="hidden fixed bottom-0 left-0 right-0 bg-[#181818] border-t border-[#282828] px-4 py-3 z-50 flex items-center justify-between h-24">
-        <div class="hidden"><div id="youtubePlayer"></div></div>
 
         <!-- Left: Song Info -->
         <div class="flex items-center gap-4 w-1/3 min-w-0">
@@ -231,7 +315,7 @@
 
         <!-- Right: Volume -->
         <div class="flex items-center justify-end gap-2 w-1/3 min-w-0">
-            <button id="muteBtn" class="text-[#b3b3b3] hover:text-white">
+            <button id="muteBtn" class="text-[#b3b3b3] hover:text-white" onclick="toggleMute()">
                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" id="volumeIcon">
                     <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
                 </svg>
@@ -323,13 +407,15 @@
         let isShuffle = false;
         let repeatMode = 0; // 0: off, 1: all, 2: one
         let progressInterval;
+        let isApiSectionVisible = true;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             if (API_KEY) {
                 document.getElementById('apiKeyInput').value = API_KEY;
-                // Ocultar completamente la sección de API Key si ya está guardada
-                document.getElementById('apiKeySection').style.display = 'none';
+                setApiKeySectionVisibility(false);
+            } else {
+                setApiKeySectionVisibility(true);
             }
             renderPlaylists();
             setupControls();
@@ -342,8 +428,7 @@
             if (key) {
                 API_KEY = key;
                 localStorage.setItem('youtubeApiKey', key);
-                // Ocultar completamente la sección de API Key
-                document.getElementById('apiKeySection').style.display = 'none';
+                setApiKeySectionVisibility(false);
                 showToast('✅ API Key guardada');
             } else {
                 showToast('❌ Ingresa una API Key válida');
@@ -356,6 +441,26 @@
 
         function hideApiInstructions() {
             document.getElementById('instructionsModal').classList.add('hidden');
+        }
+
+        function toggleApiKeySection() {
+            setApiKeySectionVisibility(!isApiSectionVisible);
+        }
+
+        function setApiKeySectionVisibility(visible) {
+            const section = document.getElementById('apiKeySection');
+            const toggleBtn = document.getElementById('apiKeyToggleButton');
+            isApiSectionVisible = visible;
+
+            if (visible) {
+                section.classList.remove('hidden');
+                toggleBtn.textContent = 'Ocultar API Key';
+                toggleBtn.setAttribute('aria-expanded', 'true');
+            } else {
+                section.classList.add('hidden');
+                toggleBtn.textContent = 'Mostrar API Key';
+                toggleBtn.setAttribute('aria-expanded', 'false');
+            }
         }
 
         // Playlist Functions
@@ -381,50 +486,30 @@
                 return;
             }
 
-            sidebar.innerHTML = playlists.map((pl, i) => {
-                const totalDuration = calculatePlaylistDuration(pl.songs);
-                return `
+            sidebar.innerHTML = playlists.map((pl, i) => `
                 <div class="playlist-item flex items-center gap-3 p-2 rounded-lg hover:bg-[#1a1a1a] cursor-pointer group relative" onclick="openPlaylist(${i})">
-                    <div class="w-12 h-12 bg-gradient-to-br from-purple-700 to-blue-500 rounded flex items-center justify-center flex-shrink-0 relative group-hover:mr-8 transition-all">
-                        <svg class="w-6 h-6 text-white/60" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                    <div class="w-12 h-12 bg-gradient-to-br from-purple-700 to-blue-500 rounded flex items-center justify-center flex-shrink-0 relative overflow-hidden">
+                        ${pl.coverImage ? `<img src="${pl.coverImage}" class="w-full h-full object-cover">` : `<svg class="w-6 h-6 text-white/60" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`}
                         <div class="playlist-play absolute inset-0 bg-black/50 rounded flex items-center justify-center opacity-0 transition-opacity">
                             <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                         </div>
                     </div>
                     <div class="min-w-0 flex-1">
                         <p class="text-white text-sm font-medium truncate">${pl.name}</p>
-                        <p class="text-gray-400 text-xs">${pl.songs.length} canciones • ${totalDuration}</p>
-                    </div>
-                    <div class="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onclick="event.stopPropagation(); editPlaylistName(${i})" class="text-gray-400 hover:text-white p-1 rounded-full" title="Editar nombre">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83c.39-.39 1.02-.39 1.41 0s.39 1.02 0 1.41l-2.34 2.34L16.86 19H20.71z"/></svg>
-                        </button>
-                        <button onclick="event.stopPropagation(); showDeletePlaylistConfirm(${i})" class="text-gray-400 hover:text-white p-1 rounded-full" title="Eliminar playlist">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                        </button>
+                        <p class="text-gray-400 text-xs">${pl.songs.length} canciones</p>
                     </div>
                 </div>
-            `;}).join('');
+            `).join('');
 
-            mobile.innerHTML = playlists.map((pl, i) => {
-                const totalDuration = calculatePlaylistDuration(pl.songs);
-                return `
-                <div onclick="openPlaylist(${i})" class="flex-shrink-0 bg-[#282828] hover:bg-[#3e3e3e] p-3 rounded-lg cursor-pointer min-w-[140px] relative group">
-                    <div class="w-full aspect-square bg-gradient-to-br from-purple-700 to-blue-500 rounded mb-2 flex items-center justify-center">
-                        <svg class="w-8 h-8 text-white/60" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+            mobile.innerHTML = playlists.map((pl, i) => `
+                <div onclick="openPlaylist(${i})" class="flex-shrink-0 bg-[#282828] hover:bg-[#3e3e3e] p-3 rounded-lg cursor-pointer min-w-[140px]">
+                    <div class="w-full aspect-square bg-gradient-to-br from-purple-700 to-blue-500 rounded mb-2 flex items-center justify-center overflow-hidden">
+                        ${pl.coverImage ? `<img src="${pl.coverImage}" class="w-full h-full object-cover">` : `<svg class="w-8 h-8 text-white/60" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`}
                     </div>
                     <p class="text-white text-sm font-medium truncate">${pl.name}</p>
-                    <p class="text-gray-400 text-xs">${pl.songs.length} canciones • ${totalDuration}</p>
-                    <div class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                        <button onclick="event.stopPropagation(); editPlaylistName(${i})" class="bg-black/50 text-gray-400 hover:text-white p-1 rounded-full" title="Editar">
-                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83c.39-.39 1.02-.39 1.41 0s.39 1.02 0 1.41l-2.34 2.34L16.86 19H20.71z"/></svg>
-                        </button>
-                        <button onclick="event.stopPropagation(); showDeletePlaylistConfirm(${i})" class="bg-black/50 text-gray-400 hover:text-white p-1 rounded-full" title="Eliminar">
-                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                        </button>
-                    </div>
+                    <p class="text-gray-400 text-xs">${pl.songs.length} canciones</p>
                 </div>
-            `;}).join('');
+            `).join('');
         }
 
         function showCreatePlaylistModal() {
@@ -459,6 +544,7 @@
             document.getElementById('playlistTitle').textContent = currentPlaylist.name;
             document.getElementById('playlistInfo').textContent = `${currentPlaylist.songs.length} canciones`;
             
+            updatePlaylistCoverUI();
             renderPlaylistSongs();
         }
 
@@ -476,33 +562,36 @@
                 return;
             }
 
-            const totalDuration = calculatePlaylistDuration(currentPlaylist.songs);
-            
-            container.innerHTML = `
-                <div class="px-4 py-3 border-b border-[#282828]">
-                    <p class="text-gray-400 text-sm">${currentPlaylist.songs.length} canciones • ${totalDuration}</p>
-                </div>
-                ${currentPlaylist.songs.map((song, i) => `
-                    <div class="result-row flex items-center px-4 py-3 cursor-pointer border-b border-[#282828] last:border-b-0" onclick="playFromPlaylist(${i})">
-                        <div class="flex items-center gap-4 flex-1 min-w-0">
-                            <div class="relative w-10 flex-shrink-0 flex items-center justify-center">
-                                <span class="track-number text-gray-400 text-sm">${i + 1}</span>
-                                <div class="play-button-hover absolute inset-0 flex items-center justify-center">
-                                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            container.innerHTML = currentPlaylist.songs.map((song, i) => {
+                const isCurrentSong = currentVideoId === song.videoId;
+                return `
+                <div class="result-row flex items-center px-4 py-3 cursor-pointer border-b border-[#282828] last:border-b-0 group ${isCurrentSong ? 'now-playing' : ''}" data-video-id="${song.videoId}" onclick="playFromPlaylist(${i})">
+                    <div class="flex items-center gap-4 flex-1 min-w-0">
+                        <div class="relative w-10 flex-shrink-0 flex items-center justify-center">
+                            <span class="track-number text-gray-400 text-sm">${i + 1}</span>
+                            <div class="play-button-hover absolute inset-0 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            </div>
+                            <div class="now-playing-indicator absolute inset-0 items-center justify-center hidden">
+                                <div class="equalizer-bars ${isPlaying ? '' : 'paused'}">
+                                    <div class="equalizer-bar"></div>
+                                    <div class="equalizer-bar"></div>
+                                    <div class="equalizer-bar"></div>
+                                    <div class="equalizer-bar"></div>
                                 </div>
                             </div>
-                            <img src="${song.thumbnail}" alt="" class="w-10 h-10 rounded object-cover">
-                            <div class="flex-1 min-w-0">
-                                <h3 class="text-white text-sm font-medium truncate">${song.title}</h3>
-                                <p class="text-gray-400 text-xs truncate">${song.channel}</p>
-                            </div>
-                            <button onclick="event.stopPropagation(); removeSongFromPlaylist(${i})" class="text-gray-400 hover:text-white p-2 opacity-0 group-hover:opacity-100" title="Eliminar">
-                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                            </button>
                         </div>
+                        <img src="${song.thumbnail}" alt="" class="w-10 h-10 rounded object-cover">
+                        <div class="flex-1 min-w-0">
+                            <h3 class="song-title text-white text-sm font-medium truncate">${song.title}</h3>
+                            <p class="text-gray-400 text-xs truncate">${song.channel}</p>
+                        </div>
+                        <button onclick="event.stopPropagation(); removeSongFromPlaylist(${i})" class="text-gray-400 hover:text-white p-2 opacity-0 group-hover:opacity-100" title="Eliminar">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                        </button>
                     </div>
-                `).join('')}
-            `;
+                </div>
+            `;}).join('');
         }
 
         function playFromPlaylist(index) {
@@ -648,6 +737,7 @@
 
                 const row = document.createElement('div');
                 row.className = 'result-row flex items-center px-4 py-3 cursor-pointer border-b border-[#282828] last:border-b-0 group';
+                row.dataset.videoId = videoId;
                 row.onclick = () => {
                     currentQueue = videos.map(v => ({
                         videoId: v.id.videoId,
@@ -676,9 +766,6 @@
                             <button onclick="event.stopPropagation(); showAddToPlaylistFromResults('${videoId}', '${title.replace(/'/g, "\\'")}', '${channel.replace(/'/g, "\\'")}', '${thumbnail}')" class="text-gray-400 hover:text-white p-2" title="Añadir a playlist">
                                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                             </button>
-                            <button onclick="event.stopPropagation(); playMusic('${videoId}', '${title.replace(/'/g, "\\'")}', '${channel.replace(/'/g, "\\'")}', '${thumbnail}')" class="text-gray-400 hover:text-white p-2" title="Reproducir">
-                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                            </button>
                         </div>
                     </div>
                 `;
@@ -700,35 +787,21 @@
 
         window.onYouTubeIframeAPIReady = function() {
             player = new YT.Player('youtubePlayer', {
-                height: '0', width: '0',
-                playerVars: { 
-                    autoplay: 1, 
-                    controls: 0, 
-                    disablekb: 1, 
-                    fs: 0, 
-                    modestbranding: 1, 
-                    playsinline: 1, 
+                height: '1',
+                width: '1',
+                playerVars: {
+                    autoplay: 1,
+                    controls: 0,
+                    disablekb: 1,
+                    fs: 0,
+                    modestbranding: 1,
+                    playsinline: 1,
                     rel: 0,
-                    loop: 0,
-                    playlist: '',
-                    enablejsapi: 1,
-                    origin: window.location.origin,
-                    widget_referrer: window.location.origin,
                     iv_load_policy: 3,
-                    cc_load_policy: 0,
-                    start: 0,
-                    end: 0,
-                    wmode: 'transparent',
-                    // Parámetros para evitar limitaciones de tiempo
-                    widget_referer: window.location.origin,
-                    host: 'https://www.youtube.com',
-                    version: 3,
-                    // Desactivar cualquier limitación de reproducción
-                    disableOpt: true,
-                    forceSSL: true
+                    origin: window.location.origin
                 },
-                events: { 
-                    onReady: onPlayerReady, 
+                events: {
+                    onReady: onPlayerReady,
                     onStateChange: onPlayerStateChange,
                     onError: onPlayerError
                 }
@@ -737,32 +810,11 @@
 
         function onPlayerReady(event) {
             event.target.setVolume(100);
-            event.target.unMute();
-            
-            // Mejorar la configuración del reproductor para reproducción continua
-            event.target.setPlaybackQuality('default');
-            
-            if (currentVideoId) {
-                // Configuración óptima para reproducción sin limitaciones
-                event.target.loadVideoById({
-                    videoId: currentVideoId,
-                    startSeconds: 0,
-                    endSeconds: 0,
-                    suggestedQuality: 'default'
-                });
-            }
         }
 
         function onPlayerError(event) {
             console.error('YouTube Player Error:', event.data);
-            showToast('❌ Error al cargar la canción. Intentando de nuevo...');
-            
-            // Intentar reproducir la canción después de un breve retraso
-            setTimeout(() => {
-                if (currentVideoId && player) {
-                    player.loadVideoById(currentVideoId);
-                }
-            }, 2000);
+            showToast('❌ Error al cargar la canción');
         }
 
         function onPlayerStateChange(event) {
@@ -770,12 +822,14 @@
                 isPlaying = true;
                 updatePlayPauseButton();
                 startProgressUpdate();
+                updateEqualizerState();
             } else if (event.data === YT.PlayerState.ENDED) {
                 handleSongEnd();
             } else {
                 isPlaying = false;
                 updatePlayPauseButton();
                 stopProgressUpdate();
+                updateEqualizerState();
             }
         }
 
@@ -790,12 +844,6 @@
                     currentQueueIndex = 0;
                     const song = currentQueue[0];
                     playMusic(song.videoId, song.title, song.channel, song.thumbnail);
-                } else {
-                    // Cuando termina la última canción y no hay repetición
-                    isPlaying = false;
-                    updatePlayPauseButton();
-                    stopProgressUpdate();
-                    showToast('🎵 Fin de la lista de reproducción');
                 }
             }
         }
@@ -805,205 +853,70 @@
             currentSong = { videoId, title, channel, thumbnail };
 
             if (player?.loadVideoById) {
-                try {
-                    // Configuración óptima para reproducción completa sin limitaciones
-                    player.loadVideoById({
-                        videoId: videoId,
-                        startSeconds: 0,
-                        endSeconds: 0,
-                        suggestedQuality: 'default',
-                        // Parámetros adicionales para evitar limitaciones
-                        playerVars: {
-                            disableOpt: true,
-                            forceSSL: true,
-                            widget_referrer: window.location.origin,
-                            // Parámetros específicos para evitar límite de 59 segundos
-                            playsinline: 1,
-                            enablejsapi: 1,
-                            origin: window.location.origin,
-                            widget_referer: window.location.origin,
-                            version: 3,
-                            // Desactivar cualquier posible limitación
-                            fs: 0,
-                            iv_load_policy: 3,
-                            cc_load_policy: 0,
-                            rel: 0,
-                            controls: 0,
-                            modestbranding: 1
-                        }
-                    });
-                    
-                    // Asegurar que el volumen esté activo y máximo
-                    player.setVolume(100);
-                    player.unMute();
-                    
-                    // Configurar calidad de reproducción óptima
-                    setTimeout(() => {
-                        if (player && typeof player.setPlaybackQuality === 'function') {
-                            try {
-                                player.setPlaybackQuality('default');
-                                player.setPlaybackRate(1);
-                            } catch (e) {
-                                console.warn('No se pudo configurar calidad de reproducción:', e);
-                            }
-                        }
-                    }, 100);
-                    
-                    // Intentar iniciar la reproducción
-                    setTimeout(() => {
-                        if (player && player.getPlayerState() === YT.PlayerState.UNSTARTED) {
-                            try {
-                                player.playVideo();
-                            } catch (e) {
-                                console.warn('Error al iniciar reproducción:', e);
-                            }
-                        }
-                    }, 500);
-                    
-                    // Monitoreo adicional para asegurar reproducción continua
-                    setTimeout(() => {
-                        if (player && player.getPlayerState() !== YT.PlayerState.PLAYING) {
-                            try {
-                                if (player.getCurrentTime() > 0) {
-                                    player.playVideo();
-                                }
-                            } catch (e) {
-                                console.warn('Error en monitoreo de reproducción:', e);
-                            }
-                        }
-                    }, 2000);
-                    
-                    // Iniciar monitoreo agresivo contra límite de 59 segundos
-                    setTimeout(() => {
-                        if (player && player.getDuration) {
-                            const duration = player.getDuration();
-                            if (duration > 60) { // Solo para canciones largas
-                                startAggressiveMonitoring();
-                            }
-                        }
-                    }, 3000);
-                    
-                } catch (error) {
-                    console.error('Error crítico al cargar video:', error);
-                    showToast('❌ Error al cargar la canción, intentando alternativa...');
-                    
-                    // Intentar carga alternativa con diferentes parámetros
-                    setTimeout(() => {
-                        if (player?.loadVideoById) {
-                            try {
-                                player.loadVideoById(videoId);
-                                player.setVolume(100);
-                                player.unMute();
-                                player.playVideo();
-                            } catch (e) {
-                                console.error('Error en carga alternativa:', e);
-                                showToast('❌ No se pudo cargar la canción');
-                            }
-                        }
-                    }, 1500);
-                }
+                player.loadVideoById(videoId);
             }
 
             document.getElementById('currentTitle').textContent = title;
             document.getElementById('currentChannel').textContent = channel;
             document.getElementById('currentThumbnail').src = thumbnail;
+            document.getElementById('currentThumbnail').classList.remove('hidden');
             document.getElementById('playerSection').classList.remove('hidden');
+            
+            // Actualizar indicador de canción en reproducción
+            updateNowPlayingIndicator();
         }
-
-        let intervalAggressiveMonitoring = null;
-
-        // Función para monitoreo agresivo contra límite de 49 segundos
-        function startAggressiveMonitoring() {
-            if (intervalAggressiveMonitoring) {
-                clearInterval(intervalAggressiveMonitoring);
+        
+        function updateNowPlayingIndicator() {
+            // Actualizar en la lista de playlist
+            if (currentPlaylist) {
+                renderPlaylistSongs();
             }
             
-            intervalAggressiveMonitoring = setInterval(() => {
-                if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                    try {
-                        const currentTime = player.getCurrentTime();
-                        const duration = player.getDuration();
-                        
-                        // Detectar si estamos cerca de los 49 segundos y la canción sigue reproduciéndose
-                        if (currentTime >= 48 && currentTime < 50 && duration > 60) {
-                            console.log('Detectado posible límite de 49s, monitoreando...');
-                            // Intentar mantener la reproducción activa
-                            setTimeout(() => {
-                                if (player && player.getPlayerState() === YT.PlayerState.PAUSED) {
-                                    console.log('Reanudando reproducción después de posible límite');
-                                    player.playVideo();
-                                }
-                            }, 500);
-                            
-                            // Intentar un pequeño seek para mantener la reproducción
-                            setTimeout(() => {
-                                if (player && player.getCurrentTime() >= 48) {
-                                    try {
-                                        const currentPos = player.getCurrentTime();
-                                        if (currentPos < 49.5) {
-                                            console.log('Forzando avance en 49s');
-                                            player.seekTo(currentPos + 0.5);
-                                        }
-                                    } catch (e) {
-                                        console.warn('Error en seek preventivo:', e);
-                                    }
-                                }
-                            }, 1000);
-                        }
-                        
-                        // Detectar si el video se reinicia inesperadamente (límite activado)
-                        if (currentTime < 3 && duration > 60 && player.getVideoLoadedFraction() > 0.8) {
-                            console.log('Detectado reinicio inesperado en 49s, intentando recuperar');
-                            setTimeout(() => {
-                                if (player && player.getCurrentTime() < 5) {
-                                    console.log('Fuerza reanudación después de reinicio');
-                                    player.playVideo();
-                                    
-                                    // Intentar buscar alrededor de los 50 segundos para continuar
-                                    setTimeout(() => {
-                                        if (player && player.getCurrentTime() < 10) {
-                                            console.log('Buscando posición después de límite de 49s');
-                                            try {
-                                                player.seekTo(50);
-                                            } catch (e) {
-                                                console.warn('Error en búsqueda después de límite:', e);
-                                            }
-                                        }
-                                    }, 1500);
-                                }
-                            }, 800);
-                        }
-                        
-                        // Monitoreo continuo para detectar cualquier pausa inesperada
-                        if (currentTime > 30 && duration > 60) {
-                            setTimeout(() => {
-                                if (player && player.getPlayerState() === YT.PlayerState.PAUSED) {
-                                    console.log('Detectada pausa inesperada, reanudando');
-                                    player.playVideo();
-                                }
-                            }, 300);
-                        }
-                        
-                        // Si pasamos los 60 segundos, detener el monitoreo agresivo
-                        if (currentTime > 60) {
-                            stopAggressiveMonitoring();
-                        }
-                        
-                    } catch (e) {
-                        console.warn('Error en monitoreo agresivo:', e);
-                    }
-                } else {
-                    // Si no está reproduciendo, detener el monitoreo
-                    stopAggressiveMonitoring();
-                }
-            }, 1000); // Verificar cada 1 segundo (más frecuente)
+            // Actualizar en los resultados de búsqueda
+            updateSearchResultsIndicator();
         }
-
-        function stopAggressiveMonitoring() {
-            if (intervalAggressiveMonitoring) {
-                clearInterval(intervalAggressiveMonitoring);
-                intervalAggressiveMonitoring = null;
-            }
+        
+        function updateSearchResultsIndicator() {
+            const resultsGrid = document.getElementById('resultsGrid');
+            if (!resultsGrid) return;
+            
+            const rows = resultsGrid.querySelectorAll('.result-row');
+            rows.forEach(row => {
+                const videoId = row.dataset.videoId;
+                const isCurrentSong = currentVideoId === videoId;
+                
+                row.classList.toggle('now-playing', isCurrentSong);
+                
+                // Agregar indicador de ecualización si no existe
+                const trackNumberContainer = row.querySelector('.relative.w-10');
+                if (trackNumberContainer && isCurrentSong) {
+                    let indicator = trackNumberContainer.querySelector('.now-playing-indicator');
+                    if (!indicator) {
+                        indicator = document.createElement('div');
+                        indicator.className = 'now-playing-indicator absolute inset-0 items-center justify-center hidden';
+                        indicator.innerHTML = `
+                            <div class="equalizer-bars ${isPlaying ? '' : 'paused'}">
+                                <div class="equalizer-bar"></div>
+                                <div class="equalizer-bar"></div>
+                                <div class="equalizer-bar"></div>
+                                <div class="equalizer-bar"></div>
+                            </div>
+                        `;
+                        trackNumberContainer.appendChild(indicator);
+                    }
+                    
+                    // Agregar clase song-title al título
+                    const titleEl = row.querySelector('h3');
+                    if (titleEl) titleEl.classList.add('song-title');
+                }
+            });
+        }
+        
+        function updateEqualizerState() {
+            // Actualizar el estado de pausa/reproducción de los ecualizadores
+            document.querySelectorAll('.equalizer-bars').forEach(eq => {
+                eq.classList.toggle('paused', !isPlaying);
+            });
         }
 
         function playNext() {
@@ -1015,7 +928,7 @@
 
         function playPrevious() {
             if (currentQueue.length === 0) return;
-            if (player?.getCurrentTime() > 3) {
+            if (player?.getCurrentTime && player.getCurrentTime() > 3) {
                 player.seekTo(0);
                 return;
             }
@@ -1050,29 +963,34 @@
             const btn = document.getElementById('repeatBtn');
             btn.classList.toggle('text-green-500', repeatMode > 0);
             btn.classList.toggle('text-[#b3b3b3]', repeatMode === 0);
-            btn.innerHTML = repeatMode === 2 
-                ? '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/><text x="12" y="14" text-anchor="middle" font-size="8" fill="currentColor">1</text></svg>'
-                : '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>';
+        }
+
+        function toggleMute() {
+            if (player) {
+                if (isMuted) {
+                    player.unMute();
+                    player.setVolume(document.getElementById('volumeBar').value);
+                } else {
+                    player.mute();
+                }
+                isMuted = !isMuted;
+                updateMuteButton();
+            }
         }
 
         function setupControls() {
             document.getElementById('playPauseBtn').onclick = () => {
                 if (player) isPlaying ? player.pauseVideo() : player.playVideo();
             };
-            document.getElementById('muteBtn').onclick = () => {
-                if (player) {
-                    isMuted ? player.unMute() : player.mute();
-                    isMuted = !isMuted;
-                    updateMuteButton();
-                }
-            };
+
             document.getElementById('progressBar').oninput = function() {
-                if (player) {
+                if (player?.getDuration) {
                     const seekTime = (this.value / 100) * player.getDuration();
                     player.seekTo(seekTime, true);
                     updateProgressVisuals(this.value);
                 }
             };
+
             document.getElementById('volumeBar').oninput = function() {
                 if (player) {
                     player.setVolume(this.value);
@@ -1085,15 +1003,18 @@
         }
 
         function updatePlayPauseButton() {
-            document.getElementById('playPauseIcon').setAttribute('d', 
+            document.getElementById('playPauseIcon').setAttribute('d',
                 isPlaying ? 'M6 4h4v16H6zm8 0h4v16h-4z' : 'M8 5v14l11-7z'
             );
         }
 
         function updateMuteButton() {
-            document.getElementById('volumeIcon').innerHTML = isMuted
-                ? '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>'
-                : '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>';
+            const icon = document.getElementById('volumeIcon');
+            if (isMuted) {
+                icon.innerHTML = '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>';
+            } else {
+                icon.innerHTML = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>';
+            }
         }
 
         function startProgressUpdate() {
@@ -1144,155 +1065,14 @@
             setTimeout(() => toast.remove(), 3000);
         }
 
-        // Click outside to close modals
-        ['instructionsModal', 'createPlaylistModal', 'deletePlaylistModal'].forEach(id => {
-            document.getElementById(id).addEventListener('click', function(e) {
-                if (e.target === this) this.classList.add('hidden');
-            });
-        });
-
-        // Enhanced Player Functions for Unlimited Playback
-        function ensureStablePlayback() {
-            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                // Mantener el video en reproducción estable
-                const currentTime = player.getCurrentTime();
-                const duration = player.getDuration();
-                
-                // Si el video se detiene inesperadamente, intentar reanudarlo
-                if (currentTime > 0 && !isPlaying) {
-                    setTimeout(() => {
-                        if (player && player.getPlayerState() !== YT.PlayerState.PLAYING) {
-                            player.playVideo();
-                        }
-                    }, 1000);
-                }
-                
-                // Programar la siguiente verificación
-                setTimeout(ensureStablePlayback, 5000);
-            }
-        }
-
-        function onPlayerReady(event) {
-            event.target.setVolume(100);
-            event.target.unMute();
-            
-            // Mejorar la configuración del reproductor para reproducción continua
-            event.target.setPlaybackQuality('default');
-            event.target.setPlaybackRate(1);
-            
-            if (currentVideoId) {
-                // Configuración óptima para reproducción sin limitaciones
-                event.target.loadVideoById({
-                    videoId: currentVideoId,
-                    startSeconds: 0,
-                    endSeconds: 0,
-                    suggestedQuality: 'default'
-                });
-                
-                // Iniciar monitoreo de reproducción estable
-                setTimeout(ensureStablePlayback, 2000);
-                
-                // Intentar iniciar reproducción inmediatamente
-                setTimeout(() => {
-                    if (event.target.getPlayerState() === YT.PlayerState.UNSTARTED) {
-                        event.target.playVideo();
-                    }
-                }, 100);
-            }
-        }
-
-        // Función mejorada para manejar carga de videos sin limitaciones
-        function ensureStablePlayback() {
-            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                const currentTime = player.getCurrentTime();
-                const duration = player.getDuration();
-                
-                // Verificar si el video se detiene inesperadamente o tiene problemas
-                if (currentTime > 0 && !isPlaying) {
-                    setTimeout(() => {
-                        if (player && player.getPlayerState() !== YT.PlayerState.PLAYING) {
-                            try {
-                                player.playVideo();
-                            } catch (e) {
-                                console.warn('Error al reanudar reproducción:', e);
-                            }
-                        }
-                    }, 1000);
-                }
-                
-                // Detectar si el video se reinicia inesperadamente (posible limitación)
-                if (currentTime < 1 && duration > 60) {
-                    setTimeout(() => {
-                        if (player && player.getCurrentTime() < 2) {
-                            try {
-                                player.playVideo();
-                            } catch (e) {
-                                console.warn('Error al mantener reproducción:', e);
-                            }
-                        }
-                    }, 500);
-                }
-                
-                // Programar la siguiente verificación
-                setTimeout(ensureStablePlayback, 3000);
-            } else if (player && currentVideoId) {
-                // Si no está reproduciendo pero debería estarlo
-                setTimeout(ensureStablePlayback, 2000);
-            }
-        }
-
-        // New functions for enhanced playlist functionality
+        // New helper functions
         function showAddToPlaylistFromResults(videoId, title, channel, thumbnail) {
-            // Crear un objeto de canción temporal
-            const song = { videoId, title, channel, thumbnail };
-            
-            // Mostrar el menú de añadir a playlist
-            const menu = document.getElementById('addToPlaylistMenu');
-            const items = document.getElementById('playlistMenuItems');
-            
-            items.innerHTML = playlists.map((pl, i) => `
-                <button onclick="addSongFromResults(${i}, '${videoId}', '${title.replace(/'/g, "\\'")}', '${channel.replace(/'/g, "\\'")}', '${thumbnail}'); hideAddToPlaylistMenu();" class="w-full text-left px-4 py-3 hover:bg-[#3e3e3e] truncate">
-                    ${pl.name}
-                </button>
-            `).join('');
-            
-            menu.style.left = `${event.clientX}px`;
-            menu.style.top = `${event.clientY - menu.offsetHeight - 10}px`;
-            menu.classList.remove('hidden');
-            
-            setTimeout(() => {
-                document.addEventListener('click', hideAddToPlaylistMenu, { once: true });
-            }, 0);
+            currentSong = { videoId, title, channel, thumbnail };
+            showAddToPlaylistMenu(event);
         }
 
-        function addSongFromResults(playlistIndex, videoId, title, channel, thumbnail) {
-            const playlist = playlists[playlistIndex];
-            const exists = playlist.songs.some(s => s.videoId === videoId);
-            
-            if (exists) {
-                showToast('Esta canción ya está en la playlist');
-            } else {
-                playlist.songs.push({ videoId, title, channel, thumbnail });
-                savePlaylists();
-                showToast(`Añadida a "${playlist.name}"`);
-                
-                if (currentPlaylistIndex === playlistIndex) {
-                    renderPlaylistSongs();
-                }
-            }
-        }
-
-        function calculatePlaylistDuration(songs) {
-            // Esta es una estimación simple. En una implementación real,
-            // deberías obtener la duración real de cada video usando la YouTube Data API
-            const totalSeconds = songs.length * 180; // Estimación de 3 minutos por canción
-            return formatTime(totalSeconds);
-        }
-
-        // Playlist cover image functions
         function triggerPlaylistCoverUpload() {
-            const input = document.getElementById('playlistCoverInput');
-            if (input) input.click();
+            document.getElementById('playlistCoverInput').click();
         }
 
         function handlePlaylistCoverChange(event) {
@@ -1301,64 +1081,35 @@
 
             const reader = new FileReader();
             reader.onload = e => {
-                const dataUrl = e.target.result;
-                currentPlaylist.coverImage = dataUrl;
+                currentPlaylist.coverImage = e.target.result;
                 savePlaylists();
                 updatePlaylistCoverUI();
                 renderPlaylists();
-                showToast('Portada de playlist actualizada');
+                showToast('Portada actualizada');
             };
             reader.readAsDataURL(file);
         }
 
         function updatePlaylistCoverUI() {
-            const coverDiv = document.getElementById('playlistCover');
             const img = document.getElementById('playlistCoverImage');
             const icon = document.getElementById('playlistCoverIcon');
-            if (!coverDiv || !img || !icon) return;
 
-            if (currentPlaylist && currentPlaylist.coverImage) {
+            if (currentPlaylist?.coverImage) {
                 img.src = currentPlaylist.coverImage;
                 img.classList.remove('hidden');
                 icon.classList.add('hidden');
             } else {
-                img.src = '';
                 img.classList.add('hidden');
                 icon.classList.remove('hidden');
             }
         }
 
-        function editPlaylistName(playlistIndex) {
-            const playlist = playlists[playlistIndex];
-            const newName = prompt('Editar nombre de la playlist:', playlist.name);
-            
-            if (newName && newName.trim() && newName.trim() !== playlist.name) {
-                playlist.name = newName.trim();
-                savePlaylists();
-                renderPlaylists();
-                if (currentPlaylistIndex === playlistIndex) {
-                    document.getElementById('playlistTitle').textContent = playlist.name;
-                }
-                showToast('Nombre de playlist actualizado');
-            }
-        }
-
-        function showDeletePlaylistConfirm(playlistIndex) {
-            currentPlaylistIndex = playlistIndex;
-            document.getElementById('deletePlaylistModal').classList.remove('hidden');
-        }
-
-        function deleteCurrentPlaylist() {
-            if (currentPlaylistIndex >= 0 && currentPlaylistIndex < playlists.length) {
-                const deletedPlaylist = playlists[currentPlaylistIndex];
-                playlists.splice(currentPlaylistIndex, 1);
-                savePlaylists();
-                renderPlaylists();
-                hideDeletePlaylistConfirm();
-                showHome();
-                showToast(`Playlist "${deletedPlaylist.name}" eliminada`);
-            }
-        }
+        // Close modals on outside click
+        ['instructionsModal', 'createPlaylistModal', 'deletePlaylistModal'].forEach(id => {
+            document.getElementById(id).addEventListener('click', function(e) {
+                if (e.target === this) this.classList.add('hidden');
+            });
+        });
     </script>
 </body>
 </html>
