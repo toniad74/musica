@@ -78,21 +78,30 @@
             transform: scaleY(0.3);
         }
 
-        /* Mantener el iframe de YouTube fuera de pantalla sin usar display:none
-           (display:none puede pausar/detener el reproductor en algunos navegadores) */
-        .yt-offscreen {
+        /* YouTube mini-player: mantenerlo en el viewport sin display:none ni tamaño 0
+           (algunos navegadores/YouTube pueden pausar si el iframe está oculto/0x0) */
+        .yt-stage {
             position: fixed;
-            left: -10000px;
-            top: -10000px;
-            width: 1px;
-            height: 1px;
+            right: 16px;
+            bottom: 104px; /* encima de la barra del reproductor */
+            width: 320px;
+            height: 180px;
+            background: #000;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+            z-index: 40;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .yt-stage iframe {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        .yt-stage.yt-stage-hidden {
             opacity: 0;
             pointer-events: none;
-            overflow: hidden;
-        }
-        .yt-offscreen iframe {
-            width: 1px !important;
-            height: 1px !important;
+            transform: translateY(12px) scale(0.98);
         }
     </style>
 </head>
@@ -241,6 +250,9 @@
                         <button onclick="playCurrentPlaylist()" class="bg-green-500 hover:bg-green-400 hover:scale-105 text-black rounded-full p-4 transition-all shadow-xl">
                             <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                         </button>
+                        <button onclick="showDownloadMenu(event, 'playlist')" class="text-[#b3b3b3] hover:text-white" title="Exportar / Descargar">
+                            <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zm7-18l-5.5 5.5 1.42 1.42L11 6.84V16h2V6.84l3.08 3.08 1.42-1.42L12 2z"/></svg>
+                        </button>
                         <button onclick="showDeletePlaylistConfirm()" class="text-[#b3b3b3] hover:text-white">
                             <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                         </button>
@@ -278,6 +290,9 @@
             </div>
             <button id="addToPlaylistBtn" onclick="showAddToPlaylistMenu(event)" class="text-[#b3b3b3] hover:text-white ml-2 hidden sm:block" title="Añadir a playlist">
                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            </button>
+            <button id="downloadBtn" onclick="showDownloadMenu(event)" class="text-[#b3b3b3] hover:text-white ml-2 hidden sm:block" title="Descargar / Exportar">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zm7-18l-5.5 5.5 1.42 1.42L11 6.84V16h2V6.84l3.08 3.08 1.42-1.42L12 2z"/></svg>
             </button>
         </div>
 
@@ -786,20 +801,27 @@
         }
 
         window.onYouTubeIframeAPIReady = function() {
+            // Evitar pasar origin='null' cuando se abre como file://
+            const safeOrigin = (window.location.origin && window.location.origin !== 'null') ? window.location.origin : undefined;
+
+            const playerVars = {
+                autoplay: 1,
+                controls: 0,
+                disablekb: 1,
+                fs: 0,
+                modestbranding: 1,
+                playsinline: 1,
+                rel: 0,
+                iv_load_policy: 3,
+                enablejsapi: 1
+            };
+
+            if (safeOrigin) playerVars.origin = safeOrigin;
+
             player = new YT.Player('youtubePlayer', {
-                height: '1',
-                width: '1',
-                playerVars: {
-                    autoplay: 1,
-                    controls: 0,
-                    disablekb: 1,
-                    fs: 0,
-                    modestbranding: 1,
-                    playsinline: 1,
-                    rel: 0,
-                    iv_load_policy: 3,
-                    origin: window.location.origin
-                },
+                height: '90',
+                width: '160',
+                playerVars,
                 events: {
                     onReady: onPlayerReady,
                     onStateChange: onPlayerStateChange,
