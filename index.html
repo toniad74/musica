@@ -174,7 +174,7 @@
             }
         }
         
-        /* Mobile Player Bar */
+        /* Mobile Player Bar - Spotify style */
         .mobile-player-mini {
             display: none;
         }
@@ -186,12 +186,13 @@
                 bottom: 56px;
                 left: 0;
                 right: 0;
-                background: linear-gradient(to top, #282828, #181818);
-                padding: 8px 12px;
+                background: linear-gradient(to top, #121212, #000000);
+                padding: 12px 16px;
                 z-index: 45;
                 align-items: center;
                 gap: 12px;
-                border-top: 1px solid #333;
+                border-top: 1px solid #282828;
+                backdrop-filter: blur(20px);
             }
             .mobile-player-mini .progress-bar-mini {
                 position: absolute;
@@ -207,9 +208,51 @@
                 width: 0%;
                 transition: width 0.3s linear;
             }
+            
+            /* Spotify-style player bar elements */
+            .mobile-player-mini img {
+                width: 48px;
+                height: 48px;
+                border-radius: 4px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            }
+            
+            .mobile-player-mini .flex-1 {
+                min-width: 0;
+            }
+            
+            .mobile-player-mini h4 {
+                font-size: 14px;
+                font-weight: 600;
+                line-height: 1.2;
+            }
+            
+            .mobile-player-mini p {
+                font-size: 12px;
+                color: #b3b3b3;
+                line-height: 1.2;
+            }
+            
+            .mobile-player-mini button {
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                background: #282828;
+                border: none;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                transition: all 0.2s ease;
+            }
+            
+            .mobile-player-mini button:hover {
+                background: #3e3e3e;
+                transform: scale(1.1);
+            }
         }
         
-        /* Mobile Bottom Navigation */
+        /* Mobile Bottom Navigation - Spotify style */
         .mobile-nav {
             display: none;
         }
@@ -221,29 +264,39 @@
                 bottom: 0;
                 left: 0;
                 right: 0;
-                background: #121212;
-                border-top: 1px solid #282828;
+                background: #0a0a0a;
+                border-top: 1px solid #1a1a1a;
                 z-index: 50;
-                padding: 8px 0;
-                padding-bottom: max(8px, env(safe-area-inset-bottom));
+                padding: 12px 0;
+                padding-bottom: max(12px, env(safe-area-inset-bottom));
+                backdrop-filter: blur(20px);
             }
             .mobile-nav-item {
                 flex: 1;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                gap: 4px;
-                color: #b3b3b3;
+                gap: 2px;
+                color: #8e8e93;
                 font-size: 10px;
                 padding: 4px;
-                transition: color 0.2s;
+                transition: all 0.2s ease;
+                border-radius: 8px;
             }
             .mobile-nav-item.active {
-                color: white;
+                color: #1db954;
+                background: rgba(29, 185, 84, 0.1);
+                padding: 8px 4px;
+                font-weight: 600;
             }
             .mobile-nav-item svg {
                 width: 24px;
                 height: 24px;
+            }
+            
+            .mobile-nav-item:hover {
+                color: #b3b3b3;
+                transform: scale(1.05);
             }
         }
         
@@ -254,7 +307,7 @@
             }
         }
         
-        /* Main content adjustments for mobile */
+        /* Main content adjustments for mobile - Spotify style */
         @media (max-width: 768px) {
             .flex.h-screen.pb-24 {
                 padding-bottom: 130px !important;
@@ -263,41 +316,272 @@
                 padding-left: 16px;
                 padding-right: 16px;
             }
+            
+            /* Header styling */
+            header.text-center.mb-6.md\:hidden {
+                margin-bottom: 24px !important;
+                padding: 0 4px;
+            }
+            
+            header.text-center.mb-6.md\:hidden h1 {
+                font-size: 28px;
+                font-weight: 800;
+                letter-spacing: -0.5px;
+            }
+            
+            /* Search section */
+            .mb-8 {
+                margin-bottom: 24px !important;
+            }
+            
+            #searchInput {
+                font-size: 16px;
+                padding: 16px 20px;
+                border-radius: 24px;
+                border: none;
+                background: #2a2a2a;
+                color: white;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            }
+            
+            #searchInput:focus {
+                outline: none;
+                box-shadow: 0 4px 12px rgba(29, 185, 84, 0.2);
+                background: #2f2f2f;
+            }
+            
+            button[onclick="searchMusic()"] {
+                padding: 16px 24px;
+                border-radius: 24px;
+                background: #1db954;
+                color: black;
+                font-weight: 700;
+                border: none;
+                box-shadow: 0 4px 12px rgba(29, 185, 84, 0.3);
+                transition: all 0.2s ease;
+            }
+            
+            button[onclick="searchMusic()"]:hover {
+                transform: scale(1.02);
+                box-shadow: 0 6px 16px rgba(29, 185, 84, 0.4);
+            }
         }
         
-        /* Playlist view mobile */
+        /* Mobile Playlists - Spotify style */
+        @media (max-width: 768px) {
+            .md\:hidden.mb-6 {
+                margin-bottom: 24px !important;
+            }
+            
+            .md\:hidden.mb-6 h2 {
+                font-size: 20px;
+                font-weight: 700;
+                margin-bottom: 16px;
+            }
+            
+            #playlistsMobile {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                gap: 16px;
+                padding-bottom: 8px;
+            }
+            
+            #playlistsMobile > div {
+                background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+                border-radius: 12px;
+                padding: 12px;
+                position: relative;
+                overflow: hidden;
+                border: 1px solid #2a2a2a;
+                transition: all 0.3s ease;
+            }
+            
+            #playlistsMobile > div:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+                border-color: #3a3a3a;
+            }
+            
+            #playlistsMobile > div .w-full.aspect-square {
+                border-radius: 8px;
+                margin-bottom: 8px;
+                position: relative;
+                overflow: hidden;
+            }
+            
+            #playlistsMobile > div p {
+                font-size: 14px;
+                font-weight: 600;
+                margin-bottom: 4px;
+                line-height: 1.3;
+            }
+            
+            #playlistsMobile > div p:last-child {
+                font-size: 12px;
+                color: #8e8e93;
+                font-weight: 400;
+            }
+        }
+        
+        /* Playlist view mobile - Spotify style */
         @media (max-width: 640px) {
             #playlistView .flex.items-end.gap-6 {
                 flex-direction: column;
                 align-items: center;
                 text-align: center;
+                gap: 20px;
             }
             #playlistView #playlistCover {
-                width: 180px !important;
-                height: 180px !important;
+                width: 200px !important;
+                height: 200px !important;
+                border-radius: 16px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             }
             #playlistTitle {
-                font-size: 2rem !important;
+                font-size: 24px !important;
+                font-weight: 800 !important;
+                line-height: 1.1;
+                margin-bottom: 8px;
+            }
+            #playlistInfo {
+                font-size: 14px !important;
+                color: #8e8e93 !important;
             }
             #playlistView .flex.items-center.gap-6.mb-6 {
                 justify-content: center;
+                gap: 24px;
+            }
+            
+            /* Playlist songs list */
+            #playlistSongs {
+                border-radius: 12px;
+                overflow: hidden;
             }
         }
         
-        /* Full screen mobile player */
+        /* Full screen mobile player - Spotify style */
         .mobile-player-full {
             display: none;
             position: fixed;
             inset: 0;
-            background: linear-gradient(to bottom, #1a1a1a, #121212);
+            background: linear-gradient(to bottom, #0a0a0a, #000000);
             z-index: 60;
             flex-direction: column;
-            padding: 16px;
-            padding-top: max(16px, env(safe-area-inset-top));
-            padding-bottom: max(16px, env(safe-area-inset-bottom));
+            padding: 24px 16px;
+            padding-top: max(24px, env(safe-area-inset-top));
+            padding-bottom: max(24px, env(safe-area-inset-bottom));
         }
         .mobile-player-full.active {
             display: flex;
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-player-full .flex.items-center.justify-between.mb-8 {
+                margin-bottom: 32px;
+            }
+            
+            .mobile-player-full .flex-1.flex.items-center.justify-center.px-4 img {
+                width: 300px;
+                height: 300px;
+                border-radius: 20px;
+                box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+            }
+            
+            .mobile-player-full .text-center.mt-8.mb-4.px-4 h2 {
+                font-size: 24px;
+                font-weight: 700;
+                line-height: 1.3;
+                margin-bottom: 8px;
+            }
+            
+            .mobile-player-full .text-center.mt-8.mb-4.px-4 p {
+                font-size: 16px;
+                color: #8e8e93;
+                line-height: 1.4;
+            }
+            
+            /* Progress bar */
+            .mobile-player-full .px-4.mb-4 .relative.h-1 {
+                border-radius: 4px;
+                background: #3a3a3a;
+                height: 4px;
+            }
+            
+            .mobile-player-full .px-4.mb-4 input[type="range"] {
+                height: 4px;
+            }
+            
+            .mobile-player-full .px-4.mb-4 #mobileProgressFill {
+                height: 100%;
+                background: #1db954;
+                border-radius: 4px;
+            }
+            
+            .mobile-player-full .px-4.mb-4 .flex.justify-between.mt-2 span {
+                font-size: 14px;
+                font-weight: 500;
+            }
+            
+            /* Controls */
+            .mobile-player-full .flex.items-center.justify-center.gap-6.mb-8 {
+                gap: 32px;
+                margin-bottom: 32px;
+            }
+            
+            .mobile-player-full button {
+                width: 56px;
+                height: 56px;
+                border-radius: 50%;
+                background: #1db954;
+                border: none;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: black;
+                box-shadow: 0 8px 24px rgba(29, 185, 84, 0.3);
+                transition: all 0.3s ease;
+            }
+            
+            .mobile-player-full button:hover {
+                transform: scale(1.1);
+                box-shadow: 0 12px 32px rgba(29, 185, 84, 0.4);
+            }
+            
+            .mobile-player-full button#mobileShuffleBtn,
+            .mobile-player-full button#mobileRepeatBtn {
+                background: #282828;
+                color: #b3b3b3;
+                box-shadow: none;
+            }
+            
+            .mobile-player-full button#mobileShuffleBtn.active,
+            .mobile-player-full button#mobileRepeatBtn.active {
+                background: #1db954;
+                color: black;
+            }
+            
+            .mobile-player-full .flex.items-center.justify-between.px-8.pb-4 {
+                padding: 0 24px;
+            }
+            
+            .mobile-player-full .flex.items-center.justify-between.px-8.pb-4 button {
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                background: #282828;
+                border: none;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #b3b3b3;
+                transition: all 0.2s ease;
+            }
+            
+            .mobile-player-full .flex.items-center.justify-between.px-8.pb-4 button:hover {
+                background: #3e3e3e;
+                color: white;
+                transform: scale(1.1);
+            }
         }
         
         /* Touch-friendly buttons */
@@ -305,10 +589,24 @@
             button {
                 min-height: 44px;
                 min-width: 44px;
+                padding: 8px 12px;
+                border-radius: 8px;
             }
+            
             .result-row {
-                padding-top: 12px !important;
-                padding-bottom: 12px !important;
+                padding: 16px;
+                border-radius: 8px;
+                margin-bottom: 1px;
+                transition: all 0.2s ease;
+            }
+            
+            .result-row:hover {
+                background: rgba(255, 255, 255, 0.05);
+            }
+            
+            .result-row.now-playing {
+                background: rgba(29, 185, 84, 0.1);
+                border-left: 3px solid #1db954;
             }
         }
         
@@ -324,7 +622,7 @@
         /* Safe area for notched devices */
         @supports (padding: max(0px)) {
             .mobile-nav {
-                padding-bottom: max(8px, env(safe-area-inset-bottom));
+                padding-bottom: max(12px, env(safe-area-inset-bottom));
             }
         }
     </style>
@@ -554,8 +852,11 @@
             </div>
         </div>
 
-        <!-- Right: Volume -->
+        <!-- Right: Volume and Queue -->
         <div class="flex items-center justify-end gap-2 w-1/3 min-w-0">
+            <button id="showQueueBtn" onclick="showQueue()" class="text-[#b3b3b3] hover:text-white px-2 py-1 rounded-full text-xs bg-[#3e3e3e] hover:bg-[#4d4d4d] transition-colors" title="Ver cola de reproducción">
+                <span id="queueCount" class="text-green-400 font-bold">0</span>
+            </button>
             <button id="muteBtn" class="text-[#b3b3b3] hover:text-white" onclick="toggleMute()">
                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" id="volumeIcon">
                     <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
@@ -754,9 +1055,37 @@
         </div>
     </div>
 
+    <!-- Queue Modal -->
+    <div id="queueModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-end z-60">
+        <div class="bg-[#181818] w-full max-w-md h-full flex flex-col shadow-2xl">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-4 border-b border-[#282828]">
+                <h3 class="text-xl font-bold text-white">Cola de reproducción</h3>
+                <button onclick="hideQueue()" class="text-gray-400 hover:text-white p-2">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                </button>
+            </div>
+            <!-- Queue Content -->
+            <div id="queueContent" class="flex-1 overflow-y-auto p-4">
+                <p class="text-gray-400 text-center py-8">No hay canciones en la cola</p>
+            </div>
+            <!-- Footer -->
+            <div class="p-4 border-t border-[#282828]">
+                <button onclick="clearQueue()" class="w-full text-red-400 hover:text-red-300 py-2 px-4 rounded-lg hover:bg-red-900/20 transition-colors">
+                    Vaciar cola
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // State
         let API_KEY = localStorage.getItem('youtubeApiKey') || '';
+        // Preconfigurar API_KEY si no existe en localStorage (para tu entorno actual)
+        if (!API_KEY) {
+            API_KEY = 'AIzaSyClFCOtyLczPJmv4lkW4q3MZdXnVXtai1E';
+            try { localStorage.setItem('youtubeApiKey', API_KEY); } catch (_) {}
+        }
         let playlists = JSON.parse(localStorage.getItem('playlists')) || [];
         let currentPlaylist = null;
         let currentPlaylistIndex = -1;
@@ -952,9 +1281,14 @@
                             <h3 class="song-title text-white text-sm font-medium truncate">${song.title}</h3>
                             <p class="text-gray-400 text-xs truncate">${song.channel}</p>
                         </div>
-                        <button onclick="event.stopPropagation(); removeSongFromPlaylist(${i})" class="text-gray-400 hover:text-white p-2 opacity-0 group-hover:opacity-100" title="Eliminar">
-                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                        </button>
+                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                            <button onclick="addToQueueFromPlaylist(${i}, event)" class="text-gray-400 hover:text-white p-2" title="Añadir a la cola">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/></svg>
+                            </button>
+                            <button onclick="event.stopPropagation(); removeSongFromPlaylist(${i})" class="text-gray-400 hover:text-white p-2" title="Eliminar">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;}).join('');
@@ -1112,7 +1446,12 @@
                     showError('No se encontraron resultados');
                 }
             } catch (error) {
-                showError('Error: ' + error.message);
+                // Intentar leer respuesta de error de la API de YouTube para mensajes más claros
+                if (error && error.message && error.message.includes('quota')) {
+                    showError('Has superado la cuota de la API de YouTube. Espera a que se reinicie tu cuota diaria o usa otra API Key. Más info en Google Cloud Console.');
+                } else {
+                    showError('Error: ' + error.message);
+                }
             } finally {
                 document.getElementById('loading').classList.add('hidden');
             }
@@ -1156,6 +1495,9 @@
                             <p class="text-gray-400 text-xs truncate">${channel}</p>
                         </div>
                         <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100">
+                            <button onclick="event.stopPropagation(); addToQueueFromResults('${videoId}', '${title.replace(/'/g, "\\'")}', '${channel.replace(/'/g, "\\'")}', '${thumbnail}', event)" class="text-gray-400 hover:text-white p-2" title="Añadir a la cola">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/></svg>
+                            </button>
                             <button onclick="event.stopPropagation(); showAddToPlaylistFromResults('${videoId}', '${title.replace(/'/g, "\\'")}', '${channel.replace(/'/g, "\\'")}', '${thumbnail}')" class="text-gray-400 hover:text-white p-2" title="Añadir a playlist">
                                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                             </button>
@@ -1658,6 +2000,148 @@
         function showAddToPlaylistFromResults(videoId, title, channel, thumbnail) {
             currentSong = { videoId, title, channel, thumbnail };
             showAddToPlaylistMenu(event);
+        }
+
+        // Cola de reproducción
+        function addSongToQueue(song) {
+            if (!song || !song.videoId) return;
+
+            // Si no hay cola activa, crearla y empezar a reproducir
+            if (!currentQueue || currentQueue.length === 0) {
+                currentQueue = [song];
+                currentQueueIndex = 0;
+                playMusic(song.videoId, song.title, song.channel, song.thumbnail);
+                showToast('Reproduciendo y añadida a la cola');
+                return;
+            }
+
+            // Añadir al final de la cola existente
+            currentQueue.push(song);
+            updateQueueCount();
+            showToast('Añadida a la cola de reproducción');
+        }
+
+        // Queue management functions
+        function showQueue() {
+            updateQueueContent();
+            document.getElementById('queueModal').classList.remove('hidden');
+        }
+
+        function hideQueue() {
+            document.getElementById('queueModal').classList.add('hidden');
+        }
+
+        function updateQueueContent() {
+            const container = document.getElementById('queueContent');
+            
+            if (!currentQueue || currentQueue.length === 0) {
+                container.innerHTML = `
+                    <p class="text-gray-400 text-center py-8">No hay canciones en la cola</p>
+                `;
+                return;
+            }
+
+            container.innerHTML = currentQueue.map((song, index) => {
+                const isCurrentSong = index === currentQueueIndex;
+                return `
+                <div class="flex items-center gap-3 p-3 rounded-lg hover:bg-[#282828] transition-colors mb-2 ${isCurrentSong ? 'bg-[#1a1a1a] border border-green-500/30' : ''}">
+                    <div class="relative">
+                        <img src="${song.thumbnail}" alt="" class="w-12 h-12 rounded object-cover">
+                        ${isCurrentSong ? `
+                            <div class="absolute inset-0 bg-black/60 rounded flex items-center justify-center">
+                                <div class="equalizer-bars">
+                                    <div class="equalizer-bar"></div>
+                                    <div class="equalizer-bar"></div>
+                                    <div class="equalizer-bar"></div>
+                                    <div class="equalizer-bar"></div>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="text-white text-sm font-medium truncate ${isCurrentSong ? 'text-green-400' : ''}">${song.title}</h4>
+                        <p class="text-gray-400 text-xs truncate">${song.channel}</p>
+                        ${isCurrentSong ? '<p class="text-green-400 text-xs font-medium">Reproduciendo ahora</p>' : ''}
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="playFromQueue(${index})" class="text-gray-400 hover:text-white p-2" title="Reproducir">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        </button>
+                        ${index !== currentQueueIndex ? `
+                            <button onclick="removeFromQueue(${index})" class="text-gray-400 hover:text-white p-2" title="Eliminar de la cola">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function playFromQueue(index) {
+            if (index >= 0 && index < currentQueue.length) {
+                currentQueueIndex = index;
+                const song = currentQueue[index];
+                playMusic(song.videoId, song.title, song.channel, song.thumbnail);
+                updateQueueContent();
+                hideQueue();
+            }
+        }
+
+        function removeFromQueue(index) {
+            if (index >= 0 && index < currentQueue.length) {
+                currentQueue.splice(index, 1);
+                
+                // Ajustar currentQueueIndex si es necesario
+                if (index < currentQueueIndex) {
+                    currentQueueIndex--;
+                } else if (index === currentQueueIndex) {
+                    // Si se elimina la canción actual, detener la reproducción
+                    if (currentQueueIndex >= currentQueue.length) {
+                        currentQueueIndex = currentQueue.length - 1;
+                        if (currentQueueIndex >= 0) {
+                            const song = currentQueue[currentQueueIndex];
+                            playMusic(song.videoId, song.title, song.channel, song.thumbnail);
+                        } else {
+                            // Cola vacía
+                            showToast('Cola vacía');
+                        }
+                    }
+                }
+                
+                updateQueueCount();
+                updateQueueContent();
+            }
+        }
+
+        function clearQueue() {
+            if (currentQueue && currentQueue.length > 0) {
+                currentQueue = [];
+                currentQueueIndex = -1;
+                updateQueueCount();
+                updateQueueContent();
+                showToast('Cola vaciada');
+            }
+        }
+
+        function updateQueueCount() {
+            const countElement = document.getElementById('queueCount');
+            if (countElement) {
+                countElement.textContent = currentQueue ? currentQueue.length : 0;
+            }
+        }
+
+        function addToQueueFromResults(videoId, title, channel, thumbnail, event) {
+            if (event) event.stopPropagation();
+            const song = { videoId, title, channel, thumbnail };
+            addSongToQueue(song);
+        }
+
+        function addToQueueFromPlaylist(index, event) {
+            if (event) event.stopPropagation();
+            if (!currentPlaylist || !currentPlaylist.songs || !currentPlaylist.songs[index]) return;
+            const song = currentPlaylist.songs[index];
+            addSongToQueue(song);
         }
 
         function triggerPlaylistCoverUpload() {
