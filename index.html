@@ -304,10 +304,20 @@
                 padding-bottom: max(8px, env(safe-area-inset-bottom));
             }
         }
+
+        /* Anti-injected ads (algunos hostings gratuitos inyectan banners/iframes, sobre todo en móvil)
+           Nota: esto NO elimina anuncios de YouTube dentro del reproductor (eso lo controla YouTube). */
+        ins.adsbygoogle, .adsbygoogle { display: none !important; }
+        [id^="ad_"], [id^="ad-"], [id^="ads_"], [id^="ads-"], [id^="google_ads"], [id^="googleads"] { display: none !important; }
+        [class^="ad_"], [class^="ad-"], [class^="ads_"], [class^="ads-"], [class*=" adsbygoogle"] { display: none !important; }
+        iframe[src*="doubleclick.net"], iframe[src*="googlesyndication.com"], iframe[src*="adservice"], iframe[src*="adsystem"],
+        iframe[src*="taboola"], iframe[src*="outbrain"], iframe[src*="mgid"], iframe[src*="propeller"], iframe[src*="criteo"], iframe[src*="adnxs"], iframe[src*="rubiconproject"] { display: none !important; }
+        /* Muchos hostings inyectan iframes/banners como hijos directos del <body> (sobre todo en móvil) */
+        body > iframe, body > ins { display: none !important; }
     </style>
 </head>
 <body class="bg-black text-white min-h-screen">
-    <div class="flex h-screen pb-24">
+    <div id="appRoot" class="flex h-screen pb-24">
         <!-- Sidebar -->
         <aside class="w-64 bg-black flex flex-col flex-shrink-0 hidden md:flex">
             <!-- Logo -->
@@ -1138,19 +1148,7 @@
                 playsinline: 1,
                 rel: 0,
                 iv_load_policy: 3,
-                cc_load_policy: 0,
-                enablejsapi: 1,
-                // Parámetros adicionales para minimizar anuncios en móvil
-                widget_referrer: safeOrigin,
-                host: 'https://www.youtube-nocookie.com',
-                showinfo: 0,
-                autohide: 1,
-                theme: 'dark',
-                color: 'white',
-                hl: 'es',
-                cc_lang_pref: 'es',
-                loop: 0,
-                playlist: ''
+                enablejsapi: 1
             };
 
             if (safeOrigin) playerVars.origin = safeOrigin;
@@ -1158,8 +1156,6 @@
             player = new YT.Player('youtubePlayer', {
                 height: '90',
                 width: '160',
-                // Usar youtube-nocookie.com para reducir anuncios
-                host: 'https://www.youtube-nocookie.com',
                 playerVars,
                 events: {
                     onReady: onPlayerReady,
@@ -1653,6 +1649,89 @@
             }
         });
         
+        // Anti injected ads removal (MutationObserver)
+        // Nota: esto NO quita anuncios de YouTube dentro del reproductor.
+        (function setupAntiInjectedAds() {
+            const suspiciousText = /(advert|ads|anuncio|publicidad|sponsor|promoted)/i;
+            const suspiciousIdClass = /(ad-|ads-|ad_|ads_|advert|adsbygoogle|doubleclick|googlesyndication|taboola|outbrain)/i;
+
+            function isOurElement(el) {
+                if (!el || el.nodeType !== 1) return false;
+                // Nunca tocar el reproductor ni sus ancestros
+                if (el.id === 'ytStage' || el.id === 'youtubePlayer' || el.closest?.('#ytStage') || el.closest?.('#youtubePlayer')) return true;
+                return false;
+            }
+
+            function looksLikeInjectedAd(el) {
+                if (!el || el.nodeType !== 1) return false;
+                if (isOurElement(el)) return false;
+
+                const id = (el.id || '').toLowerCase();
+                const cls = (el.className || '').toString().toLowerCase();
+
+                if (suspiciousIdClass.test(id) || suspiciousIdClass.test(cls)) return true;
+
+                // Iframes típicos de publicidad inyectada
+                if (el.tagName === 'IFRAME') {
+                    const src = (el.getAttribute('src') || '').toLowerCase();
+                    if (src.includes('doubleclick') || src.includes('googlesyndication') || src.includes('adservice') || src.includes('adsystem')) return true;
+                    // Algunos hostings inyectan iframes sin src pero con tamaño grande y z-index alto
+                    const r = el.getBoundingClientRect?.();
+                    if (r && (r.width > 250 || r.height > 250) && getComputedStyle(el).position === 'fixed') return true;
+                }
+
+                // Banners flotantes
+                try {
+                    const st = getComputedStyle(el);
+                    if (st.position === 'fixed') {
+                        const r = el.getBoundingClientRect();
+                        const area = r.width * r.height;
+                        if (area > 45000 && (parseInt(st.zIndex || '0', 10) >= 999 || id.includes('banner') || cls.includes('banner'))) {
+                            // Evitar falsos positivos: no eliminar nuestros overlays
+                            if (el.closest('#mobileMenu') || el.closest('#instructionsModal') || el.closest('#createPlaylistModal') || el.closest('#deletePlaylistModal')) return false;
+                            return true;
+                        }
+                    }
+                } catch (_) {}
+
+                // Texto sospechoso
+                const text = (el.textContent || '').trim();
+                if (text && text.length < 200 && suspiciousText.test(text) && (el.tagName === 'DIV' || el.tagName === 'SECTION' || el.tagName === 'ASIDE')) {
+                    return true;
+                }
+
+                return false;
+            }
+
+            function removeIfAd(el) {
+                if (!el || el.nodeType !== 1) return;
+                if (looksLikeInjectedAd(el)) {
+                    el.remove();
+                    return;
+                }
+                // Revisar hijos directos (escape rápido)
+                const children = Array.from(el.children || []);
+                for (const child of children) {
+                    if (looksLikeInjectedAd(child)) child.remove();
+                }
+            }
+
+            // Limpieza inicial
+            removeIfAd(document.body);
+
+            const obs = new MutationObserver((mutations) => {
+                for (const m of mutations) {
+                    for (const n of m.addedNodes) {
+                        if (n && n.nodeType === 1) {
+                            removeIfAd(n);
+                        }
+                    }
+                }
+            });
+
+            obs.observe(document.documentElement, { childList: true, subtree: true });
+        })();
+
         // Adjust toast position for mobile
         const originalShowToast = showToast;
         showToast = function(message) {
