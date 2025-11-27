@@ -1192,26 +1192,52 @@
             showToast('❌ Error al cargar la canción');
         }
 
+        // Flags para distinguir pausa del usuario vs. pausas inesperadas (ads/buffering)
+        let userPaused = false;
+        let lastUserToggleAt = 0;
+
         function onPlayerStateChange(event) {
             if (event.data === YT.PlayerState.PLAYING) {
                 isPlaying = true;
+                userPaused = false;
                 updatePlayPauseButton();
                 startProgressUpdate();
                 updateEqualizerState();
-                
+
                 // Intentar detectar y saltar anuncios automáticamente
                 detectAndSkipAds();
+
             } else if (event.data === YT.PlayerState.ENDED) {
+                isPlaying = false;
+                updatePlayPauseButton();
+                stopProgressUpdate();
+                updateEqualizerState();
                 handleSongEnd();
+
             } else if (event.data === YT.PlayerState.PAUSED) {
-                // Si se pausa inesperadamente, podría ser un anuncio
+                // Pausa normal
+                isPlaying = false;
+                updatePlayPauseButton();
+                stopProgressUpdate();
+                updateEqualizerState();
+
+                // Si el usuario acaba de pausar, NO reanudar automáticamente.
+                const recentlyToggled = Date.now() - lastUserToggleAt < 1200;
+                if (userPaused || recentlyToggled) return;
+
+                // Si se pausa inesperadamente (posible anuncio/bloqueo), intentar reanudar.
                 setTimeout(() => {
-                    if (player && isPlaying && player.getPlayerState() === YT.PlayerState.PAUSED) {
-                        // Intentar reanudar la reproducción
-                        player.playVideo();
+                    try {
+                        if (player && !userPaused && player.getPlayerState() === YT.PlayerState.PAUSED) {
+                            player.playVideo();
+                        }
+                    } catch (e) {
+                        // noop
                     }
-                }, 1000);
+                }, 900);
+
             } else {
+                // BUFFERING / CUED / UNSTARTED
                 isPlaying = false;
                 updatePlayPauseButton();
                 stopProgressUpdate();
@@ -1399,11 +1425,37 @@
 
         function toggleShuffle() {
             isShuffle = !isShuffle;
-            document.getElementById('shuffleBtn').classList.toggle('text-green-500', isShuffle);
-            document.getElementById('shuffleBtn').classList.toggle('text-[#b3b3b3]', !isShuffle);
-            
-            if (isShuffle && currentQueue.length > 0) {
-                shuffleQueue(currentQueueIndex);
+            const desktopBtn = document.getElementById('shuffleBtn');
+            if (desktopBtn) {
+                desktopBtn.classList.toggle('text-green-500', isShuffle);
+                desktopBtn.classList.toggle('text-[#b3b3b3]', !isShuffle);
+            }
+
+            // Si hay cola, reordenarla manteniendo la canción actual (si existe)
+            if (currentQueue.length > 0) {
+                if (isShuffle) {
+                    // Si no hay índice válido, intentar ubicar currentVideoId en la cola
+                    if (currentQueueIndex < 0 && currentVideoId) {
+                        const idx = currentQueue.findIndex(s => s.videoId === currentVideoId);
+                        if (idx >= 0) currentQueueIndex = idx;
+                    }
+                    const keep = Math.max(0, currentQueueIndex);
+                    shuffleQueue(keep);
+                } else {
+                    // Si se desactiva shuffle y estamos en una playlist, volver al orden original
+                    if (currentPlaylist?.songs?.length) {
+                        const vid = currentVideoId;
+                        currentQueue = [...currentPlaylist.songs];
+                        currentQueueIndex = vid ? currentQueue.findIndex(s => s.videoId === vid) : currentQueueIndex;
+                    }
+                }
+            }
+
+            // Actualizar UI móvil inmediatamente
+            const mobileShuffleBtn = document.getElementById('mobileShuffleBtn');
+            if (mobileShuffleBtn) {
+                mobileShuffleBtn.classList.toggle('text-green-500', isShuffle);
+                mobileShuffleBtn.classList.toggle('text-[#b3b3b3]', !isShuffle);
             }
         }
 
@@ -1420,9 +1472,19 @@
 
         function toggleRepeat() {
             repeatMode = (repeatMode + 1) % 3;
+
             const btn = document.getElementById('repeatBtn');
-            btn.classList.toggle('text-green-500', repeatMode > 0);
-            btn.classList.toggle('text-[#b3b3b3]', repeatMode === 0);
+            if (btn) {
+                btn.classList.toggle('text-green-500', repeatMode > 0);
+                btn.classList.toggle('text-[#b3b3b3]', repeatMode === 0);
+            }
+
+            // Actualizar UI móvil inmediatamente
+            const mobileRepeatBtn = document.getElementById('mobileRepeatBtn');
+            if (mobileRepeatBtn) {
+                mobileRepeatBtn.classList.toggle('text-green-500', repeatMode > 0);
+                mobileRepeatBtn.classList.toggle('text-[#b3b3b3]', repeatMode === 0);
+            }
         }
 
         function toggleMute() {
@@ -1439,8 +1501,10 @@
         }
 
         function setupControls() {
-            document.getElementById('playPauseBtn').onclick = () => {
-                if (player) isPlaying ? player.pauseVideo() : player.playVideo();
+            // Centralizar el control de play/pause para que respete la pausa del usuario
+            document.getElementById('playPauseBtn').onclick = (e) => {
+                try { e?.stopPropagation?.(); } catch (_) {}
+                togglePlayPause();
             };
 
             document.getElementById('progressBar').oninput = function() {
@@ -1633,8 +1697,23 @@
         }
         
         function togglePlayPause() {
-            if (player) {
-                isPlaying ? player.pauseVideo() : player.playVideo();
+            if (!player) return;
+            lastUserToggleAt = Date.now();
+
+            // Si el usuario está pausando, marcarlo para que la lógica anti-ads no reanude.
+            if (isPlaying) {
+                userPaused = true;
+                try { player.pauseVideo(); } catch (_) {}
+            } else {
+                userPaused = false;
+                try {
+                    // Si estaba en pausa, un pequeño seek ayuda en algunos móviles
+                    const t = typeof player.getCurrentTime === 'function' ? player.getCurrentTime() : 0;
+                    if (t > 0.2 && typeof player.seekTo === 'function') {
+                        player.seekTo(t, true);
+                    }
+                } catch (_) {}
+                try { player.playVideo(); } catch (_) {}
             }
         }
         
@@ -1671,8 +1750,9 @@
         // Update the original updatePlayPauseButton to also update mobile buttons
         const originalUpdatePlayPauseButton = updatePlayPauseButton;
         updatePlayPauseButton = function() {
+            // Desktop icon/estado
             originalUpdatePlayPauseButton();
-            
+
             // Update mobile mini player button
             const mobileIcon = document.getElementById('mobilePlayPauseIcon');
             if (mobileIcon) {
@@ -1680,7 +1760,7 @@
                     ? '<path d="M6 4h4v16H6zm8 0h4v16h-4z"/>'
                     : '<path d="M8 5v14l11-7z"/>';
             }
-            
+
             // Update mobile full player button
             const mobileMainIcon = document.getElementById('mobileMainPlayIcon');
             if (mobileMainIcon) {
@@ -1688,6 +1768,9 @@
                     ? '<path d="M6 4h4v16H6zm8 0h4v16h-4z"/>'
                     : '<path d="M8 5v14l11-7z"/>';
             }
+
+            // Mantener resaltado/eq al día
+            updateEqualizerState();
         };
         
         // Update the original updateProgress to also update mobile progress
@@ -1721,28 +1804,16 @@
             }
         };
         
-        // Update the original toggleShuffle to also update mobile button
+        // (Compat) toggleShuffle ya actualiza el botón móvil; mantener wrapper sin duplicar lógica
         const originalToggleShuffle = toggleShuffle;
         toggleShuffle = function() {
             originalToggleShuffle();
-            
-            const mobileShuffleBtn = document.getElementById('mobileShuffleBtn');
-            if (mobileShuffleBtn) {
-                mobileShuffleBtn.classList.toggle('text-green-500', isShuffle);
-                mobileShuffleBtn.classList.toggle('text-[#b3b3b3]', !isShuffle);
-            }
         };
         
-        // Update the original toggleRepeat to also update mobile button
+        // (Compat) toggleRepeat ya actualiza el botón móvil; mantener wrapper sin duplicar lógica
         const originalToggleRepeat = toggleRepeat;
         toggleRepeat = function() {
             originalToggleRepeat();
-            
-            const mobileRepeatBtn = document.getElementById('mobileRepeatBtn');
-            if (mobileRepeatBtn) {
-                mobileRepeatBtn.classList.toggle('text-green-500', repeatMode > 0);
-                mobileRepeatBtn.classList.toggle('text-[#b3b3b3]', repeatMode === 0);
-            }
         };
         
         // Close mobile menu on outside click
