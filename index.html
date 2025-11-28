@@ -307,11 +307,26 @@
                 font-size: 14px;
                 font-weight: 600;
                 line-height: 1.2;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                position: relative;
+            }
+            .mobile-player-mini h4.marquee {
+                text-overflow: clip;
+            }
+            .mobile-player-mini h4.marquee > span {
+                display: inline-block;
+                padding-right: 30px;
+                animation: marquee var(--marquee-duration, 10s) linear infinite;
             }
             .mobile-player-mini p {
                 font-size: 12px;
                 color: #b3b3b3;
                 line-height: 1.2;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
             .mobile-player-mini button {
                 width: 40px;
@@ -448,18 +463,24 @@
             }
             /* Títulos en móvil: una sola línea con scroll tipo marquee */
             #resultsGrid h3,
-            #playlistSongs h3.song-title {
+            #playlistSongs h3.song-title,
+            #mobileTitle,
+            #mobileFullTitle {
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 position: relative;
             }
             #resultsGrid h3.marquee,
-            #playlistSongs h3.song-title.marquee {
+            #playlistSongs h3.song-title.marquee,
+            #mobileTitle.marquee,
+            #mobileFullTitle.marquee {
                 text-overflow: clip;
             }
             #resultsGrid h3.marquee > span,
-            #playlistSongs h3.song-title.marquee > span {
+            #playlistSongs h3.song-title.marquee > span,
+            #mobileTitle.marquee > span,
+            #mobileFullTitle.marquee > span {
                 display: inline-block;
                 padding-right: 30px;
                 animation: marquee var(--marquee-duration, 10s) linear infinite;
@@ -719,7 +740,7 @@
         <!-- Right: Volume and Queue -->
         <div class="flex items-center justify-end gap-2 w-1/3 min-w-0">
             <button id="showQueueBtn" onclick="showQueue()" class="text-[#b3b3b3] hover:text-white px-2 py-1 rounded-full text-xs bg-[#3e3e3e] hover:bg-[#4d4d4d] transition-colors" title="Ver cola de reproducción">
-                <span id="queueCount" class="text-green-400 font-bold">0</span>
+                <span id="queueCount" class="text-black font-bold">0</span>
             </button>
             <button id="muteBtn" class="text-[#b3b3b3] hover:text-white" onclick="toggleMute()">
                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" id="volumeIcon">
@@ -810,6 +831,12 @@
             <h4 id="mobileTitle" class="text-white text-sm font-medium truncate"></h4>
             <p id="mobileChannel" class="text-gray-400 text-xs truncate"></p>
         </div>
+        <!-- Botón cola para móviles -->
+        <button id="mobileQueueBtn" onclick="event.stopPropagation(); showQueue()" class="w-10 h-10 flex items-center justify-center bg-[#282828] text-[#b3b3b3] mr-1">
+            <span id="mobileQueueCount" class="text-black font-bold text-xs">
+                0
+            </span>
+        </button>
         <button id="mobilePlayPauseBtn" onclick="event.stopPropagation(); togglePlayPause()" class="w-10 h-10 flex items-center justify-center">
             <svg id="mobilePlayPauseIcon" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z"/>
@@ -1110,7 +1137,7 @@
                             <p class="text-gray-400 text-xs truncate">${song.channel}</p>
                         </div>
                         <div class="flex items-center gap-1">
-                            <button onclick="addToQueueFromPlaylist(${i}, event)" class="text-gray-400 hover:text-white p-2" title="Añadir a la cola">
+                            <button onclick="addToQueueFromPlaylist(${i}, event)" class="text-gray-400 hover:text-white p-2" data-queue-video-id="${song.videoId}" title="Añadir a la cola">
                                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/></svg>
                             </button>
                             <button onclick="event.stopPropagation(); removeSongFromPlaylist(${i})" class="text-gray-400 hover:text-white p-2" title="Eliminar">
@@ -1313,7 +1340,7 @@
                             <p class="text-gray-400 text-xs truncate">${channel}</p>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button onclick="event.stopPropagation(); addToQueueFromResults('${videoId}', '${title.replace(/'/g, "\\'")}', '${channel.replace(/'/g, "\\'")}', '${thumbnail}', event)" class="text-gray-400 hover:text-white p-2" title="Añadir a la cola">
+                            <button onclick="event.stopPropagation(); addToQueueFromResults('${videoId}', '${title.replace(/'/g, "\\'")}', '${channel.replace(/'/g, "\\'")}', '${thumbnail}', event)" class="text-gray-400 hover:text-white p-2" data-queue-video-id="${videoId}" title="Añadir a la cola">
                                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/></svg>
                             </button>
                             <button onclick="event.stopPropagation(); showAddToPlaylistFromResults('${videoId}', '${title.replace(/'/g, "\\'")}', '${channel.replace(/'/g, "\\'")}', '${thumbnail}')" class="text-gray-400 hover:text-white p-2" title="Añadir a playlist">
@@ -1613,8 +1640,18 @@
         }
         function toggleShuffle() {
             isShuffle = !isShuffle;
-            document.getElementById('shuffleBtn').classList.toggle('text-green-500', isShuffle);
-            document.getElementById('shuffleBtn').classList.toggle('text-[#b3b3b3]', !isShuffle);
+            // Actualizar botón escritorio
+            const shuffleBtn = document.getElementById('shuffleBtn');
+            if (shuffleBtn) {
+                shuffleBtn.classList.toggle('text-green-500', isShuffle);
+                shuffleBtn.classList.toggle('text-[#b3b3b3]', !isShuffle);
+            }
+            // Actualizar botón móvil
+            const mobileShuffleBtn = document.getElementById('mobileShuffleBtn');
+            if (mobileShuffleBtn) {
+                mobileShuffleBtn.classList.toggle('text-green-500', isShuffle);
+                mobileShuffleBtn.classList.toggle('text-[#b3b3b3]', !isShuffle);
+            }
             if (isShuffle && currentQueue.length > 0) shuffleQueue(currentQueueIndex);
         }
         function shuffleQueue(keepIndex) {
@@ -1769,7 +1806,7 @@
 
         function applyMarqueeToVisibleLists() {
             if (window.innerWidth > 768) return;
-            document.querySelectorAll('#resultsGrid h3, #playlistSongs h3.song-title').forEach(applyMarqueeToTitleElement);
+            document.querySelectorAll('#resultsGrid h3, #playlistSongs h3.song-title, #mobileTitle').forEach(applyMarqueeToTitleElement);
         }
         function showError(message) {
             document.getElementById('errorText').textContent = message;
@@ -1801,12 +1838,14 @@
                 currentQueue = [song];
                 currentQueueIndex = 0;
                 playMusic(song.videoId, song.title, song.channel, song.thumbnail);
-                showToast('Reproduciendo y añadida a la cola');
                 updateQueueCount();
+                updateQueueIconForVideo(song.videoId);
+                showToast('Reproduciendo y añadida a la cola');
                 return;
             }
             currentQueue.push(song);
             updateQueueCount();
+            updateQueueIconForVideo(song.videoId);
             showToast('Añadida a la cola de reproducción');
         }
         function showQueue() {
@@ -1866,6 +1905,7 @@
         }
         function removeFromQueue(index) {
             if (index >= 0 && index < currentQueue.length) {
+                const removed = currentQueue[index];
                 currentQueue.splice(index, 1);
                 if (index < currentQueueIndex) currentQueueIndex--;
                 else if (index === currentQueueIndex) {
@@ -1881,20 +1921,52 @@
                 }
                 updateQueueCount();
                 updateQueueContent();
+                if (removed && removed.videoId) updateQueueIconForVideo(removed.videoId);
             }
         }
         function clearQueue() {
             if (currentQueue && currentQueue.length > 0) {
+                // Guardar los IDs de todas las canciones antes de vaciar
+                const videoIds = [...new Set(currentQueue.map(s => s.videoId))];
+                
+                // Vaciar la cola
                 currentQueue = [];
                 currentQueueIndex = -1;
+                
+                // Actualizar contador y contenido
                 updateQueueCount();
                 updateQueueContent();
+                
+                // Restaurar el color original (gris) de todos los iconos de cola
+                videoIds.forEach(id => {
+                    document.querySelectorAll('[data-queue-video-id="' + id + '"]').forEach(btn => {
+                        btn.classList.remove('text-green-400');
+                        btn.classList.add('text-gray-400');
+                    });
+                });
+                
                 showToast('Cola vaciada');
             }
         }
         function updateQueueCount() {
+            const total = currentQueue ? currentQueue.length : 0;
             const countElement = document.getElementById('queueCount');
-            if (countElement) countElement.textContent = currentQueue ? currentQueue.length : 0;
+            if (countElement) countElement.textContent = total;
+            const mobileCountElement = document.getElementById('mobileQueueCount');
+            if (mobileCountElement) mobileCountElement.textContent = total;
+        }
+        function updateQueueIconForVideo(videoId) {
+            if (!videoId) return;
+            const inQueue = Array.isArray(currentQueue) && currentQueue.some(s => s.videoId === videoId);
+            document.querySelectorAll('[data-queue-video-id="' + videoId + '"]').forEach(btn => {
+                if (inQueue) {
+                    btn.classList.remove('text-gray-400');
+                    btn.classList.add('text-green-400');
+                } else {
+                    btn.classList.add('text-gray-400');
+                    btn.classList.remove('text-green-400');
+                }
+            });
         }
         function addToQueueFromResults(videoId, title, channel, thumbnail, event) {
             if (event) event.stopPropagation();
@@ -1961,17 +2033,32 @@
             updateMobilePlayer(title, channel, thumbnail);
         };
         function updateMobilePlayer(title, channel, thumbnail) {
-            document.getElementById('mobileThumb').src = thumbnail;
-            document.getElementById('mobileTitle').textContent = title;
-            document.getElementById('mobileChannel').textContent = channel;
-            document.getElementById('mobilePlayerMini').classList.remove('hidden');
-            document.getElementById('mobileFullThumb').src = thumbnail;
-            document.getElementById('mobileFullTitle').textContent = title;
-            document.getElementById('mobileFullChannel').textContent = channel;
+            const mobileThumb = document.getElementById('mobileThumb');
+            const mobileTitleEl = document.getElementById('mobileTitle');
+            const mobileChannelEl = document.getElementById('mobileChannel');
+            const mobileMini = document.getElementById('mobilePlayerMini');
+            const mobileFullThumb = document.getElementById('mobileFullThumb');
+            const mobileFullTitleEl = document.getElementById('mobileFullTitle');
+            const mobileFullChannelEl = document.getElementById('mobileFullChannel');
+
+            if (mobileThumb) mobileThumb.src = thumbnail;
+            if (mobileTitleEl) {
+                // Actualizamos también el atributo usado por el marquee para evitar que se quede el título antiguo
+                mobileTitleEl.setAttribute('data-raw-title', title);
+                mobileTitleEl.textContent = title;
+            }
+            if (mobileChannelEl) mobileChannelEl.textContent = channel;
+            if (mobileMini) mobileMini.classList.remove('hidden');
+            if (mobileFullThumb) mobileFullThumb.src = thumbnail;
+            if (mobileFullTitleEl) {
+                mobileFullTitleEl.setAttribute('data-raw-title', title);
+                mobileFullTitleEl.textContent = title;
+            }
+            if (mobileFullChannelEl) mobileFullChannelEl.textContent = channel;
 
             // Activar marquee en el mini-player y en el full-player
-            applyMarqueeToTitleElement(document.getElementById('mobileTitle'));
-            applyMarqueeToTitleElement(document.getElementById('mobileFullTitle'));
+            if (mobileTitleEl) applyMarqueeToTitleElement(mobileTitleEl);
+            if (mobileFullTitleEl) applyMarqueeToTitleElement(mobileFullTitleEl);
         }
         function openMobilePlayer() {
             document.getElementById('mobilePlayerFull').classList.add('active');
