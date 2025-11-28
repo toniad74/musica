@@ -343,24 +343,47 @@
             display: flex;
         }
         @media (max-width: 768px) {
+            /* HEADER */
             .mobile-player-full .flex.items-center.justify-between.mb-8 {
-                margin-bottom: 28px;
+                margin-bottom: 16px;
             }
+            .mobile-player-full .flex.items-center.justify-between.mb-8 button {
+                width: 44px;
+                height: 44px;
+                border-radius: 9999px;
+                border: none;
+            }
+
+            /* PORTADA (evitar deformación: 16:9 + tamaño menor) */
             .mobile-player-full .flex-1.flex.items-center.justify-center.px-4 img {
-                width: 320px;
-                height: 320px;
-                max-width: 90vw;
-                border-radius: 24px;
-                box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+                width: min(92vw, 360px);
+                aspect-ratio: 16 / 9;
+                height: auto;
+                max-height: 28vh;
+                border-radius: 18px;
+                background: #000;
+                object-fit: contain;
+                box-shadow: 0 18px 45px rgba(0,0,0,0.7);
+            }
+
+            /* TEXTO */
+            .mobile-player-full .text-center.mt-8.mb-4.px-4 {
+                margin-top: 14px !important;
+                margin-bottom: 10px !important;
             }
             .mobile-player-full .text-center.mt-8.mb-4.px-4 h2 {
-                font-size: 22px;
-                font-weight: 700;
-                margin-bottom: 6px;
+                font-size: 18px;
+                font-weight: 800;
+                margin-bottom: 4px;
             }
             .mobile-player-full .text-center.mt-8.mb-4.px-4 p {
-                font-size: 15px;
+                font-size: 13px;
                 color: #a7a7a7;
+            }
+
+            /* BARRA DE PROGRESO */
+            .mobile-player-full .px-4.mb-4 {
+                margin-bottom: 12px !important;
             }
             .mobile-player-full .px-4.mb-4 .relative.h-1 {
                 height: 4px;
@@ -375,17 +398,21 @@
                 font-size: 12px;
                 color: #a7a7a7;
             }
+
+            /* CONTROLES PRINCIPALES */
             .mobile-player-full .flex.items-center.justify-center.gap-6.mb-8 {
-                gap: 32px;
-                margin-bottom: 24px;
+                gap: 18px;
+                margin-bottom: 12px;
             }
-            .mobile-player-full button {
-                width: 60px;
-                height: 60px;
+            .mobile-player-full .flex.items-center.justify-center.gap-6.mb-8 button {
+                width: 52px;
+                height: 52px;
                 border-radius: 9999px;
                 border: none;
             }
             .mobile-player-full #mobileMainPlayBtn {
+                width: 64px;
+                height: 64px;
                 background: #fff;
                 color: #000;
                 box-shadow: 0 16px 40px rgba(0,0,0,0.6);
@@ -395,11 +422,21 @@
                 background: transparent;
                 color: #a7a7a7;
             }
+
+            /* CONTROLES SECUNDARIOS */
             .mobile-player-full .flex.items-center.justify-between.px-8.pb-4 button {
                 width: 44px;
                 height: 44px;
                 border-radius: 9999px;
                 background: #1f1f1f;
+                border: none;
+            }
+
+            /* Si la pantalla es muy baja, reducimos todavía más la portada */
+            @media (max-height: 700px) {
+                .mobile-player-full .flex-1.flex.items-center.justify-center.px-4 img {
+                    max-height: 22vh;
+                }
             }
         }
 
