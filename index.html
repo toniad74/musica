@@ -884,7 +884,15 @@
             API_KEY = 'AIzaSyClFCOtyLczPJmv4lkW4q3MZdXnVXtai1E';
             try { localStorage.setItem('youtubeApiKey', API_KEY); } catch (_) {}
         }
+        
+        // Limpieza automática de playlists corruptas/vacias específicas al inicio
         let playlists = JSON.parse(localStorage.getItem('playlists')) || [];
+        const initialLength = playlists.length;
+        playlists = playlists.filter(p => !(p.name === 'Rosalia' && p.songs.length === 0));
+        if (playlists.length !== initialLength) {
+            localStorage.setItem('playlists', JSON.stringify(playlists));
+            console.log('Limpieza de playlists vacías realizada');
+        }
         let currentPlaylist = null;
         let currentPlaylistIndex = -1;
         let currentQueue = [];
@@ -996,6 +1004,9 @@
                     </div>
                     <p class="text-white text-sm font-medium truncate">${pl.name}</p>
                     <p class="text-gray-400 text-xs">${pl.songs.length} canciones • ${totalDuration}</p>
+                    <button onclick="event.stopPropagation(); showDeletePlaylistConfirm(${i})" class="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-red-600 transition-colors z-10" title="Eliminar playlist">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                    </button>
                 </div>`;
             }).join('');
         }
