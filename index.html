@@ -399,11 +399,21 @@
             }
         }
 
-        /* Touch-friendly */
+        /* Touch-friendly + mobile text adjustments */
         @media (max-width: 768px) {
             button {
                 min-height: 44px;
                 min-width: 44px;
+            }
+            /* Mostrar el nombre completo de la canción en listas en móvil */
+            #resultsGrid h3,
+            #playlistSongs h3.song-title {
+                white-space: normal;
+                overflow: visible;
+                text-overflow: unset;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
             }
         }
 
