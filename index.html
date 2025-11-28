@@ -257,24 +257,28 @@
             }
         }
 
-        /* Mobile mini player */
+        /* Mobile mini player (solo visible cuando JS quita la clase .hidden) */
         .mobile-player-mini {
             display: none;
         }
         @media (max-width: 768px) {
             .mobile-player-mini {
-                display: flex;
+                display: none;
                 position: fixed;
-                bottom: 56px;
+                bottom: 0;
                 left: 0;
                 right: 0;
                 background: linear-gradient(to top, #121212, #000000);
                 padding: 12px 16px;
+                padding-bottom: max(12px, env(safe-area-inset-bottom));
                 z-index: 45;
                 align-items: center;
                 gap: 12px;
                 border-top: 1px solid #282828;
                 backdrop-filter: blur(20px);
+            }
+            .mobile-player-mini:not(.hidden) {
+                display: flex;
             }
             .mobile-player-mini .progress-bar-mini {
                 position: absolute;
@@ -405,16 +409,29 @@
                 min-height: 44px;
                 min-width: 44px;
             }
-            /* Mostrar el nombre completo de la canción en listas en móvil */
+            /* Títulos en móvil: una sola línea con scroll tipo marquee */
             #resultsGrid h3,
             #playlistSongs h3.song-title {
-                white-space: normal;
-                overflow: visible;
-                text-overflow: unset;
-                display: -webkit-box;
-                -webkit-line-clamp: 2;
-                -webkit-box-orient: vertical;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                position: relative;
             }
+            #resultsGrid h3.marquee,
+            #playlistSongs h3.song-title.marquee {
+                text-overflow: clip;
+            }
+            #resultsGrid h3.marquee > span,
+            #playlistSongs h3.song-title.marquee > span {
+                display: inline-block;
+                padding-right: 30px;
+                animation: marquee var(--marquee-duration, 10s) linear infinite;
+            }
+        }
+
+        @keyframes marquee {
+            from { transform: translateX(0); }
+            to { transform: translateX(calc(-1 * var(--marquee-distance, 0px))); }
         }
 
         /* Anti‑ads CSS */
@@ -1261,6 +1278,7 @@
             document.getElementById('resultsSection').classList.remove('hidden');
             updateSearchPaginationUI();
             updateSearchResultsIndicator();
+            applyMarqueeToVisibleLists();
         }
 
         function loadYouTubeAPI() {
@@ -1318,6 +1336,13 @@
         };
         function onPlayerReady(event) {
             event.target.setVolume(100);
+            // Si el usuario eligió una canción antes de que el player estuviera listo
+            // la cargamos ahora para evitar el “no reproduce”.
+            try {
+                if (currentVideoId) {
+                    event.target.loadVideoById(currentVideoId);
+                }
+            } catch (_) {}
         }
         function onPlayerError(event) {
             console.error('YouTube Player Error:', event.data);
@@ -1446,13 +1471,25 @@
         function playMusic(videoId, title, channel, thumbnail) {
             currentVideoId = videoId;
             currentSong = { videoId, title, channel, thumbnail };
-            if (player?.loadVideoById) player.loadVideoById(videoId);
+
+            // Si el player aún no está listo, guardamos el id y se cargará en onPlayerReady
+            if (player?.loadVideoById) {
+                try {
+                    player.loadVideoById(videoId);
+                } catch (e) {
+                    console.warn('loadVideoById failed (player not ready yet?):', e);
+                }
+            }
+
             document.getElementById('currentTitle').textContent = title;
             document.getElementById('currentChannel').textContent = channel;
             document.getElementById('currentThumbnail').src = thumbnail;
             document.getElementById('currentThumbnail').classList.remove('hidden');
             document.getElementById('playerSection').classList.remove('hidden');
             updateNowPlayingIndicator();
+
+            // Marquee en listados al cambiar canción
+            setTimeout(() => applyMarqueeToVisibleLists(), 50);
         }
         function updateNowPlayingIndicator() {
             if (currentPlaylist) renderPlaylistSongs();
@@ -1639,6 +1676,52 @@
             const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
             return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Duración estimada de playlist (YouTube Search API no trae duración)
+        function calculatePlaylistDuration(songs) {
+            const totalSeconds = (songs?.length || 0) * 180; // ~3 min por canción
+            return formatTime(totalSeconds);
+        }
+
+        // Marquee/scroll de títulos largos (solo móvil)
+        function applyMarqueeToTitleElement(el) {
+            if (!el) return;
+            if (window.innerWidth > 768) return;
+
+            // Reset si ya estaba aplicado
+            const raw = el.getAttribute('data-raw-title') || el.textContent;
+            el.setAttribute('data-raw-title', raw);
+            el.classList.remove('marquee');
+            el.style.removeProperty('--marquee-distance');
+            el.style.removeProperty('--marquee-duration');
+            el.textContent = raw;
+
+            // Medir overflow
+            const overflow = el.scrollWidth > el.clientWidth + 6;
+            if (!overflow) return;
+
+            // Construir marquee
+            const span = document.createElement('span');
+            span.textContent = raw;
+            el.textContent = '';
+            el.appendChild(span);
+            el.classList.add('marquee');
+
+            const containerW = el.getBoundingClientRect().width;
+            const spanW = span.getBoundingClientRect().width;
+            const gap = 30;
+            const distance = Math.max(0, (spanW - containerW) + gap);
+            const pxPerSecond = 40;
+            const duration = Math.max(6, distance / pxPerSecond);
+
+            el.style.setProperty('--marquee-distance', `${distance}px`);
+            el.style.setProperty('--marquee-duration', `${duration}s`);
+        }
+
+        function applyMarqueeToVisibleLists() {
+            if (window.innerWidth > 768) return;
+            document.querySelectorAll('#resultsGrid h3, #playlistSongs h3.song-title').forEach(applyMarqueeToTitleElement);
         }
         function showError(message) {
             document.getElementById('errorText').textContent = message;
@@ -1837,6 +1920,10 @@
             document.getElementById('mobileFullThumb').src = thumbnail;
             document.getElementById('mobileFullTitle').textContent = title;
             document.getElementById('mobileFullChannel').textContent = channel;
+
+            // Activar marquee en el mini-player y en el full-player
+            applyMarqueeToTitleElement(document.getElementById('mobileTitle'));
+            applyMarqueeToTitleElement(document.getElementById('mobileFullTitle'));
         }
         function openMobilePlayer() {
             document.getElementById('mobilePlayerFull').classList.add('active');
