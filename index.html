@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Amaya's Music</title>
+    <title>aMAYAS</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
         .result-row { transition: all 0.2s ease; }
@@ -435,7 +435,14 @@
             .mobile-player-full #mobileShuffleBtn,
             .mobile-player-full #mobileRepeatBtn {
                 background: transparent;
+            }
+            .mobile-player-full #mobileShuffleBtn:not(.text-green-500),
+            .mobile-player-full #mobileRepeatBtn:not(.text-green-500) {
                 color: #a7a7a7;
+            }
+            .mobile-player-full #mobileShuffleBtn.text-green-500,
+            .mobile-player-full #mobileRepeatBtn.text-green-500 {
+                color: #1db954 !important;
             }
 
             /* CONTROLES SECUNDARIOS */
@@ -855,8 +862,12 @@
                 <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
             </button>
         </div>
-        <div class="flex-1 flex items-center justify-center px-4 hidden">
-            <img id="mobileFullThumb" src="" class="w-full max-w-[300px] aspect-square rounded-lg shadow-2xl object-cover">
+        <div class="flex-1 flex items-center justify-center px-4">
+            <div id="mobileMediaContainer" class="relative w-full max-w-[340px]">
+                <div id="mobileVideoContainer" class="w-full aspect-video rounded-lg overflow-hidden shadow-2xl bg-black">
+                    <!-- El video de YouTube se moverá aquí -->
+                </div>
+            </div>
         </div>
         <div class="text-center mt-8 mb-4 px-4">
             <h2 id="mobileFullTitle" class="text-xl font-bold text-white truncate"></h2>
@@ -873,9 +884,6 @@
             </div>
         </div>
         <div class="flex items-center justify-center gap-6 mb-8">
-            <button id="mobileShuffleBtn" onclick="toggleShuffle()" class="text-[#b3b3b3] p-3">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
-            </button>
             <button onclick="playPrevious()" class="text-white p-3">
                 <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
             </button>
@@ -891,6 +899,7 @@
                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
             </button>
         </div>
+
         <div class="flex items-center justify-between px-8 pb-4 hidden">
             <button onclick="showAddToPlaylistMenu(event)" class="text-[#b3b3b3] p-2">
                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
@@ -1412,7 +1421,7 @@
         function onPlayerReady(event) {
             event.target.setVolume(100);
             // Si el usuario eligió una canción antes de que el player estuviera listo
-            // la cargamos ahora para evitar el “no reproduce”.
+            // la cargamos ahora para evitar el "no reproduce".
             try {
                 if (currentVideoId) {
                     event.target.loadVideoById(currentVideoId);
@@ -1640,18 +1649,8 @@
         }
         function toggleShuffle() {
             isShuffle = !isShuffle;
-            // Actualizar botón escritorio
-            const shuffleBtn = document.getElementById('shuffleBtn');
-            if (shuffleBtn) {
-                shuffleBtn.classList.toggle('text-green-500', isShuffle);
-                shuffleBtn.classList.toggle('text-[#b3b3b3]', !isShuffle);
-            }
-            // Actualizar botón móvil
-            const mobileShuffleBtn = document.getElementById('mobileShuffleBtn');
-            if (mobileShuffleBtn) {
-                mobileShuffleBtn.classList.toggle('text-green-500', isShuffle);
-                mobileShuffleBtn.classList.toggle('text-[#b3b3b3]', !isShuffle);
-            }
+            document.getElementById('shuffleBtn').classList.toggle('text-green-500', isShuffle);
+            document.getElementById('shuffleBtn').classList.toggle('text-[#b3b3b3]', !isShuffle);
             if (isShuffle && currentQueue.length > 0) shuffleQueue(currentQueueIndex);
         }
         function shuffleQueue(keepIndex) {
@@ -1926,25 +1925,12 @@
         }
         function clearQueue() {
             if (currentQueue && currentQueue.length > 0) {
-                // Guardar los IDs de todas las canciones antes de vaciar
                 const videoIds = [...new Set(currentQueue.map(s => s.videoId))];
-                
-                // Vaciar la cola
                 currentQueue = [];
                 currentQueueIndex = -1;
-                
-                // Actualizar contador y contenido
                 updateQueueCount();
                 updateQueueContent();
-                
-                // Restaurar el color original (gris) de todos los iconos de cola
-                videoIds.forEach(id => {
-                    document.querySelectorAll('[data-queue-video-id="' + id + '"]').forEach(btn => {
-                        btn.classList.remove('text-green-400');
-                        btn.classList.add('text-gray-400');
-                    });
-                });
-                
+                videoIds.forEach(id => updateQueueIconForVideo(id));
                 showToast('Cola vaciada');
             }
         }
@@ -2023,6 +2009,56 @@
             if (isYtStageVisible) stage.classList.add('yt-stage-visible');
             else stage.classList.remove('yt-stage-visible');
         }
+        
+        // Sincronización de posición del video sin recarga (evita appendChild)
+        function updateVideoPosition() {
+            const ytStage = document.getElementById('ytStage');
+            const mobileContainer = document.getElementById('mobileVideoContainer');
+            const mobilePlayer = document.getElementById('mobilePlayerFull');
+            const isMobileOpen = mobilePlayer.classList.contains('active');
+            
+            if (isMobileOpen) {
+                // Modo Mobile Full Screen: Posicionar #ytStage sobre el contenedor móvil
+                const rect = mobileContainer.getBoundingClientRect();
+                
+                ytStage.style.position = 'fixed';
+                ytStage.style.top = rect.top + 'px';
+                ytStage.style.left = rect.left + 'px';
+                ytStage.style.width = rect.width + 'px';
+                ytStage.style.height = rect.height + 'px';
+                ytStage.style.bottom = 'auto';
+                ytStage.style.right = 'auto';
+                ytStage.style.zIndex = '65'; // Por encima del player (z-60)
+                ytStage.style.borderRadius = '12px';
+                ytStage.style.opacity = '1';
+                ytStage.style.pointerEvents = 'auto';
+                ytStage.style.display = 'block'; 
+                ytStage.style.transform = 'none'; // Resetear posibles transformaciones
+            } else {
+                // Modo Mini Player (Default): Restaurar estilos CSS
+                ytStage.style.position = '';
+                ytStage.style.top = '';
+                ytStage.style.left = '';
+                ytStage.style.width = '';
+                ytStage.style.height = '';
+                ytStage.style.bottom = '';
+                ytStage.style.right = '';
+                ytStage.style.zIndex = '';
+                ytStage.style.borderRadius = '';
+                ytStage.style.display = '';
+                ytStage.style.opacity = ''; 
+                ytStage.style.pointerEvents = '';
+                ytStage.style.transform = '';
+                
+                updateYtStageVisibility();
+            }
+        }
+
+        // Listener para redimensionamiento
+        window.addEventListener('resize', () => {
+            requestAnimationFrame(updateVideoPosition);
+        });
+
         function showYtToggleBtn() {
             updateYtStageVisibility();
         }
@@ -2043,7 +2079,6 @@
 
             if (mobileThumb) mobileThumb.src = thumbnail;
             if (mobileTitleEl) {
-                // Actualizamos también el atributo usado por el marquee para evitar que se quede el título antiguo
                 mobileTitleEl.setAttribute('data-raw-title', title);
                 mobileTitleEl.textContent = title;
             }
@@ -2056,18 +2091,26 @@
             }
             if (mobileFullChannelEl) mobileFullChannelEl.textContent = channel;
 
-            // Activar marquee en el mini-player y en el full-player
             if (mobileTitleEl) applyMarqueeToTitleElement(mobileTitleEl);
             if (mobileFullTitleEl) applyMarqueeToTitleElement(mobileFullTitleEl);
         }
         function openMobilePlayer() {
             document.getElementById('mobilePlayerFull').classList.add('active');
             document.body.style.overflow = 'hidden';
+            // Posicionar video sin mover el DOM
+            requestAnimationFrame(updateVideoPosition);
         }
         function closeMobilePlayer() {
             document.getElementById('mobilePlayerFull').classList.remove('active');
             document.body.style.overflow = '';
+            // Restaurar video al mini player
+            requestAnimationFrame(updateVideoPosition);
         }
+        
+        // Funciones antiguas eliminadas o vacías para compatibilidad si se llaman
+        function moveVideoToMobilePlayer() {}
+        function moveVideoToYtStage() {}
+        
         function togglePlayPause() {
             if (!player) return;
             if (isPlaying) {
@@ -2093,6 +2136,11 @@
         document.getElementById('mobileMenu').addEventListener('click', function(e) {
             if (e.target === this) hideMobileMenu();
         });
+
+        // Toggle video mobile (simplemente asegura que la posición se actualice)
+        function toggleMobileVideo() {
+            requestAnimationFrame(updateVideoPosition);
+        }
     </script>
 </body>
 </html>
