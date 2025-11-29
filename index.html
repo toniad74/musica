@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>aMAYAS</title>
+    <title>Amaya's Music</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
         .result-row { transition: all 0.2s ease; }
@@ -499,6 +499,23 @@
             to { transform: translateX(calc(-1 * var(--marquee-distance, 0px))); }
         }
 
+        /* Queue & fullscreen marquee support */
+        .queue-song-title,
+        .queue-song-channel,
+        #mobileFullChannel {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            position: relative;
+        }
+        .queue-song-title.marquee > span,
+        .queue-song-channel.marquee > span,
+        #mobileFullChannel.marquee > span {
+            display: inline-block;
+            padding-right: 30px;
+            animation: marquee var(--marquee-duration, 10s) linear infinite;
+        }
+
         /* Anti‑ads CSS */
         body > iframe:not(#youtubePlayer):not(#ytStage iframe),
         body > ins.adsbygoogle,
@@ -534,7 +551,7 @@
             <!-- Logo -->
             <div class="p-6">
                 <h1 class="text-2xl font-bold text-white flex items-center gap-2">
-                    <span class="text-green-500">♪</span> aMAYAS
+                    <span class="text-green-500">♪</span> Amaya's Music
                 </h1>
             </div>
             
@@ -573,7 +590,7 @@
                 <!-- Mobile Header -->
                 <header class="text-center mb-6 md:hidden">
                     <h1 class="text-3xl font-bold text-white flex items-center justify-center gap-2">
-                        <span class="text-green-500">♪</span> aMAYAS
+                        <span class="text-green-500">♪</span> Amaya's Music
                     </h1>
                 </header>
 
@@ -1331,6 +1348,12 @@
                 row.className = 'result-row flex items-center px-4 py-3 cursor-pointer border-b border-[#282828] last:border-b-0 group';
                 row.dataset.videoId = videoId;
                 row.onclick = () => {
+                    // Si ya se está reproduciendo el mismo video, solo mostramos la sección sin reiniciar
+                    if (currentVideoId === videoId) {
+                        document.getElementById('resultsSection').classList.remove('hidden');
+                        updateNowPlayingIndicator();
+                        return;
+                    }
                     currentQueue = [{ videoId, title, channel, thumbnail }];
                     currentQueueIndex = 0;
                     playMusic(videoId, title, channel, thumbnail);
@@ -1421,7 +1444,6 @@
         function onPlayerReady(event) {
             event.target.setVolume(100);
             // Si el usuario eligió una canción antes de que el player estuviera listo
-            // la cargamos ahora para evitar el "no reproduce".
             try {
                 if (currentVideoId) {
                     event.target.loadVideoById(currentVideoId);
@@ -1552,16 +1574,33 @@
                 observer.observe(document.body, { childList: true, subtree: true });
             } catch (e) {}
         }
-        function playMusic(videoId, title, channel, thumbnail) {
+
+        // Versión base de playMusic: NO reiniciar si el video ya es el mismo
+        function basePlayMusic(videoId, title, channel, thumbnail) {
+            const sameRequested = currentVideoId === videoId;
             currentVideoId = videoId;
             currentSong = { videoId, title, channel, thumbnail };
 
-            // Si el player aún no está listo, guardamos el id y se cargará en onPlayerReady
-            if (player?.loadVideoById) {
+            let shouldLoadNewVideo = true;
+            if (player && typeof player.getVideoData === 'function') {
                 try {
-                    player.loadVideoById(videoId);
+                    const data = player.getVideoData();
+                    if (data && data.video_id === videoId) {
+                        shouldLoadNewVideo = false;
+                    }
+                } catch (_) {}
+            }
+
+            if (player && typeof player.loadVideoById === 'function') {
+                try {
+                    if (shouldLoadNewVideo) {
+                        player.loadVideoById(videoId);
+                    } else {
+                        // Es el mismo video: continuar sin reiniciar
+                        player.playVideo();
+                    }
                 } catch (e) {
-                    console.warn('loadVideoById failed (player not ready yet?):', e);
+                    console.warn('loadVideoById error:', e);
                 }
             }
 
@@ -1575,6 +1614,7 @@
             // Marquee en listados al cambiar canción
             setTimeout(() => applyMarqueeToVisibleLists(), 50);
         }
+
         function updateNowPlayingIndicator() {
             if (currentPlaylist) renderPlaylistSongs();
             updateSearchResultsIndicator();
@@ -1719,7 +1759,7 @@
         }
         function updateMuteButton() {
             const icon = document.getElementById('volumeIcon');
-            if (isMuted) icon.innerHTML = '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>';
+            if (isMuted) icon.innerHTML = '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zM12 4L9.91 6.09 12 8.18V4z"/>';
             else icon.innerHTML = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>';
         }
         function startProgressUpdate() {
@@ -1768,12 +1808,10 @@
             return formatTime(totalSeconds);
         }
 
-        // Marquee/scroll de títulos largos (solo móvil)
-        function applyMarqueeToTitleElement(el) {
+        // Marquee helper
+        function applyMarqueeToTitleElement(el, { mobileOnly = true } = {}) {
             if (!el) return;
-            if (window.innerWidth > 768) return;
 
-            // Reset si ya estaba aplicado
             const raw = el.getAttribute('data-raw-title') || el.textContent;
             el.setAttribute('data-raw-title', raw);
             el.classList.remove('marquee');
@@ -1781,31 +1819,37 @@
             el.style.removeProperty('--marquee-duration');
             el.textContent = raw;
 
-            // Medir overflow
-            const overflow = el.scrollWidth > el.clientWidth + 6;
-            if (!overflow) return;
+            if (mobileOnly && window.innerWidth > 768) return;
 
-            // Construir marquee
-            const span = document.createElement('span');
-            span.textContent = raw;
-            el.textContent = '';
-            el.appendChild(span);
-            el.classList.add('marquee');
+            requestAnimationFrame(() => {
+                const overflow = el.scrollWidth > el.clientWidth + 6;
+                if (!overflow) return;
 
-            const containerW = el.getBoundingClientRect().width;
-            const spanW = span.getBoundingClientRect().width;
-            const gap = 30;
-            const distance = Math.max(0, (spanW - containerW) + gap);
-            const pxPerSecond = 40;
-            const duration = Math.max(6, distance / pxPerSecond);
+                const span = document.createElement('span');
+                span.textContent = raw;
+                el.textContent = '';
+                el.appendChild(span);
+                el.classList.add('marquee');
 
-            el.style.setProperty('--marquee-distance', `${distance}px`);
-            el.style.setProperty('--marquee-duration', `${duration}s`);
+                const containerW = el.getBoundingClientRect().width;
+                const spanW = span.getBoundingClientRect().width;
+                const gap = 30;
+                const distance = Math.max(0, (spanW - containerW) + gap);
+                const pxPerSecond = 40;
+                const duration = Math.max(6, distance / pxPerSecond);
+
+                el.style.setProperty('--marquee-distance', `${distance}px`);
+                el.style.setProperty('--marquee-duration', `${duration}s`);
+            });
         }
 
         function applyMarqueeToVisibleLists() {
             if (window.innerWidth > 768) return;
-            document.querySelectorAll('#resultsGrid h3, #playlistSongs h3.song-title, #mobileTitle').forEach(applyMarqueeToTitleElement);
+            document.querySelectorAll('#resultsGrid h3, #playlistSongs h3.song-title, #mobileTitle').forEach(el => applyMarqueeToTitleElement(el));
+        }
+
+        function applyMarqueeToQueue() {
+            document.querySelectorAll('.queue-song-title, .queue-song-channel').forEach(el => applyMarqueeToTitleElement(el, { mobileOnly: false }));
         }
         function showError(message) {
             document.getElementById('errorText').textContent = message;
@@ -1877,8 +1921,8 @@
                             </div>` : ''}
                     </div>
                     <div class="flex-1 min-w-0">
-                        <h4 class="text-white text-sm font-medium truncate ${isCurrentSong ? 'text-green-400' : ''}">${song.title}</h4>
-                        <p class="text-gray-400 text-xs truncate">${song.channel}</p>
+                        <h4 class="queue-song-title text-white text-sm font-medium truncate ${isCurrentSong ? 'text-green-400' : ''}">${song.title}</h4>
+                        <p class="queue-song-channel text-gray-400 text-xs truncate">${song.channel}</p>
                         ${isCurrentSong ? '<p class="text-green-400 text-xs font-medium">Reproduciendo ahora</p>' : ''}
                     </div>
                     <div class="flex items-center gap-1">
@@ -1892,6 +1936,7 @@
                     </div>
                 </div>`;
             }).join('');
+            setTimeout(applyMarqueeToQueue, 50);
         }
         function playFromQueue(index) {
             if (index >= 0 && index < currentQueue.length) {
@@ -2006,74 +2051,32 @@
         }
         function updateYtStageVisibility() {
             const stage = document.getElementById('ytStage');
+            const mobileFull = document.getElementById('mobilePlayerFull');
+            const isFullActive = !!(mobileFull && mobileFull.classList.contains('active'));
+            // Si el reproductor móvil está abierto, el video SIEMPRE debe verse (aunque el usuario no haya activado el mini-player)
+            if (isFullActive) {
+                stage.classList.add('yt-stage-visible');
+                return;
+            }
             if (isYtStageVisible) stage.classList.add('yt-stage-visible');
             else stage.classList.remove('yt-stage-visible');
         }
-        
-        // Sincronización de posición del video sin recarga (evita appendChild)
-        function updateVideoPosition() {
-            const ytStage = document.getElementById('ytStage');
-            const mobileContainer = document.getElementById('mobileVideoContainer');
-            const mobilePlayer = document.getElementById('mobilePlayerFull');
-            const isMobileOpen = mobilePlayer.classList.contains('active');
-            
-            if (isMobileOpen) {
-                // Modo Mobile Full Screen: Posicionar #ytStage sobre el contenedor móvil
-                const rect = mobileContainer.getBoundingClientRect();
-                
-                ytStage.style.position = 'fixed';
-                ytStage.style.top = rect.top + 'px';
-                ytStage.style.left = rect.left + 'px';
-                ytStage.style.width = rect.width + 'px';
-                ytStage.style.height = rect.height + 'px';
-                ytStage.style.bottom = 'auto';
-                ytStage.style.right = 'auto';
-                ytStage.style.zIndex = '65'; // Por encima del player (z-60)
-                ytStage.style.borderRadius = '12px';
-                ytStage.style.opacity = '1';
-                ytStage.style.pointerEvents = 'auto';
-                ytStage.style.display = 'block'; 
-                ytStage.style.transform = 'none'; // Resetear posibles transformaciones
-            } else {
-                // Modo Mini Player (Default): Restaurar estilos CSS
-                ytStage.style.position = '';
-                ytStage.style.top = '';
-                ytStage.style.left = '';
-                ytStage.style.width = '';
-                ytStage.style.height = '';
-                ytStage.style.bottom = '';
-                ytStage.style.right = '';
-                ytStage.style.zIndex = '';
-                ytStage.style.borderRadius = '';
-                ytStage.style.display = '';
-                ytStage.style.opacity = ''; 
-                ytStage.style.pointerEvents = '';
-                ytStage.style.transform = '';
-                
-                updateYtStageVisibility();
-            }
-        }
-
-        // Listener para redimensionamiento
-        window.addEventListener('resize', () => {
-            requestAnimationFrame(updateVideoPosition);
-        });
-
         function showYtToggleBtn() {
             updateYtStageVisibility();
         }
-        const originalPlayMusic = playMusic;
-        playMusic = function(videoId, title, channel, thumbnail) {
-            originalPlayMusic(videoId, title, channel, thumbnail);
+
+        // playMusic público: añade integración con móvil y mantiene la lógica de no reiniciar el video
+        function playMusic(videoId, title, channel, thumbnail) {
+            basePlayMusic(videoId, title, channel, thumbnail);
             showYtToggleBtn();
             updateMobilePlayer(title, channel, thumbnail);
-        };
+        }
+
         function updateMobilePlayer(title, channel, thumbnail) {
             const mobileThumb = document.getElementById('mobileThumb');
             const mobileTitleEl = document.getElementById('mobileTitle');
             const mobileChannelEl = document.getElementById('mobileChannel');
             const mobileMini = document.getElementById('mobilePlayerMini');
-            const mobileFullThumb = document.getElementById('mobileFullThumb');
             const mobileFullTitleEl = document.getElementById('mobileFullTitle');
             const mobileFullChannelEl = document.getElementById('mobileFullChannel');
 
@@ -2084,33 +2087,82 @@
             }
             if (mobileChannelEl) mobileChannelEl.textContent = channel;
             if (mobileMini) mobileMini.classList.remove('hidden');
-            if (mobileFullThumb) mobileFullThumb.src = thumbnail;
             if (mobileFullTitleEl) {
                 mobileFullTitleEl.setAttribute('data-raw-title', title);
                 mobileFullTitleEl.textContent = title;
             }
-            if (mobileFullChannelEl) mobileFullChannelEl.textContent = channel;
+            if (mobileFullChannelEl) {
+                mobileFullChannelEl.setAttribute('data-raw-title', channel);
+                mobileFullChannelEl.textContent = channel;
+            }
 
             if (mobileTitleEl) applyMarqueeToTitleElement(mobileTitleEl);
             if (mobileFullTitleEl) applyMarqueeToTitleElement(mobileFullTitleEl);
+            if (mobileFullChannelEl) applyMarqueeToTitleElement(mobileFullChannelEl);
         }
+
+        // --- IMPORTANT: evitar reinicio del video al cambiar entre vistas (NO re-parent del iframe) ---
+        let ytStageDockRestore = { wasVisible: false };
+        function dockYtStageToMobileContainer() {
+            const stage = document.getElementById('ytStage');
+            const container = document.getElementById('mobileVideoContainer');
+            const mobileFull = document.getElementById('mobilePlayerFull');
+            if (!stage || !container || !mobileFull || !mobileFull.classList.contains('active')) return;
+
+            const rect = container.getBoundingClientRect();
+            // Posicionamos el ytStage ENCIMA del contenedor del reproductor full (sin mover el DOM), evitando reinicios.
+            stage.style.left = rect.left + 'px';
+            stage.style.top = rect.top + 'px';
+            stage.style.right = 'auto';
+            stage.style.bottom = 'auto';
+            stage.style.width = rect.width + 'px';
+            stage.style.height = rect.height + 'px';
+            stage.style.borderRadius = '16px';
+            stage.style.zIndex = '80'; // por encima del overlay (z-60)
+            stage.style.opacity = '1';
+            stage.style.pointerEvents = 'auto';
+        }
+        function undockYtStage() {
+            const stage = document.getElementById('ytStage');
+            if (!stage) return;
+            stage.style.left = '';
+            stage.style.top = '';
+            stage.style.right = '';
+            stage.style.bottom = '';
+            stage.style.width = '';
+            stage.style.height = '';
+            stage.style.borderRadius = '';
+            stage.style.zIndex = '';
+            stage.style.opacity = '';
+            stage.style.pointerEvents = '';
+        }
+
         function openMobilePlayer() {
-            document.getElementById('mobilePlayerFull').classList.add('active');
+            const mobileFull = document.getElementById('mobilePlayerFull');
+            ytStageDockRestore.wasVisible = isYtStageVisible;
+            mobileFull.classList.add('active');
             document.body.style.overflow = 'hidden';
-            // Posicionar video sin mover el DOM
-            requestAnimationFrame(updateVideoPosition);
+
+            // Asegurar visibility + dock después de que el layout esté listo
+            updateYtStageVisibility();
+            requestAnimationFrame(() => {
+                dockYtStageToMobileContainer();
+            });
+            window.addEventListener('resize', dockYtStageToMobileContainer, { passive: true });
+            window.addEventListener('scroll', dockYtStageToMobileContainer, { passive: true });
         }
         function closeMobilePlayer() {
-            document.getElementById('mobilePlayerFull').classList.remove('active');
+            const mobileFull = document.getElementById('mobilePlayerFull');
+            window.removeEventListener('resize', dockYtStageToMobileContainer);
+            window.removeEventListener('scroll', dockYtStageToMobileContainer);
+
+            mobileFull.classList.remove('active');
             document.body.style.overflow = '';
-            // Restaurar video al mini player
-            requestAnimationFrame(updateVideoPosition);
+
+            undockYtStage();
+            updateYtStageVisibility();
         }
-        
-        // Funciones antiguas eliminadas o vacías para compatibilidad si se llaman
-        function moveVideoToMobilePlayer() {}
-        function moveVideoToYtStage() {}
-        
+
         function togglePlayPause() {
             if (!player) return;
             if (isPlaying) {
@@ -2137,10 +2189,39 @@
             if (e.target === this) hideMobileMenu();
         });
 
-        // Toggle video mobile (simplemente asegura que la posición se actualice)
+        // Toggle video en pantalla completa móvil
+        let isMobileVideoVisible = false;
         function toggleMobileVideo() {
-            requestAnimationFrame(updateVideoPosition);
+            isMobileVideoVisible = !isMobileVideoVisible;
+            const ytStage = document.getElementById('ytStage');
+            const youtubePlayerEl = document.getElementById('youtubePlayer');
+            const videoContainer = document.getElementById('mobileVideoContainer');
+
+            if (isMobileVideoVisible) {
+                if (youtubePlayerEl && videoContainer) {
+                    videoContainer.appendChild(youtubePlayerEl);
+                    youtubePlayerEl.style.width = '100%';
+                    youtubePlayerEl.style.height = '100%';
+                    youtubePlayerEl.style.borderRadius = '12px';
+                }
+            } else {
+                if (youtubePlayerEl && ytStage) {
+                    ytStage.appendChild(youtubePlayerEl);
+                    youtubePlayerEl.style.width = '100%';
+                    youtubePlayerEl.style.height = '100%';
+                    youtubePlayerEl.style.borderRadius = '';
+                }
+            }
         }
+
+        // Al cerrar el reproductor móvil, restaurar el video al ytStage
+        const originalCloseMobilePlayer = closeMobilePlayer;
+        closeMobilePlayer = function() {
+            if (isMobileVideoVisible) {
+                toggleMobileVideo();
+            }
+            originalCloseMobilePlayer();
+        };
     </script>
 </body>
 </html>
