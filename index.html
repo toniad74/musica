@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Amaya Music</title>
+    <title>Amaya's Music</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
         .result-row { transition: all 0.2s ease; }
@@ -516,83 +516,31 @@
             animation: marquee var(--marquee-duration, 10s) linear infinite;
         }
 
-        /* Anti‑ads CSS (reforzado) */
-        /* Bloquea iframes/genéricos externos que suelen inyectar anuncios */
+        /* Anti‑ads CSS */
         body > iframe:not(#youtubePlayer):not(#ytStage iframe),
-        body iframe[src*="doubleclick"],
-        body iframe[src*="googlesyndication"],
-        body iframe[src*="adsystem"],
-        body iframe[src*="adservice"],
-        body iframe[src*="adform"],
-        body iframe[src*="taboola"],
-        body iframe[src*="outbrain"],
-        body iframe[src*="criteo"],
-        body iframe[src*="revcontent"],
-        body iframe[src*="spotx"],
-        body iframe[src*="advertising"],
-        body iframe[src*="megaphone"],
-        body iframe[src*="spotifyad"],
-        body iframe[srcdoc*="ad"],
         body > ins.adsbygoogle,
-        body [class*="adsbygoogle"],
         body > div[id*="ad-"],
-        body > div[id^="ad"],
         body > div[class*="ad-"],
-        body > div[class^="ad"],
         body > div[id*="taboola"],
         body > div[id*="outbrain"],
         body > div[id*="mgid"],
         body > div[id*="criteo"],
         body > div[id*="doubleclick"],
         body > div[data-ad],
-        body > div[data-advertising],
-        body > div[data-ad-client],
-        body > div[data-google-query-id],
-        body [data-testid*="ad" i],
-        body [data-test*="ad" i],
-        body [data-ad-slot],
-        body [aria-label*="anuncio" i],
-        body [aria-label*="advert" i],
-        body [aria-label*="publicidad" i],
-        body [aria-label*="sponsor" i],
-        body [aria-label*="propaganda" i],
-        body [role="banner"],
-        body [role="dialog"][aria-modal="true"]:not(#createPlaylistModal):not(#deletePlaylistModal):not(#instructionsModal):not(#addToPlaylistMenu):not(#queueModal):not(#mobileMenu),
+        body > div[aria-label*="anuncio"],
+        body > div[role="dialog"][aria-modal="true"]:not(#createPlaylistModal):not(#deletePlaylistModal):not(#instructionsModal):not(#addToPlaylistMenu):not(#queueModal):not(#mobileMenu),
         body > div[style*="position:fixed"][style*="z-index:9999"],
         body > div[style*="position:fixed"][style*="top:0"],
         body > div[style*="position:fixed"][style*="bottom:0"],
         body > div[style*="position:fixed"][style*="left:0"],
-        body > div[style*="position:fixed"][style*="right:0"],
-        body > div[style*="position:fixed"][style*="inset:0"][style*="background"],
-        body > div[style*="position:fixed"][style*="width:100vw"][style*="height:100vh"][style*="background"],
-        body > div[class*="banner"],
-        body > div[class*="promo"],
-        body > div[class*="sponsor"],
-        body > div[class*="popunder"],
-        body > div[id*="promo"],
-        body > div[id*="sponsor"],
-        body > div[id*="banner"],
-        body > div[id*="popunder"],
-        body [class*="taboola"],
-        body [class*="outbrain"],
-        body [class*="mgid"],
-        body [class*="google-auto-placed"],
-        body .ytp-ad-player-overlay,
-        body .ytp-ad-module,
-        body .ytp-ad-preview-container,
-        body .ytp-ad-progress-list,
-        body .ytp-ad-overlay-slot,
-        body #player-ads,
-        body .video-ads,
-        body .ytp-ad-skip-button,
-        body .ytp-ad-image-overlay,
-        body .ytp-ad-overlay-open-dialog-button,
-        body > [id*="ad"][style*="position:fixed"],
-        body > [class*="ad"][style*="position:fixed"] {
+        body > div[style*="position:fixed"][style*="right:0"] {
             display: none !important;
             visibility: hidden !important;
-            pointer-events: none !important;
-            opacity: 0 !important;
+        }
+        body > div[style*="position:fixed"][style*="inset:0"][style*="background"],
+        body > div[style*="position:fixed"][style*="width:100vw"][style*="height:100vh"][style*="background"] {
+            display: none !important;
+            visibility: hidden !important;
         }
     </style>
 </head>
@@ -1053,7 +1001,6 @@
         let searchNextPageToken = null;
         let searchPrevPageToken = null;
         let searchPage = 1;
-        let adGuardianInterval = null;
 
         document.addEventListener('DOMContentLoaded', () => {
             if (API_KEY) {
@@ -1599,83 +1546,33 @@
             };
             setTimeout(checkForAd, 500);
         }
-        function isAdElement(el) {
-            if (!el || el.nodeType !== Node.ELEMENT_NODE) return false;
-            const tag = el.tagName?.toUpperCase() || '';
-            const id = el.id?.toLowerCase() || '';
-            const cls = el.className?.toLowerCase() || '';
-            const aria = (el.getAttribute('aria-label') || '').toLowerCase();
-            const role = (el.getAttribute('role') || '').toLowerCase();
-            const src = (el.getAttribute('src') || el.getAttribute('data-src') || '').toLowerCase();
-            const dataAd = el.hasAttribute('data-ad') || el.hasAttribute('data-ad-client') || el.hasAttribute('data-google-query-id') || el.hasAttribute('data-ad-slot');
-            const suspiciousIdCls = [id, cls].some(val => val && /ad|ads|taboola|outbrain|mgid|criteo|doubleclick|promo|sponsor|banner|advert/i.test(val));
-            const suspiciousSrc = /doubleclick|googlesyndication|adsystem|adservice|adform|taboola|outbrain|criteo|revcontent|spotx|advertising|megaphone|spotifyad/.test(src);
-            const hugeOverlay = el.style && el.style.position === 'fixed' && (el.style.inset?.includes('0px') || el.style.top === '0px' || el.style.bottom === '0px' || el.style.left === '0px' || el.style.right === '0px');
-
-            if (tag === 'IFRAME' && (suspiciousSrc || (!el.id && src.includes('google')))) return true;
-            if (tag === 'INS' && cls.includes('adsbygoogle')) return true;
-            if (dataAd || suspiciousIdCls) return true;
-            if (aria.includes('anuncio') || aria.includes('advert') || aria.includes('publicidad') || aria.includes('sponsor') || aria.includes('propaganda')) return true;
-            if (role === 'banner' || (role === 'dialog' && el.getAttribute('aria-modal') === 'true' && !el.closest('#createPlaylistModal, #deletePlaylistModal, #instructionsModal, #addToPlaylistMenu, #queueModal, #mobileMenu'))) return true;
-            if (hugeOverlay) return true;
-            if (tag === 'DIV' && (el.querySelector('.ytp-ad-player-overlay, .ytp-ad-module, .ytp-ad-preview-container, .ytp-ad-skip-button, .ytp-ad-image-overlay, .ytp-ad-overlay-open-dialog-button, #player-ads, .video-ads'))) return true;
-            return false;
-        }
-
-        function removeAdsInTree(root = document.body) {
-            if (!root) return;
-            const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, null, false);
-            const toRemove = [];
-            while (walker.nextNode()) {
-                const el = walker.currentNode;
-                if (isAdElement(el)) toRemove.push(el);
-            }
-            toRemove.forEach(node => node.remove());
-        }
-
         function initAntiAdObserver() {
             try {
-                removeAdsInTree();
-                if (adGuardianInterval) clearInterval(adGuardianInterval);
-                adGuardianInterval = setInterval(() => {
-                    try {
-                        removeAdsInTree();
-                        const playerContainer = document.querySelector('#ytStage, #youtubePlayer');
-                        if (playerContainer) {
-                            ['ytp-ad-player-overlay','ytp-ad-module','ytp-ad-preview-container','ytp-ad-progress-list','ytp-ad-overlay-slot','ytp-ad-skip-button','ytp-ad-image-overlay','ytp-ad-overlay-open-dialog-button','video-ads','ytp-pause-overlay'].forEach(sel => {
-                                playerContainer.querySelectorAll('.' + sel).forEach(el => el.remove());
-                            });
-                            const api = player?.getIframe?.();
-                            if (api?.contentWindow) {
-                                try {
-                                    api.contentWindow.document.querySelectorAll('.ytp-ad-player-overlay, .ytp-ad-module, .ytp-ad-preview-container, .ytp-ad-progress-list, .ytp-ad-overlay-slot, .ytp-ad-skip-button, .ytp-ad-image-overlay, .ytp-ad-overlay-open-dialog-button, .video-ads, .ytp-pause-overlay').forEach(el => el.remove());
-                                } catch (_) {}
-                            }
-                        }
-                    } catch (err) {
-                        console.warn('Ad cleaner interval error', err);
-                    }
-                }, 1500);
-
                 const observer = new MutationObserver(mutations => {
-                    let shouldSweep = false;
                     mutations.forEach(m => {
                         m.addedNodes.forEach(node => {
-                            if (isAdElement(node)) {
-                                node.remove();
-                            } else if (node.nodeType === Node.ELEMENT_NODE) {
-                                if (node.querySelector && node.querySelector('[class*="ad"], [id*="ad"], iframe, ins, div')) {
-                                    shouldSweep = true;
-                                }
-                            }
+                            if (node.nodeType !== Node.ELEMENT_NODE) return;
+                            const el = node;
+                            const isAd =
+                                el.tagName === 'IFRAME' && !el.id && el.src && el.src.includes('google') ||
+                                el.tagName === 'INS' && el.className && el.className.includes('adsbygoogle') ||
+                                el.tagName === 'DIV' && (
+                                    (el.id && (el.id.includes('ad-') || el.id.includes('taboola') || el.id.includes('outbrain') || el.id.includes('mgid') || el.id.includes('criteo') || el.id.includes('doubleclick'))) ||
+                                    (el.className && (el.className.includes('ad-') || el.className.includes('ads') || el.className.includes('taboola') || el.className.includes('outbrain') || el.className.includes('mgid') || el.className.includes('criteo') || el.className.includes('doubleclick'))) ||
+                                    (el.getAttribute('data-ad') !== null) ||
+                                    (el.getAttribute('aria-label') && el.getAttribute('aria-label').includes('anuncio')) ||
+                                    (el.getAttribute('role') === 'dialog' && el.getAttribute('aria-modal') === 'true' && !el.id) ||
+                                    (el.style.position === 'fixed' && el.style.zIndex >= 9999) ||
+                                    (el.style.position === 'fixed' && (el.style.top === '0px' || el.style.bottom === '0px' || el.style.left === '0px' || el.style.right === '0px')) ||
+                                    (el.style.position === 'fixed' && el.style.inset && el.style.inset.includes('0px')) ||
+                                    (el.style.width && el.style.height && el.style.background && el.style.width.includes('100vw') && el.style.height.includes('100vh'))
+                                );
+                            if (isAd) el.remove();
                         });
                     });
-                    if (shouldSweep) removeAdsInTree();
                 });
                 observer.observe(document.body, { childList: true, subtree: true });
-            } catch (e) {
-                console.warn('Anti-ad observer error', e);
-            }
+            } catch (e) {}
         }
 
         // Versión base de playMusic: NO reiniciar si el video ya es el mismo
