@@ -25,6 +25,10 @@
         .sidebar::-webkit-scrollbar-track { background: transparent; }
         .sidebar::-webkit-scrollbar-thumb { background-color: #535353; border-radius: 4px; }
         .playlist-item:hover .playlist-play { opacity: 1; }
+        .playlist-item.selected { 
+            background-color: rgba(255, 255, 255, 0.1); 
+            border: 1px solid rgba(29, 185, 84, 0.5);
+        }
         .context-menu { animation: fadeIn 0.15s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
@@ -1207,7 +1211,8 @@
                 const songs = Array.isArray(pl.songs) ? pl.songs : [];
                 const songsCount = songs.length;
                 const totalDuration = calculatePlaylistDuration(songs);
-                return `<div class="playlist-item flex items-center gap-3 p-2 rounded-lg hover:bg-[#1a1a1a] cursor-pointer group" onclick="openPlaylist(${i})">
+                const isSelected = currentPlaylistIndex === i;
+                return `<div class="playlist-item flex items-center gap-3 p-2 rounded-lg hover:bg-[#1a1a1a] cursor-pointer group ${isSelected ? 'selected' : ''}" onclick="openPlaylist(${i})">
                     <div class="w-12 h-12 bg-gradient-to-br from-purple-700 to-blue-500 rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
                         ${pl.coverImage ? `<img src="${pl.coverImage}" class="w-full h-full object-cover">` : `<svg class="w-6 h-6 text-white/60" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`}
                         <div class="playlist-play absolute inset-0 bg-black/50 rounded flex items-center justify-center opacity-0 transition-opacity"><svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
@@ -1225,7 +1230,8 @@
                 const songs = Array.isArray(pl.songs) ? pl.songs : [];
                 const songsCount = songs.length;
                 const totalDuration = calculatePlaylistDuration(songs);
-                return `<div onclick="openPlaylist(${i})" class="flex-shrink-0 bg-[#282828] hover:bg-[#3e3e3e] p-3 rounded-lg cursor-pointer min-w-[200px] group">
+                const isSelected = currentPlaylistIndex === i;
+                return `<div onclick="openPlaylist(${i})" class="playlist-item flex-shrink-0 bg-[#282828] hover:bg-[#3e3e3e] p-3 rounded-lg cursor-pointer min-w-[200px] group ${isSelected ? 'selected' : ''}">
                     <div class="flex items-center gap-3">
                         <!-- Acciones: columna izquierda -->
                         <div class="flex flex-col items-center gap-0">
@@ -1263,20 +1269,30 @@
             document.getElementById('createPlaylistModal').classList.add('hidden');
         }
         async function createPlaylist() {
-            const name = document.getElementById('newPlaylistName').value.trim();
+            const nameInput = document.getElementById('newPlaylistName');
+            const name = nameInput.value.trim();
             if (!name) return showToast('Ingresa un nombre para la playlist');
 
-            // Cerrar siempre el modal al crear (para UX consistente)
+            // Limpiar input y ocultar modal inmediatamente
+            nameInput.value = '';
             hideCreatePlaylistModal();
 
-            playlists.push({ name, songs: [], createdAt: Date.now() });
+            const newPlaylist = { 
+                name, 
+                songs: [], 
+                createdAt: Date.now(),
+                description: '',
+                tags: [],
+                favorite: false
+            };
+            
+            playlists.push(newPlaylist);
             const newPlaylistIndex = playlists.length - 1;
 
-            // Si se creó desde una canción (menú "Añadir a playlist"), la añadimos automáticamente
+            // Si se creó desde una canción, la añadimos automáticamente
             if (currentSong) {
                 await addSongToPlaylist(newPlaylistIndex);
-                // addSongToPlaylist() ya hace savePlaylists() y toasts
-                showToast(`✅ Playlist "${name}" creada`);
+                // showToast se maneja dentro de addSongToPlaylist
             } else {
                 savePlaylists();
                 renderPlaylists();
@@ -1292,6 +1308,7 @@
             document.getElementById('playlistInfo').textContent = `${currentPlaylist.songs.length} canciones`;
             updatePlaylistCoverUI();
             renderPlaylistSongs();
+            renderPlaylists(); // Re-render to show selection state
         }
         function renderPlaylistSongs() {
             const container = document.getElementById('playlistSongs');
@@ -1340,15 +1357,21 @@
         async function addSongToPlaylist(playlistIndex) {
             if (!currentSong) return;
             const playlist = playlists[playlistIndex];
+            if (!playlist) return;
+            
             const exists = playlist.songs.some(s => s.videoId === currentSong.videoId);
             if (exists) {
                 showToast('Esta canción ya está en la playlist');
             } else {
                 const songToAdd = { ...currentSong };
-                const duration = await fetchRealDuration(songToAdd.videoId);
-                if (duration) {
-                    songToAdd.duration = duration;
+                // Intentar obtener duración real antes de guardar
+                try {
+                    const duration = await fetchRealDuration(songToAdd.videoId);
+                    if (duration) songToAdd.duration = duration;
+                } catch (e) {
+                    console.warn("Error fetching duration for auto-added song");
                 }
+                
                 playlist.songs.push(songToAdd);
                 savePlaylists();
                 showToast(`Añadida a "${playlist.name}"`);
@@ -1409,6 +1432,7 @@
             document.getElementById('resultsSection').classList.add('hidden');
             currentPlaylistIndex = -1;
             currentPlaylist = null;
+            renderPlaylists(); // Re-render to clear selection state
         }
         function resetSearchPaginationState() {
             searchNextPageToken = null;
@@ -1569,7 +1593,7 @@
             const state = event.data;
             if (state === YT.PlayerState.PLAYING) {
                 isPlaying = true;
-                userInitiatedPause = false;
+                // Importante: No forzar userInitiatedPause = false aquí si viene del widget
                 updatePlayPauseButton();
                 startProgressUpdate();
                 updateEqualizerState();
@@ -1585,11 +1609,10 @@
                 updatePlayPauseButton();
                 stopProgressUpdate();
                 updateEqualizerState();
-                if (!userInitiatedPause) {
-                    setTimeout(() => {
-                        if (player && player.getPlayerState() === YT.PlayerState.PAUSED) player.playVideo();
-                    }, 1000);
-                }
+                
+                // ELIMINADO EL AUTO-REPLAY QUE BLOQUEABA EL WIDGET DEL MÓVIL
+                // El código anterior forzaba la reproducción si detectaba pausa,
+                // lo que impedía que el botón de pausa del sistema funcionara.
             } else {
                 isPlaying = false;
                 updatePlayPauseButton();
