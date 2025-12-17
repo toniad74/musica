@@ -1456,7 +1456,11 @@
             event.target.setVolume(100);
             if (currentVideoId) {
                 try {
-                    event.target.loadVideoById(currentVideoId);
+                    // Usar startSeconds: 0 para asegurar el inicio
+                    event.target.loadVideoById({
+                        videoId: currentVideoId,
+                        startSeconds: 0
+                    });
                 } catch (_) {}
             }
         }
@@ -1545,58 +1549,42 @@
         }
         function detectAndSkipAds() {
             if (!player) return;
+            
+            // ELIMINADA LA LÓGICA DE SALTO AUTOMÁTICO AL INICIO (player.seekTo(10))
+            // Esta era la causa de que las canciones empezaran adelantadas.
+            
             let skipCheckInterval;
-            let adDetectionAttempts = 0;
-            const aggressiveAdSkip = () => {
+            const adDetectionLogic = () => {
                 if (!player || !isPlaying) {
                     clearInterval(skipCheckInterval);
                     return;
                 }
                 try {
-                    const currentTime = player.getCurrentTime();
                     const duration = player.getDuration();
-                    if (currentTime < 1 && adDetectionAttempts < 3) {
-                        player.seekTo(10, true);
-                        adDetectionAttempts++;
-                        return;
-                    }
-                    if (duration && duration < 30 && duration > 0) {
-                        console.log('Ad detectado por duración corta, saltando...');
+                    const currentTime = player.getCurrentTime();
+
+                    // 1. Detectar videos muy cortos (anuncios de 5-15s que YouTube a veces mete como video)
+                    if (duration > 0 && duration < 25) {
+                        console.log('Anuncio corto detectado, saltando...');
                         handleSongEnd();
                         clearInterval(skipCheckInterval);
                         return;
                     }
+
+                    // 2. Si el video se pausa solo (a veces ocurre con ads bloqueados por CSS)
                     if (player.getPlayerState() === YT.PlayerState.PAUSED && !userInitiatedPause) {
                         player.playVideo();
-                        player.seekTo(Math.max(10, currentTime + 5), true);
                     }
+
+                    // Detener chequeo si ya pasamos el inicio crítico
                     if (currentTime > 5) {
                         clearInterval(skipCheckInterval);
-                        adDetectionAttempts = 0;
-                    }
-                } catch (e) {
-                    console.log('Error en detección de ads:', e);
-                }
-            };
-            skipCheckInterval = setInterval(aggressiveAdSkip, 200);
-            setTimeout(() => clearInterval(skipCheckInterval), 6000);
-            const stateMonitor = setInterval(() => {
-                if (!player || !isPlaying) {
-                    clearInterval(stateMonitor);
-                    return;
-                }
-                try {
-                    if (player.getPlayerState() === YT.PlayerState.BUFFERING) {
-                        setTimeout(() => {
-                            if (player.getPlayerState() === YT.PlayerState.BUFFERING) {
-                                player.seekTo(10, true);
-                                player.playVideo();
-                            }
-                        }, 1000);
                     }
                 } catch (e) {}
-            }, 500);
-            setTimeout(() => clearInterval(stateMonitor), 10000);
+            };
+
+            skipCheckInterval = setInterval(adDetectionLogic, 1000);
+            setTimeout(() => clearInterval(skipCheckInterval), 10000);
         }
         function initAntiAdObserver() {
             try {
@@ -1629,8 +1617,15 @@
             if (player && typeof player.loadVideoById === 'function') {
                 try {
                     if (shouldLoadNewVideo) {
-                        player.loadVideoById(videoId);
+                        // Forzar inicio en 0 explícitamente usando objeto de configuración
+                        player.loadVideoById({
+                            videoId: videoId,
+                            startSeconds: 0
+                        });
                     } else {
+                        // Si es el mismo video pero el usuario pulsó play de nuevo, 
+                        // opcionalmente podrías querer que empiece de cero o que siga.
+                        // Para evitar que parezca "empezado" por error, aseguramos play.
                         player.playVideo();
                     }
                 } catch (e) {
