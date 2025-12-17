@@ -25,10 +25,6 @@
         .sidebar::-webkit-scrollbar-track { background: transparent; }
         .sidebar::-webkit-scrollbar-thumb { background-color: #535353; border-radius: 4px; }
         .playlist-item:hover .playlist-play { opacity: 1; }
-        .playlist-item.selected { 
-            background-color: rgba(255, 255, 255, 0.1); 
-            border: 1px solid rgba(29, 185, 84, 0.5);
-        }
         .context-menu { animation: fadeIn 0.15s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
@@ -1211,8 +1207,7 @@
                 const songs = Array.isArray(pl.songs) ? pl.songs : [];
                 const songsCount = songs.length;
                 const totalDuration = calculatePlaylistDuration(songs);
-                const isSelected = currentPlaylistIndex === i;
-                return `<div class="playlist-item flex items-center gap-3 p-2 rounded-lg hover:bg-[#1a1a1a] cursor-pointer group ${isSelected ? 'selected' : ''}" onclick="openPlaylist(${i})">
+                return `<div class="playlist-item flex items-center gap-3 p-2 rounded-lg hover:bg-[#1a1a1a] cursor-pointer group" onclick="openPlaylist(${i})">
                     <div class="w-12 h-12 bg-gradient-to-br from-purple-700 to-blue-500 rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
                         ${pl.coverImage ? `<img src="${pl.coverImage}" class="w-full h-full object-cover">` : `<svg class="w-6 h-6 text-white/60" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`}
                         <div class="playlist-play absolute inset-0 bg-black/50 rounded flex items-center justify-center opacity-0 transition-opacity"><svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
@@ -1230,8 +1225,7 @@
                 const songs = Array.isArray(pl.songs) ? pl.songs : [];
                 const songsCount = songs.length;
                 const totalDuration = calculatePlaylistDuration(songs);
-                const isSelected = currentPlaylistIndex === i;
-                return `<div onclick="openPlaylist(${i})" class="playlist-item flex-shrink-0 bg-[#282828] hover:bg-[#3e3e3e] p-3 rounded-lg cursor-pointer min-w-[200px] group ${isSelected ? 'selected' : ''}">
+                return `<div onclick="openPlaylist(${i})" class="flex-shrink-0 bg-[#282828] hover:bg-[#3e3e3e] p-3 rounded-lg cursor-pointer min-w-[200px] group">
                     <div class="flex items-center gap-3">
                         <!-- Acciones: columna izquierda -->
                         <div class="flex flex-col items-center gap-0">
@@ -1269,30 +1263,20 @@
             document.getElementById('createPlaylistModal').classList.add('hidden');
         }
         async function createPlaylist() {
-            const nameInput = document.getElementById('newPlaylistName');
-            const name = nameInput.value.trim();
+            const name = document.getElementById('newPlaylistName').value.trim();
             if (!name) return showToast('Ingresa un nombre para la playlist');
 
-            // Limpiar input y ocultar modal inmediatamente
-            nameInput.value = '';
+            // Cerrar siempre el modal al crear (para UX consistente)
             hideCreatePlaylistModal();
 
-            const newPlaylist = { 
-                name, 
-                songs: [], 
-                createdAt: Date.now(),
-                description: '',
-                tags: [],
-                favorite: false
-            };
-            
-            playlists.push(newPlaylist);
+            playlists.push({ name, songs: [], createdAt: Date.now() });
             const newPlaylistIndex = playlists.length - 1;
 
-            // Si se creó desde una canción, la añadimos automáticamente
+            // Si se creó desde una canción (menú "Añadir a playlist"), la añadimos automáticamente
             if (currentSong) {
                 await addSongToPlaylist(newPlaylistIndex);
-                // showToast se maneja dentro de addSongToPlaylist
+                // addSongToPlaylist() ya hace savePlaylists() y toasts
+                showToast(`✅ Playlist "${name}" creada`);
             } else {
                 savePlaylists();
                 renderPlaylists();
@@ -1308,7 +1292,6 @@
             document.getElementById('playlistInfo').textContent = `${currentPlaylist.songs.length} canciones`;
             updatePlaylistCoverUI();
             renderPlaylistSongs();
-            renderPlaylists(); // Re-render to show selection state
         }
         function renderPlaylistSongs() {
             const container = document.getElementById('playlistSongs');
@@ -1357,21 +1340,15 @@
         async function addSongToPlaylist(playlistIndex) {
             if (!currentSong) return;
             const playlist = playlists[playlistIndex];
-            if (!playlist) return;
-            
             const exists = playlist.songs.some(s => s.videoId === currentSong.videoId);
             if (exists) {
                 showToast('Esta canción ya está en la playlist');
             } else {
                 const songToAdd = { ...currentSong };
-                // Intentar obtener duración real antes de guardar
-                try {
-                    const duration = await fetchRealDuration(songToAdd.videoId);
-                    if (duration) songToAdd.duration = duration;
-                } catch (e) {
-                    console.warn("Error fetching duration for auto-added song");
+                const duration = await fetchRealDuration(songToAdd.videoId);
+                if (duration) {
+                    songToAdd.duration = duration;
                 }
-                
                 playlist.songs.push(songToAdd);
                 savePlaylists();
                 showToast(`Añadida a "${playlist.name}"`);
@@ -1432,7 +1409,6 @@
             document.getElementById('resultsSection').classList.add('hidden');
             currentPlaylistIndex = -1;
             currentPlaylist = null;
-            renderPlaylists(); // Re-render to clear selection state
         }
         function resetSearchPaginationState() {
             searchNextPageToken = null;
@@ -1591,27 +1567,34 @@
         function onPlayerStateChange(event) {
             if (typeof YT === 'undefined') return;
             const state = event.data;
-            
-            // Sincronizar estado global con el reproductor
             if (state === YT.PlayerState.PLAYING) {
                 isPlaying = true;
-                userInitiatedPause = false; // El reproductor está reproduciendo
-            } else if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.ENDED) {
-                isPlaying = false;
-            }
-
-            updatePlayPauseButton();
-            updateEqualizerState();
-
-            if (state === YT.PlayerState.PLAYING) {
+                userInitiatedPause = false;
+                updatePlayPauseButton();
                 startProgressUpdate();
+                updateEqualizerState();
                 detectAndSkipAds();
-            } else if (state === YT.PlayerState.PAUSED) {
-                stopProgressUpdate();
-                // Eliminada CUALQUIER lógica de reanudación automática (setInterval/setTimeout)
             } else if (state === YT.PlayerState.ENDED) {
+                isPlaying = false;
+                updatePlayPauseButton();
                 stopProgressUpdate();
+                updateEqualizerState();
                 handleSongEnd();
+            } else if (state === YT.PlayerState.PAUSED) {
+                isPlaying = false;
+                updatePlayPauseButton();
+                stopProgressUpdate();
+                updateEqualizerState();
+                if (!userInitiatedPause) {
+                    setTimeout(() => {
+                        if (player && player.getPlayerState() === YT.PlayerState.PAUSED) player.playVideo();
+                    }, 1000);
+                }
+            } else {
+                isPlaying = false;
+                updatePlayPauseButton();
+                stopProgressUpdate();
+                updateEqualizerState();
             }
         }
         function handleSongEnd() {
@@ -1659,34 +1642,41 @@
         function detectAndSkipAds() {
             if (!player) return;
             
+            // ELIMINADA LA LÓGICA DE SALTO AUTOMÁTICO AL INICIO (player.seekTo(10))
+            // Esta era la causa de que las canciones empezaran adelantadas.
+            
             let skipCheckInterval;
             const adDetectionLogic = () => {
-                // Si el reproductor se pausó o no existe, detenemos el chequeo
-                if (!player || player.getPlayerState() !== YT.PlayerState.PLAYING) {
+                if (!player || !isPlaying) {
                     clearInterval(skipCheckInterval);
                     return;
                 }
-                
                 try {
                     const duration = player.getDuration();
                     const currentTime = player.getCurrentTime();
 
-                    // 1. Saltar videos sospechosamente cortos (ads)
-                    if (duration > 0 && duration < 20) {
+                    // 1. Detectar videos muy cortos (anuncios de 5-15s que YouTube a veces mete como video)
+                    if (duration > 0 && duration < 25) {
+                        console.log('Anuncio corto detectado, saltando...');
                         handleSongEnd();
                         clearInterval(skipCheckInterval);
                         return;
                     }
 
-                    // Detener chequeo tras los primeros segundos de seguridad
-                    if (currentTime > 6) {
+                    // 2. Si el video se pausa solo (a veces ocurre con ads bloqueados por CSS)
+                    if (player.getPlayerState() === YT.PlayerState.PAUSED && !userInitiatedPause) {
+                        player.playVideo();
+                    }
+
+                    // Detener chequeo si ya pasamos el inicio crítico
+                    if (currentTime > 5) {
                         clearInterval(skipCheckInterval);
                     }
                 } catch (e) {}
             };
 
-            skipCheckInterval = setInterval(adDetectionLogic, 2000);
-            setTimeout(() => clearInterval(skipCheckInterval), 12000);
+            skipCheckInterval = setInterval(adDetectionLogic, 1000);
+            setTimeout(() => clearInterval(skipCheckInterval), 10000);
         }
         function initAntiAdObserver() {
             try {
