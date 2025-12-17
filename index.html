@@ -131,6 +131,18 @@
             opacity: 1;
             pointer-events: auto;
         }
+        /* Modo incrustado dentro del reproductor móvil a pantalla completa */
+        .yt-stage.yt-stage-embedded {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            right: auto;
+            bottom: auto;
+            border-radius: 12px;
+            box-shadow: none;
+            z-index: 1;
+        }
         
         /* Botón para mostrar/ocultar el mini-player */
         .yt-toggle-btn {
@@ -166,8 +178,9 @@
             }
             .flex.h-screen.pb-24 {
                 flex-direction: column;
-                height: 100vh;
-                padding-bottom: 130px !important;
+                height: auto;
+                min-height: 100vh;
+                padding-bottom: max(150px, calc(110px + env(safe-area-inset-bottom, 0px))) !important;
             }
             aside.w-64 {
                 display: none !important;
@@ -210,12 +223,13 @@
                 margin-bottom: 18px !important;
             }
             #playlistsMobile {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                display: flex;
+                flex-direction: column;
                 gap: 16px;
                 padding-bottom: 8px;
             }
             #playlistsMobile > div {
+                width: 100%;
                 background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
                 border-radius: 16px;
                 padding: 12px;
@@ -231,10 +245,24 @@
                 gap: 18px;
             }
             #playlistCover {
-                width: 200px !important;
-                height: 200px !important;
-                border-radius: 20px;
-                box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+                /* Móvil: portada MUY compacta */
+                width: 56px !important;
+                height: 56px !important;
+                border-radius: 12px;
+                box-shadow: 0 10px 28px rgba(0,0,0,0.6);
+            }
+            #playlistCoverIcon {
+                width: 20px !important;
+                height: 20px !important;
+            }
+            /* Botón de portada adaptado al thumbnail pequeño */
+            #playlistView button[onclick="triggerPlaylistCoverUpload()"] {
+                font-size: 10px;
+                padding: 4px 8px;
+            }
+            #playlistView button[onclick="triggerPlaylistCoverUpload()"] svg {
+                width: 12px;
+                height: 12px;
             }
             #playlistTitle {
                 font-size: 24px !important;
@@ -520,6 +548,21 @@
             animation: marquee var(--marquee-duration, 10s) linear infinite;
         }
 
+        .playlist-mobile-name,
+        .playlist-mobile-info {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.2;
+        }
+        .playlist-mobile-name {
+            -webkit-line-clamp: 1;
+        }
+        .playlist-mobile-info {
+            -webkit-line-clamp: 1;
+        }
+
         /* Anti‑ads CSS */
         body > iframe:not(#youtubePlayer):not(#ytStage iframe),
         body > ins.adsbygoogle,
@@ -665,29 +708,41 @@
                 <!-- Playlist View -->
                 <div id="playlistView" class="hidden">
                     <div class="flex items-end gap-6 mb-8">
-                        <div class="relative">
-                            <div id="playlistCover" class="w-48 h-48 bg-gradient-to-br from-purple-700 to-blue-500 rounded-lg shadow-2xl flex items-center justify-center overflow-hidden">
+                        <!-- Botón volver/cerrar vista de playlist -->
+                        <button onclick="showHome()" class="md:hidden -mt-2 mb-2 inline-flex items-center gap-2 text-[#b3b3b3] hover:text-white bg-[#282828] hover:bg-[#3e3e3e] px-3 py-2 rounded-full" title="Volver">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                            <span class="text-sm font-semibold">Volver</span>
+                        </button>
+                        <div class="flex flex-col items-center gap-2">
+                            <div id="playlistCover" class="w-9 h-9 bg-gradient-to-br from-purple-700 to-blue-500 rounded-lg shadow-xl flex items-center justify-center overflow-hidden">
                                 <img id="playlistCoverImage" src="" alt="Cover" class="w-full h-full object-cover hidden">
-                                <svg id="playlistCoverIcon" class="w-20 h-20 text-white/60" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                                <svg id="playlistCoverIcon" class="w-4 h-4 text-white/60" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
                             </div>
-                            <button onclick="triggerPlaylistCoverUpload()" class="absolute bottom-2 right-2 bg-black/70 text-xs px-3 py-1 rounded-full flex items-center gap-1 hover:bg-black/90">
-                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5l4 4h-3v6h-2V9H8l4-4zM5 19h14v2H5z"/></svg>
-                                Cambiar portada
+                            <button onclick="triggerPlaylistCoverUpload()" class="bg-black/70 text-[9px] px-2 py-1 rounded-full flex items-center gap-1 hover:bg-black/90">
+                                <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5l4 4h-3v6h-2V9H8l4-4zM5 19h14v2H5z"/></svg>
+                                Portada
                             </button>
                             <input type="file" id="playlistCoverInput" accept="image/*" class="hidden" onchange="handlePlaylistCoverChange(event)">
                         </div>
                         <div class="flex-1">
-                            <p class="text-sm font-medium uppercase">Playlist</p>
+                            <div class="flex items-center justify-between gap-3">
+                                <p class="text-sm font-medium uppercase">Playlist</p>
+                                <!-- Botón volver en escritorio también -->
+                                <button onclick="showHome()" class="hidden md:inline-flex items-center gap-2 text-[#b3b3b3] hover:text-white bg-[#1a1a1a] hover:bg-[#2a2a2a] px-3 py-2 rounded-full" title="Volver">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                                    <span class="text-sm font-semibold">Volver</span>
+                                </button>
+                            </div>
                             <h1 id="playlistTitle" class="text-5xl font-black mt-2 mb-2"></h1>
                             <p id="playlistDescription" class="text-gray-300 text-sm mb-1 hidden"></p>
                             <p id="playlistInfo" class="text-gray-400 text-sm"></p>
                         </div>
                     </div>
                     <div class="flex items-center gap-6 mb-6">
-                        <button onclick="playCurrentPlaylist()" class="bg-green-500 hover:bg-green-400 hover:scale-105 text-black rounded-full p-4 transition-all shadow-xl">
-                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        <button onclick="playCurrentPlaylist()" class="bg-green-500 hover:bg-green-400 hover:scale-105 text-black rounded-full p-2 transition-all shadow-xl" title="Reproducir playlist">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                         </button>
-                        <button onclick="showDeletePlaylistConfirm()" class="text-[#b3b3b3] hover:text-white">
+                        <button onclick="showDeletePlaylistConfirm()" class="text-[#b3b3b3] hover:text-white" title="Eliminar playlist">
                             <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                         </button>
                     </div>
@@ -917,7 +972,7 @@
     <div id="mobilePlayerFull" class="mobile-player-full">
         <div class="flex items-center justify-between mb-8">
             <button onclick="closeMobilePlayer()" class="p-2">
-                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
             </button>
             <span class="text-xs text-gray-400 uppercase tracking-wider">Reproduciendo</span>
             <button onclick="showMobileMenu()" class="p-2">
@@ -994,21 +1049,22 @@
     </div>
 
     <!-- Queue Modal -->
-    <div id="queueModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-end z-60">
+    <div id="queueModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-end z-40">
         <div class="bg-[#181818] w-full max-w-md h-full flex flex-col shadow-2xl">
-            <div class="flex items-center justify-between p-4 border-b border-[#282828]">
-                <h3 class="text-xl font-bold text-white">Cola de reproducción</h3>
-                <button onclick="hideQueue()" class="text-gray-400 hover:text-white p-2">
-                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                </button>
-            </div>
-            <div id="queueContent" class="flex-1 overflow-y-auto p-4">
-                <p class="text-gray-400 text-center py-8">No hay canciones en la cola</p>
-            </div>
-            <div class="p-4 border-t border-[#282828]">
-                <button onclick="clearQueue()" class="w-full text-red-400 hover:text-red-300 py-2 px-4 rounded-lg hover:bg-red-900/20 transition-colors">
+            <div class="p-4 border-b border-[#282828]">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold text-white">Cola de reproducción</h3>
+                    <button onclick="hideQueue()" class="text-gray-400 hover:text-white p-2">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                    </button>
+                </div>
+                <button onclick="clearQueue()" class="w-full text-red-400 hover:text-red-300 py-2 px-4 rounded-lg hover:bg-red-900/20 transition-colors font-bold">
                     Vaciar cola
                 </button>
+            </div>
+            <!-- Padding inferior extra en móvil para que el mini-reproductor no tape el contenido -->
+            <div id="queueContent" class="flex-1 overflow-y-auto p-4 pb-32 md:pb-4">
+                <p class="text-gray-400 text-center py-8">No hay canciones en la cola</p>
             </div>
         </div>
     </div>
@@ -1055,6 +1111,7 @@
         let searchNextPageToken = null;
         let searchPrevPageToken = null;
         let searchPage = 1;
+        let isQueueModalOpen = false;
 
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
@@ -1150,13 +1207,48 @@
                 const songs = Array.isArray(pl.songs) ? pl.songs : [];
                 const songsCount = songs.length;
                 const totalDuration = calculatePlaylistDuration(songs);
-                return `<div class="playlist-item flex items-center gap-3 p-2 rounded-lg hover:bg-[#1a1a1a] cursor-pointer group relative" onclick="openPlaylist(${i})"><button onclick="showEditPlaylistModal(${i}, event)" class="absolute top-2 right-2 text-xs text-gray-400 hover:text-white bg-black/50 rounded-full p-1 transition-colors" title="Editar playlist"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75z"/><path d="M20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button><div class="w-12 h-12 bg-gradient-to-br from-purple-700 to-blue-500 rounded flex items-center justify-center flex-shrink-0 relative overflow-hidden">${pl.coverImage ? `<img src="${pl.coverImage}" class="w-full h-full object-cover">` : `<svg class="w-6 h-6 text-white/60" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`}<div class="playlist-play absolute inset-0 bg-black/50 rounded flex items-center justify-center opacity-0 transition-opacity"><svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div><div class="min-w-0 flex-1"><p class="text-white text-sm font-medium truncate">${pl.name}</p><p class="text-gray-400 text-xs">${songsCount} canción${songsCount !== 1 ? 'es' : ''} • ${totalDuration}</p></div></div>`;
+                return `<div class="playlist-item flex items-center gap-3 p-2 rounded-lg hover:bg-[#1a1a1a] cursor-pointer group" onclick="openPlaylist(${i})">
+                    <div class="w-12 h-12 bg-gradient-to-br from-purple-700 to-blue-500 rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        ${pl.coverImage ? `<img src="${pl.coverImage}" class="w-full h-full object-cover">` : `<svg class="w-6 h-6 text-white/60" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`}
+                        <div class="playlist-play absolute inset-0 bg-black/50 rounded flex items-center justify-center opacity-0 transition-opacity"><svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-white text-sm font-medium truncate">${pl.name}</p>
+                        <p class="text-gray-400 text-xs">${songsCount} canción${songsCount !== 1 ? 'es' : ''} • ${totalDuration}</p>
+                    </div>
+                    <button onclick="event.stopPropagation(); showEditPlaylistModal(${i}, event)" class="ml-2 text-gray-400 hover:text-white p-2 flex items-center justify-center" title="Editar playlist">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75z"/><path d="M20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                    </button>
+                </div>`;
             }).join('');
             const mobileHTML = playlists.map((pl, i) => {
                 const songs = Array.isArray(pl.songs) ? pl.songs : [];
                 const songsCount = songs.length;
                 const totalDuration = calculatePlaylistDuration(songs);
-                return `<div onclick="openPlaylist(${i})" class="flex-shrink-0 bg-[#282828] hover:bg-[#3e3e3e] p-3 rounded-lg cursor-pointer min-w-[140px] relative group"><button onclick="event.stopPropagation(); showEditPlaylistModal(${i}, event)" class="absolute top-2 left-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-white hover:text-black transition-colors z-10" title="Editar playlist"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75z"/><path d="M20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button><button onclick="event.stopPropagation(); showDeletePlaylistConfirm(${i})" class="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-red-600 transition-colors z-10" title="Eliminar playlist"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button><div class="w-full aspect-square bg-gradient-to-br from-purple-700 to-blue-500 rounded mb-2 flex items-center justify-center overflow-hidden">${pl.coverImage ? `<img src="${pl.coverImage}" class="w-full h-full object-cover">` : `<svg class="w-8 h-8 text-white/60" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`}</div><p class="text-white text-sm font-medium truncate">${pl.name}</p><p class="text-gray-400 text-xs">${songsCount} canción${songsCount !== 1 ? 'es' : ''} • ${totalDuration}</p></div>`;
+                return `<div onclick="openPlaylist(${i})" class="flex-shrink-0 bg-[#282828] hover:bg-[#3e3e3e] p-3 rounded-lg cursor-pointer min-w-[200px] group">
+                    <div class="flex items-center gap-3">
+                        <!-- Acciones: columna izquierda -->
+                        <div class="flex flex-col items-center gap-0">
+                            <button onclick="event.stopPropagation(); showEditPlaylistModal(${i}, event)" class="text-gray-300 hover:text-white p-1.5 flex items-center justify-center" title="Editar playlist">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75z"/><path d="M20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                            </button>
+                            <button onclick="event.stopPropagation(); showDeletePlaylistConfirm(${i})" class="text-gray-300 hover:text-red-400 p-1.5 flex items-center justify-center" title="Eliminar playlist">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                            </button>
+                        </div>
+
+                        <!-- Contenido: portada + texto -->
+                        <div class="flex items-center gap-3 flex-1 min-w-0">
+                            <div class="w-12 h-12 bg-gradient-to-br from-purple-700 to-blue-500 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+                                ${pl.coverImage ? `<img src="${pl.coverImage}" class="w-full h-full object-cover">` : `<svg class="w-6 h-6 text-white/60" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`}
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-white text-sm font-semibold truncate">${pl.name}</p>
+                                <p class="text-gray-400 text-xs">${songsCount} canción${songsCount !== 1 ? 'es' : ''} • ${totalDuration}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
             }).join('');
             sidebar.innerHTML = sidebarHTML;
             mobile.innerHTML = mobileHTML;
@@ -1672,11 +1764,13 @@
             });
         }
         function playNext() {
+            // Siempre que haya cola, la navegación se hace sobre la cola
             if (currentQueue.length > 0) {
                 const nextIndex = (currentQueueIndex < 0 ? 0 : currentQueueIndex + 1);
                 if (nextIndex >= currentQueue.length) {
-                    if (repeatMode === 1) currentQueueIndex = 0;
-                    else {
+                    if (repeatMode === 1) {
+                        currentQueueIndex = 0;
+                    } else {
                         showToast('Fin de la cola');
                         try { userInitiatedPause = true; player?.pauseVideo?.(); } catch (_) {}
                         return;
@@ -1688,7 +1782,9 @@
                 playMusic(song.videoId, song.title, song.channel, song.thumbnail);
                 return;
             }
-            if (currentSearchResults.length > 0) {
+
+            // Solo usamos resultados de búsqueda si NO está abierta la cola
+            if (!isQueueModalOpen && currentSearchResults.length > 0) {
                 const nextIndex = (currentSearchIndex < 0 ? 0 : currentSearchIndex + 1);
                 if (nextIndex >= currentSearchResults.length) {
                     showToast('Fin de los resultados');
@@ -1700,10 +1796,11 @@
                 updateSearchResultsIndicator();
                 return;
             }
+
             showToast('No hay música para reproducir');
         }
         function playPrevious() {
-            // Prioridad: cola de reproducción
+            // Siempre que haya cola, la navegación se hace sobre la cola
             if (currentQueue.length > 0) {
                 const prevIndex = (currentQueueIndex <= 0 ? currentQueue.length - 1 : currentQueueIndex - 1);
                 if (repeatMode === 1 || prevIndex >= 0) {
@@ -1717,8 +1814,8 @@
                 return;
             }
             
-            // Fallback: resultados de búsqueda
-            if (currentSearchResults.length > 0) {
+            // Solo usamos resultados de búsqueda si NO está abierta la cola
+            if (!isQueueModalOpen && currentSearchResults.length > 0) {
                 const prevIndex = (currentSearchIndex <= 0 ? currentSearchResults.length - 1 : currentSearchIndex - 1);
                 currentSearchIndex = prevIndex;
                 const song = currentSearchResults[prevIndex];
@@ -1979,9 +2076,11 @@
         }
         function showQueue() {
             updateQueueContent();
+            isQueueModalOpen = true;
             document.getElementById('queueModal').classList.remove('hidden');
         }
         function hideQueue() {
+            isQueueModalOpen = false;
             document.getElementById('queueModal').classList.add('hidden');
         }
         function updateQueueContent() {
@@ -2153,6 +2252,10 @@
             basePlayMusic(videoId, title, channel, thumbnail);
             showYtToggleBtn();
             updateMobilePlayer(title, channel, thumbnail);
+            // Mantener la cola de reproducción visualmente sincronizada con la canción actual
+            if (currentQueue && currentQueue.length > 0) {
+                updateQueueContent();
+            }
         }
         function updateMobilePlayer(title, channel, thumbnail) {
             const mobileThumb = document.getElementById('mobileThumb');
@@ -2181,12 +2284,52 @@
         }
         function openMobilePlayer() {
             const full = document.getElementById('mobilePlayerFull');
+            const stage = document.getElementById('ytStage');
+            const placeholder = document.getElementById('mobileVideoContainer');
+
             full.classList.add('active');
-            updateYtStageVisibility();
+
+            // REPARACIÓN DEFINITIVA: 
+            // 1. Usamos requestAnimationFrame para asegurar que el DOM se ha actualizado.
+            // 2. Usamos posicionamiento fijo calculado para evitar mover el iframe en el DOM (esto evita el reinicio).
+            // 3. Bloqueamos cualquier intento de recarga forzando la visibilidad.
+            
+            const updateVideoPosition = () => {
+                if (!full.classList.contains('active')) return;
+                const rect = placeholder.getBoundingClientRect();
+                if (rect.width === 0) { // Si el layout aún no está listo, reintentar
+                    requestAnimationFrame(updateVideoPosition);
+                    return;
+                }
+                stage.style.setProperty('position', 'fixed', 'important');
+                stage.style.setProperty('left', rect.left + 'px', 'important');
+                stage.style.setProperty('top', rect.top + 'px', 'important');
+                stage.style.setProperty('width', rect.width + 'px', 'important');
+                stage.style.setProperty('height', rect.height + 'px', 'important');
+                stage.style.setProperty('right', 'auto', 'important');
+                stage.style.setProperty('bottom', 'auto', 'important');
+                stage.style.setProperty('z-index', '100', 'important');
+                stage.style.setProperty('transition', 'none', 'important');
+                stage.style.setProperty('opacity', '1', 'important');
+                stage.style.setProperty('pointer-events', 'auto', 'important');
+                stage.style.borderRadius = '12px';
+            };
+
+            requestAnimationFrame(updateVideoPosition);
+            window._updateVideoPos = updateVideoPosition;
+            window.addEventListener('resize', window._updateVideoPos);
+            window.addEventListener('orientationchange', () => setTimeout(updateVideoPosition, 100));
         }
+
         function closeMobilePlayer() {
             const full = document.getElementById('mobilePlayerFull');
+            const stage = document.getElementById('ytStage');
+
             full.classList.remove('active');
+            window.removeEventListener('resize', window._updateVideoPos);
+
+            // Restaurar estilos originales suavemente
+            stage.style.cssText = ''; 
             updateYtStageVisibility();
         }
         function seekMobile(value) {
