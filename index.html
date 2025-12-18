@@ -25,6 +25,12 @@
         .sidebar::-webkit-scrollbar-track { background: transparent; }
         .sidebar::-webkit-scrollbar-thumb { background-color: #535353; border-radius: 4px; }
         .playlist-item:hover .playlist-play { opacity: 1; }
+        .playlist-item.selected { 
+            background-color: rgba(29, 185, 84, 0.25) !important; 
+            border: 3px solid #1db954 !important;
+            box-shadow: 0 0 20px rgba(29, 185, 84, 0.5) !important;
+            transition: all 0.3s ease;
+        }
         .context-menu { animation: fadeIn 0.15s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
@@ -244,33 +250,16 @@
                 text-align: center;
                 gap: 18px;
             }
-            #playlistCover {
-                /* Móvil: portada MUY compacta */
-                width: 56px !important;
-                height: 56px !important;
-                border-radius: 12px;
-                box-shadow: 0 10px 28px rgba(0,0,0,0.6);
+            #playlistCover,
+            #playlistView button[onclick="triggerPlaylistCoverUpload()"],
+            #playlistTitle,
+            #playlistInfo,
+            #playlistView .flex.items-center.gap-6.mb-6 {
+                display: none !important;
             }
-            #playlistCoverIcon {
-                width: 20px !important;
-                height: 20px !important;
-            }
-            /* Botón de portada adaptado al thumbnail pequeño */
-            #playlistView button[onclick="triggerPlaylistCoverUpload()"] {
-                font-size: 10px;
-                padding: 4px 8px;
-            }
-            #playlistView button[onclick="triggerPlaylistCoverUpload()"] svg {
-                width: 12px;
-                height: 12px;
-            }
-            #playlistTitle {
-                font-size: 24px !important;
-                font-weight: 800 !important;
-            }
-            #playlistInfo {
-                font-size: 13px !important;
-                color: #a3a3a3 !important;
+            #playlistView .flex.items-end.gap-6.mb-8 {
+                margin-bottom: 0 !important;
+                padding-top: 8px;
             }
             #playlistSongs {
                 border-radius: 16px;
@@ -708,11 +697,6 @@
                 <!-- Playlist View -->
                 <div id="playlistView" class="hidden">
                     <div class="flex items-end gap-6 mb-8">
-                        <!-- Botón volver/cerrar vista de playlist -->
-                        <button onclick="showHome()" class="md:hidden -mt-2 mb-2 inline-flex items-center gap-2 text-[#b3b3b3] hover:text-white bg-[#282828] hover:bg-[#3e3e3e] px-3 py-2 rounded-full" title="Volver">
-                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
-                            <span class="text-sm font-semibold">Volver</span>
-                        </button>
                         <div class="flex flex-col items-center gap-2">
                             <div id="playlistCover" class="w-9 h-9 bg-gradient-to-br from-purple-700 to-blue-500 rounded-lg shadow-xl flex items-center justify-center overflow-hidden">
                                 <img id="playlistCoverImage" src="" alt="Cover" class="w-full h-full object-cover hidden">
@@ -726,19 +710,18 @@
                         </div>
                         <div class="flex-1">
                             <div class="flex items-center justify-between gap-3">
-                                <p class="text-sm font-medium uppercase">Playlist</p>
-                                <!-- Botón volver en escritorio también -->
-                                <button onclick="showHome()" class="hidden md:inline-flex items-center gap-2 text-[#b3b3b3] hover:text-white bg-[#1a1a1a] hover:bg-[#2a2a2a] px-3 py-2 rounded-full" title="Volver">
+                                <p class="text-sm font-medium uppercase md:hidden">Contenido de la Playlist</p>
+                                <p class="text-sm font-medium uppercase hidden md:block">Playlist</p>
+                                <button onclick="showHome()" class="inline-flex items-center gap-2 text-[#b3b3b3] hover:text-white bg-[#1a1a1a] hover:bg-[#2a2a2a] px-3 py-2 rounded-full" title="Volver">
                                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
-                                    <span class="text-sm font-semibold">Volver</span>
+                                    <span class="text-sm font-semibold">Volver a la búsqueda</span>
                                 </button>
                             </div>
-                            <h1 id="playlistTitle" class="text-5xl font-black mt-2 mb-2"></h1>
-                            <p id="playlistDescription" class="text-gray-300 text-sm mb-1 hidden"></p>
-                            <p id="playlistInfo" class="text-gray-400 text-sm"></p>
+                            <h1 id="playlistTitle" class="text-5xl font-black mt-2 mb-2 md:block hidden"></h1>
+                            <p id="playlistInfo" class="text-gray-400 text-sm md:block hidden"></p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-6 mb-6">
+                    <div class="flex items-center gap-6 mb-6 md:flex hidden">
                         <button onclick="playCurrentPlaylist()" class="bg-green-500 hover:bg-green-400 hover:scale-105 text-black rounded-full p-2 transition-all shadow-xl" title="Reproducir playlist">
                             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                         </button>
@@ -1207,7 +1190,8 @@
                 const songs = Array.isArray(pl.songs) ? pl.songs : [];
                 const songsCount = songs.length;
                 const totalDuration = calculatePlaylistDuration(songs);
-                return `<div class="playlist-item flex items-center gap-3 p-2 rounded-lg hover:bg-[#1a1a1a] cursor-pointer group" onclick="openPlaylist(${i})">
+                const isSelected = currentPlaylistIndex === i;
+                return `<div class="playlist-item flex items-center gap-3 p-2 rounded-lg hover:bg-[#1a1a1a] cursor-pointer group ${isSelected ? 'selected' : ''}" onclick="openPlaylist(${i})">
                     <div class="w-12 h-12 bg-gradient-to-br from-purple-700 to-blue-500 rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
                         ${pl.coverImage ? `<img src="${pl.coverImage}" class="w-full h-full object-cover">` : `<svg class="w-6 h-6 text-white/60" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`}
                         <div class="playlist-play absolute inset-0 bg-black/50 rounded flex items-center justify-center opacity-0 transition-opacity"><svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
@@ -1225,7 +1209,8 @@
                 const songs = Array.isArray(pl.songs) ? pl.songs : [];
                 const songsCount = songs.length;
                 const totalDuration = calculatePlaylistDuration(songs);
-                return `<div onclick="openPlaylist(${i})" class="flex-shrink-0 bg-[#282828] hover:bg-[#3e3e3e] p-3 rounded-lg cursor-pointer min-w-[200px] group">
+                const isSelected = currentPlaylistIndex === i;
+                return `<div onclick="openPlaylist(${i})" class="playlist-item flex-shrink-0 bg-[#282828] hover:bg-[#3e3e3e] p-3 rounded-lg cursor-pointer min-w-[200px] group ${isSelected ? 'selected' : ''}">
                     <div class="flex items-center gap-3">
                         <!-- Acciones: columna izquierda -->
                         <div class="flex flex-col items-center gap-0">
@@ -1263,20 +1248,30 @@
             document.getElementById('createPlaylistModal').classList.add('hidden');
         }
         async function createPlaylist() {
-            const name = document.getElementById('newPlaylistName').value.trim();
+            const nameInput = document.getElementById('newPlaylistName');
+            const name = nameInput.value.trim();
             if (!name) return showToast('Ingresa un nombre para la playlist');
 
-            // Cerrar siempre el modal al crear (para UX consistente)
+            // Limpiar input y ocultar modal inmediatamente
+            nameInput.value = '';
             hideCreatePlaylistModal();
 
-            playlists.push({ name, songs: [], createdAt: Date.now() });
+            const newPlaylist = { 
+                name, 
+                songs: [], 
+                createdAt: Date.now(),
+                description: '',
+                tags: [],
+                favorite: false
+            };
+            
+            playlists.push(newPlaylist);
             const newPlaylistIndex = playlists.length - 1;
 
-            // Si se creó desde una canción (menú "Añadir a playlist"), la añadimos automáticamente
+            // Si se creó desde una canción, la añadimos automáticamente
             if (currentSong) {
                 await addSongToPlaylist(newPlaylistIndex);
-                // addSongToPlaylist() ya hace savePlaylists() y toasts
-                showToast(`✅ Playlist "${name}" creada`);
+                // showToast se maneja dentro de addSongToPlaylist
             } else {
                 savePlaylists();
                 renderPlaylists();
@@ -1292,6 +1287,10 @@
             document.getElementById('playlistInfo').textContent = `${currentPlaylist.songs.length} canciones`;
             updatePlaylistCoverUI();
             renderPlaylistSongs();
+            renderPlaylists();
+            
+            // Scroll automático al principio al entrar en una playlist
+            document.querySelector('main').scrollTop = 0;
         }
         function renderPlaylistSongs() {
             const container = document.getElementById('playlistSongs');
@@ -1340,15 +1339,21 @@
         async function addSongToPlaylist(playlistIndex) {
             if (!currentSong) return;
             const playlist = playlists[playlistIndex];
+            if (!playlist) return;
+            
             const exists = playlist.songs.some(s => s.videoId === currentSong.videoId);
             if (exists) {
                 showToast('Esta canción ya está en la playlist');
             } else {
                 const songToAdd = { ...currentSong };
-                const duration = await fetchRealDuration(songToAdd.videoId);
-                if (duration) {
-                    songToAdd.duration = duration;
+                // Intentar obtener duración real antes de guardar
+                try {
+                    const duration = await fetchRealDuration(songToAdd.videoId);
+                    if (duration) songToAdd.duration = duration;
+                } catch (e) {
+                    console.warn("Error fetching duration for auto-added song");
                 }
+                
                 playlist.songs.push(songToAdd);
                 savePlaylists();
                 showToast(`Añadida a "${playlist.name}"`);
@@ -1406,9 +1411,15 @@
         }
         function showHome() {
             document.getElementById('playlistView').classList.add('hidden');
-            document.getElementById('resultsSection').classList.add('hidden');
+            // Si hay resultados de búsqueda previos, los mostramos al "volver"
+            if (currentSearchResults.length > 0) {
+                document.getElementById('resultsSection').classList.remove('hidden');
+            } else {
+                document.getElementById('resultsSection').classList.add('hidden');
+            }
             currentPlaylistIndex = -1;
             currentPlaylist = null;
+            renderPlaylists();
         }
         function resetSearchPaginationState() {
             searchNextPageToken = null;
@@ -1567,34 +1578,58 @@
         function onPlayerStateChange(event) {
             if (typeof YT === 'undefined') return;
             const state = event.data;
+            
             if (state === YT.PlayerState.PLAYING) {
                 isPlaying = true;
-                userInitiatedPause = false;
                 updatePlayPauseButton();
                 startProgressUpdate();
                 updateEqualizerState();
                 detectAndSkipAds();
-            } else if (state === YT.PlayerState.ENDED) {
-                isPlaying = false;
-                updatePlayPauseButton();
-                stopProgressUpdate();
-                updateEqualizerState();
-                handleSongEnd();
+                updateMediaSessionState("playing");
             } else if (state === YT.PlayerState.PAUSED) {
                 isPlaying = false;
                 updatePlayPauseButton();
                 stopProgressUpdate();
                 updateEqualizerState();
-                if (!userInitiatedPause) {
-                    setTimeout(() => {
-                        if (player && player.getPlayerState() === YT.PlayerState.PAUSED) player.playVideo();
-                    }, 1000);
-                }
-            } else {
+                updateMediaSessionState("paused");
+            } else if (state === YT.PlayerState.ENDED) {
                 isPlaying = false;
                 updatePlayPauseButton();
                 stopProgressUpdate();
-                updateEqualizerState();
+                handleSongEnd();
+            }
+        }
+
+        // FUNCIÓN CRÍTICA: Comunicación directa con el Hardware/Widget del móvil
+        function updateMediaSessionState(state) {
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.playbackState = state;
+                
+                // Registro de acciones del Hardware
+                navigator.mediaSession.setActionHandler('play', () => {
+                    if (player) player.playVideo();
+                });
+                navigator.mediaSession.setActionHandler('pause', () => {
+                    if (player) player.pauseVideo();
+                });
+                navigator.mediaSession.setActionHandler('previoustrack', () => playPrevious());
+                navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
+                
+                // Metadatos para el Widget
+                if (currentSong && state === "playing") {
+                    navigator.mediaSession.metadata = new MediaMetadata({
+                        title: currentSong.title,
+                        artist: currentSong.channel,
+                        artwork: [
+                            { src: currentSong.thumbnail, sizes: '96x96', type: 'image/png' },
+                            { src: currentSong.thumbnail, sizes: '128x128', type: 'image/png' },
+                            { src: currentSong.thumbnail, sizes: '192x192', type: 'image/png' },
+                            { src: currentSong.thumbnail, sizes: '256x256', type: 'image/png' },
+                            { src: currentSong.thumbnail, sizes: '384x384', type: 'image/png' },
+                            { src: currentSong.thumbnail, sizes: '512x512', type: 'image/png' },
+                        ]
+                    });
+                }
             }
         }
         function handleSongEnd() {
@@ -1640,43 +1675,19 @@
             } catch (_) {}
         }
         function detectAndSkipAds() {
+            // Lógica pasiva: solo revisa una vez al inicio para no interferir con el widget
             if (!player) return;
             
-            // ELIMINADA LA LÓGICA DE SALTO AUTOMÁTICO AL INICIO (player.seekTo(10))
-            // Esta era la causa de que las canciones empezaran adelantadas.
-            
-            let skipCheckInterval;
-            const adDetectionLogic = () => {
-                if (!player || !isPlaying) {
-                    clearInterval(skipCheckInterval);
-                    return;
-                }
+            setTimeout(() => {
                 try {
-                    const duration = player.getDuration();
-                    const currentTime = player.getCurrentTime();
-
-                    // 1. Detectar videos muy cortos (anuncios de 5-15s que YouTube a veces mete como video)
-                    if (duration > 0 && duration < 25) {
-                        console.log('Anuncio corto detectado, saltando...');
-                        handleSongEnd();
-                        clearInterval(skipCheckInterval);
-                        return;
-                    }
-
-                    // 2. Si el video se pausa solo (a veces ocurre con ads bloqueados por CSS)
-                    if (player.getPlayerState() === YT.PlayerState.PAUSED && !userInitiatedPause) {
-                        player.playVideo();
-                    }
-
-                    // Detener chequeo si ya pasamos el inicio crítico
-                    if (currentTime > 5) {
-                        clearInterval(skipCheckInterval);
+                    if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                        const duration = player.getDuration();
+                        if (duration > 0 && duration < 25) {
+                            handleSongEnd();
+                        }
                     }
                 } catch (e) {}
-            };
-
-            skipCheckInterval = setInterval(adDetectionLogic, 1000);
-            setTimeout(() => clearInterval(skipCheckInterval), 10000);
+            }, 3000);
         }
         function initAntiAdObserver() {
             try {
