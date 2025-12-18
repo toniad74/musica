@@ -137,6 +137,19 @@
             opacity: 1;
             pointer-events: auto;
         }
+        /* Mantener vivo el iframe en móvil sin mostrarlo (ayuda en segundo plano) */
+        .yt-stage.yt-stage-background {
+            width: 1px;
+            height: 1px;
+            right: 0;
+            bottom: 0;
+            border: 0;
+            border-radius: 0;
+            box-shadow: none;
+            opacity: 0.01;
+            pointer-events: none;
+            transform: translate(200px, 200px);
+        }
         /* Modo incrustado dentro del reproductor móvil a pantalla completa */
         .yt-stage.yt-stage-embedded {
             position: absolute;
@@ -610,7 +623,7 @@
                         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z"/></svg>
                         <span class="font-semibold">Tu Biblioteca</span>
                     </div>
-                    <button onclick="showCreatePlaylistModal()" class="text-[#b3b3b3] hover:text-white hover:bg-[#1a1a1a] p-2 rounded-full transition-colors" title="Crear playlist">
+                    <button onclick="showCreatePlaylistModal()" class="text-green-500 hover:text-green-400 p-2 transition-colors" title="Crear playlist">
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                     </button>
                 </div>
@@ -676,7 +689,7 @@
                 <div class="md:hidden mb-6">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-xl font-bold">Tus Playlists</h2>
-                        <button onclick="showCreatePlaylistModal()" class="bg-[#282828] hover:bg-[#3e3e3e] p-2 rounded-full">
+                        <button onclick="showCreatePlaylistModal()" class="text-green-500 hover:text-green-400 p-2 transition-colors" title="Crear playlist">
                             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                         </button>
                     </div>
@@ -1089,17 +1102,137 @@
         let repeatMode = 0;
         let userInitiatedPause = false;
         let progressInterval;
+        let lastBackgroundAt = 0;
+        let backgroundInterruptionHintShown = false;
         let isApiSectionVisible = true;
         let lastSearchQuery = '';
         let searchNextPageToken = null;
         let searchPrevPageToken = null;
         let searchPage = 1;
         let isQueueModalOpen = false;
+        let wasYtStageVisibleBeforeBackground = false;
+        let forceStageKeepAlive = false;
 
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
         const isAppleDevice = isIOS || isSafari;
         let userHasInteracted = false;
+
+        // Persistencia/recuperación (cuando el navegador “mata” la pestaña en segundo plano)
+        const PLAYBACK_STATE_KEY = 'amayaPlaybackStateV1';
+        let pendingRestoreState = null;
+        let lastPersistAt = 0;
+        let pausedByBackground = false;
+
+        function persistPlaybackState(reason = '') {
+            try {
+                if (!currentVideoId || !currentSong) return;
+                const position = (() => {
+                    try { return player?.getCurrentTime?.() || 0; } catch (_) { return 0; }
+                })();
+                const state = {
+                    v: 1,
+                    t: Date.now(),
+                    reason,
+                    videoId: currentVideoId,
+                    song: currentSong,
+                    position,
+                    isPlaying: !!isPlaying,
+                    isMuted: !!isMuted,
+                    isShuffle: !!isShuffle,
+                    repeatMode: repeatMode,
+                    queue: Array.isArray(currentQueue) ? currentQueue : [],
+                    queueIndex: typeof currentQueueIndex === 'number' ? currentQueueIndex : -1,
+                    searchResults: Array.isArray(currentSearchResults) ? currentSearchResults : [],
+                    searchIndex: typeof currentSearchIndex === 'number' ? currentSearchIndex : -1,
+                    playlistIndex: typeof currentPlaylistIndex === 'number' ? currentPlaylistIndex : -1
+                };
+                storage.setItem(PLAYBACK_STATE_KEY, JSON.stringify(state));
+                lastPersistAt = Date.now();
+            } catch (e) {
+                // Silencioso
+            }
+        }
+
+        function loadPendingPlaybackState() {
+            try {
+                const raw = storage.getItem(PLAYBACK_STATE_KEY);
+                if (!raw) return;
+                const st = JSON.parse(raw);
+                if (!st || !st.videoId || !st.song) return;
+
+                pendingRestoreState = st;
+
+                // Hidratar estado en memoria (sin forzar play)
+                currentVideoId = st.videoId;
+                currentSong = st.song;
+                currentQueue = Array.isArray(st.queue) ? st.queue : [];
+                currentQueueIndex = typeof st.queueIndex === 'number' ? st.queueIndex : -1;
+                currentSearchResults = Array.isArray(st.searchResults) ? st.searchResults : [];
+                currentSearchIndex = typeof st.searchIndex === 'number' ? st.searchIndex : -1;
+                currentPlaylistIndex = typeof st.playlistIndex === 'number' ? st.playlistIndex : -1;
+
+                isShuffle = !!st.isShuffle;
+                repeatMode = typeof st.repeatMode === 'number' ? st.repeatMode : 0;
+                isMuted = !!st.isMuted;
+
+                // UI (solo si hay algo que restaurar)
+                document.getElementById('currentTitle').textContent = st.song.title || '';
+                document.getElementById('currentChannel').textContent = st.song.channel || '';
+                if (st.song.thumbnail) {
+                    document.getElementById('currentThumbnail').src = st.song.thumbnail;
+                    document.getElementById('currentThumbnail').classList.remove('hidden');
+                }
+                document.getElementById('playerSection').classList.remove('hidden');
+
+                updateMobilePlayer(st.song.title || '', st.song.channel || '', st.song.thumbnail || '');
+                updateQueueCount();
+                updateRepeatUI();
+                renderPlaylists();
+
+                setupMediaSession();
+                syncMediaSessionMetadata();
+                syncMediaSessionPlaybackState();
+                updateYtStageVisibility();
+            } catch (e) {
+                // Silencioso
+            }
+        }
+
+        function restoreFromPendingStateOnPlayerReady() {
+            if (!pendingRestoreState?.videoId) return;
+            const st = pendingRestoreState;
+            pendingRestoreState = null;
+
+            const start = Math.max(0, Number(st.position) || 0);
+
+            try {
+                // cue para evitar autoplay inesperado
+                player.cueVideoById({ videoId: st.videoId, startSeconds: start });
+            } catch (e) {
+                try { player.loadVideoById({ videoId: st.videoId, startSeconds: start }); } catch (_) {}
+            }
+
+            // Asegurar seek (YouTube a veces ignora el startSeconds)
+            setTimeout(() => {
+                try { player.seekTo(start, true); } catch (_) {}
+            }, 350);
+
+            // Resumir solo si antes estaba sonando
+            if (st.isPlaying) {
+                if (!isAppleDevice || userHasInteracted) {
+                    setTimeout(() => {
+                        try {
+                            userInitiatedPause = false;
+                            player.playVideo();
+                        } catch (_) {}
+                    }, 600);
+                } else {
+                    // iOS Safari suele requerir interacción tras recargar/reanudar
+                    showToast('ℹ️ iPhone requiere interacción para reanudar. Pulsa ▶︎');
+                }
+            }
+        }
 
         function safeLocalStorage() {
             try {
@@ -1128,6 +1261,10 @@
                 document.addEventListener('touchstart', registerInteraction, { passive: true });
                 document.addEventListener('click', registerInteraction);
             }
+
+            // Intentar recuperar estado previo (si el navegador cerró la pestaña en background)
+            loadPendingPlaybackState();
+
             if (API_KEY) {
                 document.getElementById('apiKeyInput').value = API_KEY;
                 setApiKeySectionVisibility(false);
@@ -1136,10 +1273,111 @@
             }
             renderPlaylists();
             setupControls();
+            setupBackgroundPlaybackGuards();
             loadYouTubeAPI();
             updateRepeatUI();
             initAntiAdObserver();
         });
+
+        function setupBackgroundPlaybackGuards() {
+            const stage = document.getElementById('ytStage');
+            let persistTicker = null;
+
+            const applyStageBackgroundMode = (on) => {
+                if (!stage) return;
+                if (window.innerWidth > 768) return;
+
+                if (on) {
+                    // Guardar visibilidad previa
+                    wasYtStageVisibleBeforeBackground = stage.classList.contains('yt-stage-visible');
+
+                    // Si está sonando, forzamos visible (aunque sea 1px) para que iOS no lo congele tan fácil
+                    if (isPlaying) stage.classList.add('yt-stage-visible');
+
+                    stage.classList.add('yt-stage-background');
+                } else {
+                    stage.classList.remove('yt-stage-background');
+
+                    // Restaurar visibilidad previa (si no estamos en player full)
+                    const mobileFull = document.getElementById('mobilePlayerFull');
+                    const isFullActive = !!(mobileFull && mobileFull.classList.contains('active'));
+                    if (!isFullActive) {
+                        if (wasYtStageVisibleBeforeBackground) stage.classList.add('yt-stage-visible');
+                        else stage.classList.remove('yt-stage-visible');
+                    }
+                }
+            };
+
+            const startPersistTicker = () => {
+                if (persistTicker) return;
+                persistTicker = setInterval(() => {
+                    if (document.hidden) return; // no insistir en background
+                    if (!currentVideoId || !currentSong) return;
+                    if (!isPlaying) return;
+                    if (Date.now() - lastPersistAt < 15000) return; // menos agresivo
+                    persistPlaybackState('interval');
+                }, 15000);
+            };
+
+            const stopPersistTicker = () => {
+                if (!persistTicker) return;
+                clearInterval(persistTicker);
+                persistTicker = null;
+            };
+
+            const onHidden = () => {
+                lastBackgroundAt = Date.now();
+                pausedByBackground = false;
+                // Persistir el estado antes de que el navegador suspenda
+                persistPlaybackState('visibility_hidden');
+                applyStageBackgroundMode(true);
+                // En background, reducimos trabajo
+                stopPersistTicker();
+            };
+
+            const onVisible = () => {
+                applyStageBackgroundMode(false);
+                backgroundInterruptionHintShown = false;
+
+                // Re-sincronizar UI (sin forzar play)
+                updatePlayPauseButton();
+                updateEqualizerState();
+
+                // IMPORTANTÍSIMO: NO forzar reanudación automática al volver.
+                // iOS puede bloquearlo y provocar comportamientos extraños. El usuario decide.
+                pausedByBackground = false;
+
+                startPersistTicker();
+            };
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) onHidden();
+                else onVisible();
+            });
+
+            // Persistir al salir
+            window.addEventListener('pagehide', () => {
+                persistPlaybackState('pagehide');
+                applyStageBackgroundMode(true);
+                stopPersistTicker();
+            });
+            window.addEventListener('beforeunload', () => {
+                persistPlaybackState('beforeunload');
+            });
+
+            window.addEventListener('pageshow', () => {
+                applyStageBackgroundMode(false);
+                // Si la página se “restauró” desde bfcache, re-hidratar UI
+                if (currentSong) {
+                    updateMobilePlayer(currentSong.title, currentSong.channel, currentSong.thumbnail);
+                    updateNowPlayingIndicator();
+                }
+                startPersistTicker();
+            });
+
+            // Arrancar ticker en foreground
+            startPersistTicker();
+        }
 
         function saveApiKey() {
             const key = document.getElementById('apiKeyInput').value.trim();
@@ -1557,15 +1795,24 @@
         };
         function onPlayerReady(event) {
             event.target.setVolume(100);
-            if (currentVideoId) {
-                try {
-                    // Usar startSeconds: 0 para asegurar el inicio
-                    event.target.loadVideoById({
-                        videoId: currentVideoId,
-                        startSeconds: 0
-                    });
-                } catch (_) {}
+            setupMediaSession();
+
+            // Si hay estado pendiente (por pestaña muerta en background), restaurarlo aquí
+            if (pendingRestoreState?.videoId) {
+                restoreFromPendingStateOnPlayerReady();
+                return;
             }
+
+            // No cargar nada si no hay selección
+            if (!currentVideoId) return;
+
+            // IMPORTANTE: no forzar autoplay al arrancar la app; solo preparar
+            try {
+                event.target.cueVideoById({
+                    videoId: currentVideoId,
+                    startSeconds: 0
+                });
+            } catch (_) {}
         }
         function onPlayerError(event) {
             if (!currentVideoId) {
@@ -1575,62 +1822,154 @@
             console.error('YouTube Player Error:', event.data);
             showToast('❌ Error al cargar la canción');
         }
+        // Wake Lock (mejora Android/Chrome; iOS normalmente no lo soporta)
+        let wakeLockHandle = null;
+        async function requestWakeLock() {
+            try {
+                if (!('wakeLock' in navigator)) return;
+                if (document.hidden) return;
+                if (wakeLockHandle) return;
+                wakeLockHandle = await navigator.wakeLock.request('screen');
+                wakeLockHandle.addEventListener('release', () => {
+                    wakeLockHandle = null;
+                });
+            } catch (_) {
+                wakeLockHandle = null;
+            }
+        }
+        async function releaseWakeLock() {
+            try {
+                if (!wakeLockHandle) return;
+                await wakeLockHandle.release();
+                wakeLockHandle = null;
+            } catch (_) {
+                wakeLockHandle = null;
+            }
+        }
+        document.addEventListener('visibilitychange', () => {
+            // Si volvemos al foreground y seguimos en play, re-solicitar wake lock
+            if (!document.hidden && isPlaying) requestWakeLock();
+            if (document.hidden) releaseWakeLock();
+        });
+
         function onPlayerStateChange(event) {
             if (typeof YT === 'undefined') return;
             const state = event.data;
-            
+
+            setupMediaSession();
+
             if (state === YT.PlayerState.PLAYING) {
                 isPlaying = true;
+                userInitiatedPause = false;
+                pausedByBackground = false;
                 updatePlayPauseButton();
                 startProgressUpdate();
                 updateEqualizerState();
                 detectAndSkipAds();
-                updateMediaSessionState("playing");
+                syncMediaSessionPlaybackState();
+                persistPlaybackState('playing');
+                requestWakeLock();
+                refreshStageKeepAlive();
             } else if (state === YT.PlayerState.PAUSED) {
                 isPlaying = false;
                 updatePlayPauseButton();
                 stopProgressUpdate();
                 updateEqualizerState();
-                updateMediaSessionState("paused");
+                syncMediaSessionPlaybackState();
+                persistPlaybackState('paused');
+                releaseWakeLock();
+                refreshStageKeepAlive();
+
+                const recentlyBackgrounded = lastBackgroundAt && (Date.now() - lastBackgroundAt) < 5000;
+                if (!userInitiatedPause && recentlyBackgrounded) {
+                    pausedByBackground = true;
+                }
+
+                // Aviso solo en Apple: limitación del navegador
+                if (!userInitiatedPause && recentlyBackgrounded && !backgroundInterruptionHintShown && isAppleDevice) {
+                    backgroundInterruptionHintShown = true;
+                    showToast('ℹ️ iPhone/Safari puede detener YouTube en segundo plano. Solución: Añadir a pantalla de inicio (PWA) o mantener la pantalla activa.');
+                }
             } else if (state === YT.PlayerState.ENDED) {
                 isPlaying = false;
                 updatePlayPauseButton();
                 stopProgressUpdate();
+                syncMediaSessionPlaybackState();
+                persistPlaybackState('ended');
+                releaseWakeLock();
+                refreshStageKeepAlive();
                 handleSongEnd();
             }
         }
 
-        // FUNCIÓN CRÍTICA: Comunicación directa con el Hardware/Widget del móvil
-        function updateMediaSessionState(state) {
-            if ('mediaSession' in navigator) {
-                navigator.mediaSession.playbackState = state;
-                
-                // Registro de acciones del Hardware
+        // MediaSession: registrar handlers una sola vez + sincronizar estado/metadatos
+        let mediaSessionInitialized = false;
+
+        function setupMediaSession() {
+            if (!('mediaSession' in navigator) || mediaSessionInitialized) return;
+            mediaSessionInitialized = true;
+
+            try {
                 navigator.mediaSession.setActionHandler('play', () => {
-                    if (player) player.playVideo();
+                    userInitiatedPause = false;
+                    try { player?.playVideo?.(); } catch (_) {}
                 });
                 navigator.mediaSession.setActionHandler('pause', () => {
-                    if (player) player.pauseVideo();
+                    // IMPORTANTE: marcar como pausa iniciada por usuario/sistema (widget)
+                    userInitiatedPause = true;
+                    try { player?.pauseVideo?.(); } catch (_) {}
                 });
                 navigator.mediaSession.setActionHandler('previoustrack', () => playPrevious());
                 navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
-                
-                // Metadatos para el Widget
-                if (currentSong && state === "playing") {
-                    navigator.mediaSession.metadata = new MediaMetadata({
-                        title: currentSong.title,
-                        artist: currentSong.channel,
-                        artwork: [
-                            { src: currentSong.thumbnail, sizes: '96x96', type: 'image/png' },
-                            { src: currentSong.thumbnail, sizes: '128x128', type: 'image/png' },
-                            { src: currentSong.thumbnail, sizes: '192x192', type: 'image/png' },
-                            { src: currentSong.thumbnail, sizes: '256x256', type: 'image/png' },
-                            { src: currentSong.thumbnail, sizes: '384x384', type: 'image/png' },
-                            { src: currentSong.thumbnail, sizes: '512x512', type: 'image/png' },
-                        ]
-                    });
-                }
+                navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+                    try {
+                        const offset = details?.seekOffset || 10;
+                        const t = player?.getCurrentTime?.() || 0;
+                        player?.seekTo?.(Math.max(0, t - offset), true);
+                    } catch (_) {}
+                });
+                navigator.mediaSession.setActionHandler('seekforward', (details) => {
+                    try {
+                        const offset = details?.seekOffset || 10;
+                        const t = player?.getCurrentTime?.() || 0;
+                        player?.seekTo?.(t + offset, true);
+                    } catch (_) {}
+                });
+            } catch (e) {
+                // Algunos Safari antiguos fallan en algunos handlers
             }
+        }
+
+        function syncMediaSessionPlaybackState() {
+            if (!('mediaSession' in navigator)) return;
+            navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+        }
+
+        function syncMediaSessionMetadata() {
+            if (!('mediaSession' in navigator)) return;
+            if (!currentSong) return;
+            try {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: currentSong.title,
+                    artist: currentSong.channel,
+                    artwork: [
+                        { src: currentSong.thumbnail, sizes: '96x96', type: 'image/png' },
+                        { src: currentSong.thumbnail, sizes: '128x128', type: 'image/png' },
+                        { src: currentSong.thumbnail, sizes: '192x192', type: 'image/png' },
+                        { src: currentSong.thumbnail, sizes: '256x256', type: 'image/png' },
+                        { src: currentSong.thumbnail, sizes: '384x384', type: 'image/png' },
+                        { src: currentSong.thumbnail, sizes: '512x512', type: 'image/png' },
+                    ]
+                });
+            } catch (_) {}
+        }
+
+        function updateMediaSessionState(_state) {
+            // Backwards-compatible wrapper
+            setupMediaSession();
+            syncMediaSessionPlaybackState();
+            // Metadatos: mantenerlos siempre que haya canción (no solo en playing)
+            syncMediaSessionMetadata();
         }
         function handleSongEnd() {
             if (!player) return;
@@ -1705,9 +2044,12 @@
             } catch (e) {}
         }
         function basePlayMusic(videoId, title, channel, thumbnail) {
-            const sameRequested = currentVideoId === videoId;
             currentVideoId = videoId;
             currentSong = { videoId, title, channel, thumbnail };
+
+            setupMediaSession();
+            syncMediaSessionMetadata();
+
             let shouldLoadNewVideo = true;
             if (player && typeof player.getVideoData === 'function') {
                 try {
@@ -1717,29 +2059,36 @@
                     }
                 } catch (_) {}
             }
-            if (player && typeof player.loadVideoById === 'function') {
+
+            // En Apple, si todavía no hay interacción, pre-cargar sin autoplay (cue) para evitar bloqueos.
+            const canAutoplay = !isAppleDevice || userHasInteracted;
+
+            if (player) {
                 try {
                     if (shouldLoadNewVideo) {
-                        // Forzar inicio en 0 explícitamente usando objeto de configuración
-                        player.loadVideoById({
-                            videoId: videoId,
-                            startSeconds: 0
-                        });
+                        if (canAutoplay) {
+                            player.loadVideoById({ videoId, startSeconds: 0 });
+                        } else {
+                            player.cueVideoById({ videoId, startSeconds: 0 });
+                        }
                     } else {
-                        // Si es el mismo video pero el usuario pulsó play de nuevo, 
-                        // opcionalmente podrías querer que empiece de cero o que siga.
-                        // Para evitar que parezca "empezado" por error, aseguramos play.
-                        player.playVideo();
+                        // mismo video
+                        if (canAutoplay) player.playVideo();
                     }
                 } catch (e) {
-                    console.warn('loadVideoById error:', e);
+                    console.warn('play load/cue error:', e);
                 }
             }
+
             document.getElementById('currentTitle').textContent = title;
             document.getElementById('currentChannel').textContent = channel;
             document.getElementById('currentThumbnail').src = thumbnail;
             document.getElementById('currentThumbnail').classList.remove('hidden');
             document.getElementById('playerSection').classList.remove('hidden');
+
+            // Persistir selección inmediatamente
+            persistPlaybackState('select_song');
+
             updateNowPlayingIndicator();
             setTimeout(() => applyMarqueeToVisibleLists(), 50);
         }
@@ -1902,6 +2251,8 @@
         }
         function togglePlayPause() {
             if (!player) return;
+            // Considerar esto como interacción del usuario (especialmente iOS)
+            userHasInteracted = true;
             userInitiatedPause = true;
             if (isPlaying) player.pauseVideo();
             else player.playVideo();
@@ -2243,16 +2594,55 @@
         let isYtStageVisible = false;
         function toggleYtStage() {
             isYtStageVisible = !isYtStageVisible;
+            refreshStageKeepAlive();
             updateYtStageVisibility();
         }
+        function refreshStageKeepAlive() {
+            const stage = document.getElementById('ytStage');
+            const mobileFull = document.getElementById('mobilePlayerFull');
+            const isFullActive = !!(mobileFull && mobileFull.classList.contains('active'));
+
+            if (!stage) return;
+            if (window.innerWidth > 768) {
+                forceStageKeepAlive = false;
+                stage.classList.remove('yt-stage-background');
+                return;
+            }
+
+            // Solo lo forzamos en Apple (Safari/iOS) y solo si el usuario ocultó el video
+            if (isAppleDevice && isPlaying && !isFullActive && !isYtStageVisible) {
+                forceStageKeepAlive = true;
+                stage.classList.add('yt-stage-visible');
+                stage.classList.add('yt-stage-background');
+            } else {
+                if (forceStageKeepAlive) {
+                    forceStageKeepAlive = false;
+                    stage.classList.remove('yt-stage-background');
+                }
+            }
+        }
+
         function updateYtStageVisibility() {
             const stage = document.getElementById('ytStage');
             const mobileFull = document.getElementById('mobilePlayerFull');
             const isFullActive = !!(mobileFull && mobileFull.classList.contains('active'));
+            if (!stage) return;
+
             if (isFullActive) {
                 stage.classList.add('yt-stage-visible');
+                // en full, no usar background mode
+                stage.classList.remove('yt-stage-background');
                 return;
             }
+
+            // Si estamos forzando keep-alive, mantener visible (1px)
+            if (forceStageKeepAlive) {
+                stage.classList.add('yt-stage-visible');
+                stage.classList.add('yt-stage-background');
+                return;
+            }
+
+            stage.classList.remove('yt-stage-background');
             if (isYtStageVisible) stage.classList.add('yt-stage-visible');
             else stage.classList.remove('yt-stage-visible');
         }
@@ -2312,24 +2702,25 @@
                     requestAnimationFrame(updateVideoPosition);
                     return;
                 }
-                stage.style.setProperty('position', 'fixed', 'important');
-                stage.style.setProperty('left', rect.left + 'px', 'important');
-                stage.style.setProperty('top', rect.top + 'px', 'important');
-                stage.style.setProperty('width', rect.width + 'px', 'important');
-                stage.style.setProperty('height', rect.height + 'px', 'important');
-                stage.style.setProperty('right', 'auto', 'important');
-                stage.style.setProperty('bottom', 'auto', 'important');
-                stage.style.setProperty('z-index', '100', 'important');
-                stage.style.setProperty('transition', 'none', 'important');
-                stage.style.setProperty('opacity', '1', 'important');
-                stage.style.setProperty('pointer-events', 'auto', 'important');
+                stage.style.position = 'fixed';
+                stage.style.left = rect.left + 'px';
+                stage.style.top = rect.top + 'px';
+                stage.style.width = rect.width + 'px';
+                stage.style.height = rect.height + 'px';
+                stage.style.right = 'auto';
+                stage.style.bottom = 'auto';
+                stage.style.zIndex = '100';
+                stage.style.transition = 'none';
+                stage.style.opacity = '1';
+                stage.style.pointerEvents = 'auto';
                 stage.style.borderRadius = '12px';
             };
 
             requestAnimationFrame(updateVideoPosition);
             window._updateVideoPos = updateVideoPosition;
+            window._updateVideoPosOrientation = () => setTimeout(updateVideoPosition, 100);
             window.addEventListener('resize', window._updateVideoPos);
-            window.addEventListener('orientationchange', () => setTimeout(updateVideoPosition, 100));
+            window.addEventListener('orientationchange', window._updateVideoPosOrientation);
         }
 
         function closeMobilePlayer() {
@@ -2337,10 +2728,13 @@
             const stage = document.getElementById('ytStage');
 
             full.classList.remove('active');
-            window.removeEventListener('resize', window._updateVideoPos);
+            if (window._updateVideoPos) window.removeEventListener('resize', window._updateVideoPos);
+            if (window._updateVideoPosOrientation) window.removeEventListener('orientationchange', window._updateVideoPosOrientation);
+            window._updateVideoPos = null;
+            window._updateVideoPosOrientation = null;
 
-            // Restaurar estilos originales suavemente
-            stage.style.cssText = ''; 
+            // Restaurar estilos originales
+            stage.style.cssText = '';
             updateYtStageVisibility();
         }
         function seekMobile(value) {
