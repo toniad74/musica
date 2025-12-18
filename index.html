@@ -137,6 +137,19 @@
             opacity: 1;
             pointer-events: auto;
         }
+        /* Mantener vivo el iframe en móvil sin mostrarlo (ayuda en segundo plano) */
+        .yt-stage.yt-stage-background {
+            width: 1px;
+            height: 1px;
+            right: 0;
+            bottom: 0;
+            border: 0;
+            border-radius: 0;
+            box-shadow: none;
+            opacity: 0.01;
+            pointer-events: none;
+            transform: translate(200px, 200px);
+        }
         /* Modo incrustado dentro del reproductor móvil a pantalla completa */
         .yt-stage.yt-stage-embedded {
             position: absolute;
@@ -1089,12 +1102,15 @@
         let repeatMode = 0;
         let userInitiatedPause = false;
         let progressInterval;
+        let lastBackgroundAt = 0;
+        let backgroundInterruptionHintShown = false;
         let isApiSectionVisible = true;
         let lastSearchQuery = '';
         let searchNextPageToken = null;
         let searchPrevPageToken = null;
         let searchPage = 1;
         let isQueueModalOpen = false;
+        let wasYtStageVisibleBeforeBackground = false;
 
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
@@ -1136,10 +1152,41 @@
             }
             renderPlaylists();
             setupControls();
+            setupBackgroundPlaybackGuards();
             loadYouTubeAPI();
             updateRepeatUI();
             initAntiAdObserver();
         });
+
+        function setupBackgroundPlaybackGuards() {
+            // Mantener el iframe “vivo” en móvil cuando la app pasa a segundo plano
+            const stage = document.getElementById('ytStage');
+            const applyStageBackgroundMode = (on) => {
+                if (!stage) return;
+                // Solo tiene sentido en móvil
+                if (window.innerWidth > 768) return;
+                stage.classList.toggle('yt-stage-background', !!on);
+            };
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    lastBackgroundAt = Date.now();
+                    // Si está reproduciendo, intentamos minimizar el stage (no parar)
+                    applyStageBackgroundMode(true);
+                } else {
+                    applyStageBackgroundMode(false);
+                    // Al volver al foreground, permitimos mostrar el aviso otra vez en el futuro
+                    backgroundInterruptionHintShown = false;
+                    // Re-sincronizar UI (sin forzar play)
+                    updatePlayPauseButton();
+                    updateEqualizerState();
+                }
+            });
+
+            // En iOS el pagehide/freeze puede dispararse en background
+            window.addEventListener('pagehide', () => applyStageBackgroundMode(true));
+            window.addEventListener('pageshow', () => applyStageBackgroundMode(false));
+        }
 
         function saveApiKey() {
             const key = document.getElementById('apiKeyInput').value.trim();
@@ -1557,6 +1604,7 @@
         };
         function onPlayerReady(event) {
             event.target.setVolume(100);
+            setupMediaSession();
             if (currentVideoId) {
                 try {
                     // Usar startSeconds: 0 para asegurar el inicio
@@ -1578,59 +1626,108 @@
         function onPlayerStateChange(event) {
             if (typeof YT === 'undefined') return;
             const state = event.data;
-            
+
+            setupMediaSession();
+
             if (state === YT.PlayerState.PLAYING) {
                 isPlaying = true;
+                userInitiatedPause = false;
                 updatePlayPauseButton();
                 startProgressUpdate();
                 updateEqualizerState();
                 detectAndSkipAds();
-                updateMediaSessionState("playing");
+                syncMediaSessionPlaybackState();
             } else if (state === YT.PlayerState.PAUSED) {
                 isPlaying = false;
+                // Si el pause vino del widget, userInitiatedPause ya se puso true en el handler
                 updatePlayPauseButton();
                 stopProgressUpdate();
                 updateEqualizerState();
-                updateMediaSessionState("paused");
+                syncMediaSessionPlaybackState();
+
+                // Si se pausó justo tras ir a segundo plano, suele ser política del navegador/iOS
+                const recentlyBackgrounded = lastBackgroundAt && (Date.now() - lastBackgroundAt) < 5000;
+                if (!userInitiatedPause && recentlyBackgrounded && !backgroundInterruptionHintShown && isAppleDevice) {
+                    backgroundInterruptionHintShown = true;
+                    showToast('ℹ️ En iPhone/Safari, YouTube puede pausar en segundo plano. Recomendación: Añadir a pantalla de inicio (PWA) para mayor estabilidad.');
+                }
             } else if (state === YT.PlayerState.ENDED) {
                 isPlaying = false;
                 updatePlayPauseButton();
                 stopProgressUpdate();
+                syncMediaSessionPlaybackState();
                 handleSongEnd();
             }
         }
 
-        // FUNCIÓN CRÍTICA: Comunicación directa con el Hardware/Widget del móvil
-        function updateMediaSessionState(state) {
-            if ('mediaSession' in navigator) {
-                navigator.mediaSession.playbackState = state;
-                
-                // Registro de acciones del Hardware
+        // MediaSession: registrar handlers una sola vez + sincronizar estado/metadatos
+        let mediaSessionInitialized = false;
+
+        function setupMediaSession() {
+            if (!('mediaSession' in navigator) || mediaSessionInitialized) return;
+            mediaSessionInitialized = true;
+
+            try {
                 navigator.mediaSession.setActionHandler('play', () => {
-                    if (player) player.playVideo();
+                    userInitiatedPause = false;
+                    try { player?.playVideo?.(); } catch (_) {}
                 });
                 navigator.mediaSession.setActionHandler('pause', () => {
-                    if (player) player.pauseVideo();
+                    // IMPORTANTE: marcar como pausa iniciada por usuario/sistema (widget)
+                    userInitiatedPause = true;
+                    try { player?.pauseVideo?.(); } catch (_) {}
                 });
                 navigator.mediaSession.setActionHandler('previoustrack', () => playPrevious());
                 navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
-                
-                // Metadatos para el Widget
-                if (currentSong && state === "playing") {
-                    navigator.mediaSession.metadata = new MediaMetadata({
-                        title: currentSong.title,
-                        artist: currentSong.channel,
-                        artwork: [
-                            { src: currentSong.thumbnail, sizes: '96x96', type: 'image/png' },
-                            { src: currentSong.thumbnail, sizes: '128x128', type: 'image/png' },
-                            { src: currentSong.thumbnail, sizes: '192x192', type: 'image/png' },
-                            { src: currentSong.thumbnail, sizes: '256x256', type: 'image/png' },
-                            { src: currentSong.thumbnail, sizes: '384x384', type: 'image/png' },
-                            { src: currentSong.thumbnail, sizes: '512x512', type: 'image/png' },
-                        ]
-                    });
-                }
+                navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+                    try {
+                        const offset = details?.seekOffset || 10;
+                        const t = player?.getCurrentTime?.() || 0;
+                        player?.seekTo?.(Math.max(0, t - offset), true);
+                    } catch (_) {}
+                });
+                navigator.mediaSession.setActionHandler('seekforward', (details) => {
+                    try {
+                        const offset = details?.seekOffset || 10;
+                        const t = player?.getCurrentTime?.() || 0;
+                        player?.seekTo?.(t + offset, true);
+                    } catch (_) {}
+                });
+            } catch (e) {
+                // Algunos Safari antiguos fallan en algunos handlers
             }
+        }
+
+        function syncMediaSessionPlaybackState() {
+            if (!('mediaSession' in navigator)) return;
+            navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+        }
+
+        function syncMediaSessionMetadata() {
+            if (!('mediaSession' in navigator)) return;
+            if (!currentSong) return;
+            try {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: currentSong.title,
+                    artist: currentSong.channel,
+                    artwork: [
+                        { src: currentSong.thumbnail, sizes: '96x96', type: 'image/png' },
+                        { src: currentSong.thumbnail, sizes: '128x128', type: 'image/png' },
+                        { src: currentSong.thumbnail, sizes: '192x192', type: 'image/png' },
+                        { src: currentSong.thumbnail, sizes: '256x256', type: 'image/png' },
+                        { src: currentSong.thumbnail, sizes: '384x384', type: 'image/png' },
+                        { src: currentSong.thumbnail, sizes: '512x512', type: 'image/png' },
+                    ]
+                });
+            } catch (_) {}
+        }
+
+        function updateMediaSessionState(_state) {
+            // Backwards-compatible wrapper
+            setupMediaSession();
+            syncMediaSessionPlaybackState();
+            // Metadatos: mantenerlos siempre que haya canción (no solo en playing)
+            syncMediaSessionMetadata();
         }
         function handleSongEnd() {
             if (!player) return;
@@ -1708,6 +1805,8 @@
             const sameRequested = currentVideoId === videoId;
             currentVideoId = videoId;
             currentSong = { videoId, title, channel, thumbnail };
+            setupMediaSession();
+            syncMediaSessionMetadata();
             let shouldLoadNewVideo = true;
             if (player && typeof player.getVideoData === 'function') {
                 try {
