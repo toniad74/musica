@@ -1732,7 +1732,7 @@
             if (nextBtn) nextBtn.disabled = true;
             try {
                 const tokenParam = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '';
-                const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=50${tokenParam}&q=${encodeURIComponent(query + ' music')}&key=${API_KEY}`);
+                const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=25${tokenParam}&q=${encodeURIComponent(query + ' music')}&key=${API_KEY}`);
                 if (!response.ok) {
                     const errData = await response.json().catch(() => null);
                     const apiMsg = errData?.error?.message;
@@ -1774,7 +1774,7 @@
             
             const resultsGrid = document.getElementById('resultsGrid');
             resultsGrid.innerHTML = '';
-            const offset = (Math.max(1, searchPage) - 1) * 50;
+            const offset = (Math.max(1, searchPage) - 1) * 25;
             videos.forEach((video, index) => {
                 const videoId = video.id.videoId;
                 const title = video.snippet.title;
