@@ -1596,6 +1596,9 @@ function deleteCurrentPlaylist() {
 function playCurrentPlaylist() {
     const pl = playlists.find(p => p.id === activePlaylistId);
     if (pl && pl.songs.length > 0) {
+        currentlyPlayingPlaylistId = activePlaylistId;
+        localStorage.setItem('amaya_playing_pl_id', currentlyPlayingPlaylistId);
+        renderHomePlaylists();
         playSong(pl.songs[0], pl.songs);
     }
 }
@@ -1740,9 +1743,9 @@ function renderHomePlaylists() {
         const durationStr = formatDuration(totalSeconds, true);
         const coverImg = pl.cover || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=300&h=300&fit=crop';
 
-        const isPlaying = currentlyPlayingPlaylistId === pl.id;
+        const isPlaying = currentlyPlayingPlaylistId && String(currentlyPlayingPlaylistId) === String(pl.id);
         const row = document.createElement('div');
-        row.className = `group flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/10 ${isPlaying ? 'bg-white/10 border-white/20' : ''}`;
+        row.className = `group flex items-center justify-between p-3 rounded-xl transition-all cursor-pointer border ${isPlaying ? 'bg-white/10 border-green-500/50 shadow-[0_0_15px_rgba(30,215,96,0.1)]' : 'hover:bg-white/5 border-transparent hover:border-white/10'}`;
         row.onclick = () => openPlaylist(pl.id);
 
         row.innerHTML = `
