@@ -65,6 +65,34 @@ button.in-queue svg {
     /* End Pause */
 }
 
+/* --- ANIMATIONS --- */
+@keyframes playing-bar-bounce {
+
+    0%,
+    100% {
+        height: 4px;
+    }
+
+    50% {
+        height: 16px;
+    }
+}
+
+.playing-bar {
+    width: 3px;
+    background-color: var(--accent-color);
+    border-radius: 2px;
+    animation: playing-bar-bounce 1s ease-in-out infinite;
+}
+
+.playing-bar:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.playing-bar:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
 .app-logo-img {
     width: 32px;
     height: 32px;

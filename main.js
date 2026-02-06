@@ -4,6 +4,7 @@ let currentTrack = null;
 let playlist = []; // For the current view (search results or playlist songs)
 let queue = [];
 let currentQueueIndex = -1;
+let currentlyPlayingPlaylistId = null;
 let playlists = JSON.parse(localStorage.getItem('amaya_playlists')) || [];
 let apiKey = localStorage.getItem('amaya_yt_key') || '';
 let isShuffle = false;
@@ -906,7 +907,11 @@ function renderSearchResults(videos) {
             const row = document.createElement('div');
             row.className = 'result-row flex items-center gap-4 p-3 cursor-pointer group';
             row.dataset.videoId = video.id;
-            row.onclick = () => playSong(video, [video]);
+            row.onclick = () => {
+                currentlyPlayingPlaylistId = null;
+                renderHomePlaylists();
+                playSong(video, [video]);
+            };
 
             row.innerHTML = `
                 <div class="w-10 text-center text-sm text-[#b3b3b3] track-number group-hover:hidden">${(currentSearchPage - 1) * 20 + index + 1}</div>
@@ -1112,11 +1117,11 @@ function toggleQueue(song) {
             currentQueueIndex--;
         }
 
-        showToast(`Eliminat de la cua: ${removedSong.title}`);
+        showToast(`- ${removedSong.title}`);
     } else {
         // Not in queue, add it
         queue.push(song);
-        showToast(`Afegit a la cua: ${song.title}`);
+        showToast(`+ ${song.title}`);
     }
 
     // Update visual count
@@ -1410,9 +1415,13 @@ function openPlaylist(id) {
             const inQueueClass = inQueue ? 'in-queue' : 'text-[#b3b3b3]';
 
             const row = document.createElement('div');
-            row.className = 'result-row flex items-center gap-4 p-3 cursor-pointer group hover:bg-white/5';
+            row.className = `result-row flex items-center gap-4 p-3 cursor-pointer group hover:bg-white/5 ${currentTrack && currentTrack.id === song.id ? 'is-playing' : ''}`;
             row.dataset.videoId = song.id;
-            row.onclick = () => playSong(song, pl.songs);
+            row.onclick = () => {
+                currentlyPlayingPlaylistId = id;
+                renderHomePlaylists();
+                playSong(song, pl.songs);
+            };
 
             row.innerHTML = `
                 <div class="w-10 text-center text-sm text-[#b3b3b3] group-hover:hidden">${index + 1}</div>
@@ -1643,7 +1652,7 @@ function removeFromQueue(index) {
         currentQueueIndex--;
     }
 
-    showToast(`Eliminat: ${removedSong.title}`);
+    showToast(`- ${removedSong.title}`);
     updateQueueCount();
     updateQueueIcons();
     showQueue(); // Refresh the list
@@ -1659,7 +1668,7 @@ function clearQueue() {
     updateQueueCount();
     updateQueueIcons();
     hideQueue();
-    showToast("Cua buidada");
+    showToast("Cua buida");
 }
 
 
@@ -1720,15 +1729,26 @@ function renderHomePlaylists() {
         const durationStr = formatDuration(totalSeconds, true);
         const coverImg = pl.cover || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=300&h=300&fit=crop';
 
+        const isPlaying = currentlyPlayingPlaylistId === pl.id;
         const row = document.createElement('div');
-        row.className = 'group flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/10';
+        row.className = `group flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/10 ${isPlaying ? 'bg-white/10 border-white/20' : ''}`;
         row.onclick = () => openPlaylist(pl.id);
 
         row.innerHTML = `
             <div class="flex items-center gap-4 flex-1 min-w-0">
-                <img src="${coverImg}" class="w-16 h-16 rounded-lg object-cover shadow-lg">
+                <div class="relative">
+                    <img src="${coverImg}" class="w-16 h-16 rounded-lg object-cover shadow-lg">
+                    ${isPlaying ? `
+                    <div class="absolute inset-0 bg-green-500/20 rounded-lg flex items-center justify-center">
+                        <div class="flex gap-1 items-end h-4">
+                            <div class="playing-bar"></div>
+                            <div class="playing-bar"></div>
+                            <div class="playing-bar"></div>
+                        </div>
+                    </div>` : ''}
+                </div>
                 <div class="flex-1 min-w-0">
-                    <h3 class="text-white font-bold text-lg truncate">${pl.name}</h3>
+                    <h3 class="${isPlaying ? 'text-green-500' : 'text-white'} font-bold text-lg truncate">${pl.name}</h3>
                     <div class="flex items-center gap-2 text-gray-400 text-sm truncate">
                         <span>${pl.songs.length} canç.</span>
                         <span class="opacity-30">•</span>
@@ -1785,32 +1805,19 @@ function playPlaylist(event, plId) {
     event.stopPropagation();
     const pl = playlists.find(p => p.id === plId);
     if (pl && pl.songs.length > 0) {
+        currentlyPlayingPlaylistId = plId;
+        renderHomePlaylists();
         playSong(pl.songs[0], pl.songs);
     } else {
         showToast("Aquesta llista no té cançons", "error");
     }
 }
 
-function showToast(message, type = 'success') {
-    const container = document.getElementById('toastContainer');
-    container.innerHTML = ''; // Overwrite previous notifications
-
-    const toast = document.createElement('div');
-    toast.className = `px-6 py-3 rounded-full text-white font-bold shadow-2xl transition-all translate-y-10 opacity-0 ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
-    toast.innerText = message;
-
-    container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.classList.remove('translate-y-10', 'opacity-0');
-    }, 10);
-
-    setTimeout(() => {
-        if (toast.parentElement) {
-            toast.classList.add('translate-y-10', 'opacity-0');
-            setTimeout(() => toast.remove(), 300);
-        }
-    }, 3000);
+function showToast(m, t = 'success') {
+    const c = document.getElementById('toastContainer');
+    c.innerHTML = `<div class="px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-2xl animate-fade-in ${t === 'success' ? 'bg-green-600' : 'bg-red-600'}">${m}</div>`;
+    clearTimeout(window.toastT);
+    window.toastT = setTimeout(() => c.innerHTML = '', 2500);
 }
 
 let progressUpdaterInterval; // Renamed from progressInterval to avoid conflict and be more descriptive
