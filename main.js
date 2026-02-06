@@ -4,7 +4,7 @@ let currentTrack = null;
 let playlist = []; // For the current view (search results or playlist songs)
 let queue = [];
 let currentQueueIndex = -1;
-let currentlyPlayingPlaylistId = null;
+let currentlyPlayingPlaylistId = localStorage.getItem('amaya_playing_pl_id') || null;
 let playlists = JSON.parse(localStorage.getItem('amaya_playlists')) || [];
 let apiKey = localStorage.getItem('amaya_yt_key') || '';
 let isShuffle = false;
@@ -904,11 +904,13 @@ function renderSearchResults(videos) {
             const inQueue = isSongInQueue(video.id);
             const inQueueClass = inQueue ? 'in-queue' : 'text-[#b3b3b3]';
 
+            const isCurrent = currentTrack && String(currentTrack.id) === String(video.id);
             const row = document.createElement('div');
-            row.className = 'result-row flex items-center gap-4 p-3 cursor-pointer group';
+            row.className = `result-row flex items-center gap-4 p-3 cursor-pointer group ${isCurrent ? 'is-playing' : ''}`;
             row.dataset.videoId = video.id;
             row.onclick = () => {
                 currentlyPlayingPlaylistId = null;
+                localStorage.removeItem('amaya_playing_pl_id');
                 renderHomePlaylists();
                 playSong(video, [video]);
             };
@@ -983,6 +985,9 @@ async function playSong(song, list = [], fromQueue = false) {
 
     // Highlight active track in all lists
     highlightCurrentTrack(song.id);
+
+    // Refresh home highlights
+    renderHomePlaylists();
 
     // CRITICAL MOBILE FIX: Initialize audio context IMMEDIATELY on user click
     try {
@@ -1414,11 +1419,13 @@ function openPlaylist(id) {
             const inQueue = isSongInQueue(song.id);
             const inQueueClass = inQueue ? 'in-queue' : 'text-[#b3b3b3]';
 
+            const isCurrent = currentTrack && String(currentTrack.id) === String(song.id);
             const row = document.createElement('div');
-            row.className = `result-row flex items-center gap-4 p-3 cursor-pointer group hover:bg-white/5 ${currentTrack && currentTrack.id === song.id ? 'is-playing' : ''}`;
+            row.className = `result-row flex items-center gap-4 p-3 cursor-pointer group hover:bg-white/5 ${isCurrent ? 'is-playing' : ''}`;
             row.dataset.videoId = song.id;
             row.onclick = () => {
                 currentlyPlayingPlaylistId = id;
+                localStorage.setItem('amaya_playing_pl_id', id);
                 renderHomePlaylists();
                 playSong(song, pl.songs);
             };
@@ -1673,14 +1680,18 @@ function clearQueue() {
 
 
 function highlightCurrentTrack(videoId) {
+    if (!videoId) return;
+
     // Remove highlight from all rows
     document.querySelectorAll('.result-row').forEach(row => {
         row.classList.remove('is-playing');
     });
 
-    // Add highlight to rows matching current videoId
-    document.querySelectorAll(`.result-row[data-video-id="${videoId}"]`).forEach(row => {
-        row.classList.add('is-playing');
+    // Add highlight to rows matching current videoId (using strict ID matching)
+    document.querySelectorAll('.result-row').forEach(row => {
+        if (String(row.dataset.videoId) === String(videoId)) {
+            row.classList.add('is-playing');
+        }
     });
 }
 
@@ -1806,6 +1817,7 @@ function playPlaylist(event, plId) {
     const pl = playlists.find(p => p.id === plId);
     if (pl && pl.songs.length > 0) {
         currentlyPlayingPlaylistId = plId;
+        localStorage.setItem('amaya_playing_pl_id', plId);
         renderHomePlaylists();
         playSong(pl.songs[0], pl.songs);
     } else {
