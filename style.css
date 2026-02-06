@@ -13,11 +13,13 @@
     --island-padding: 24px;
 }
 
-.text-green-500 {
+.text-green-500,
+.in-queue {
     color: var(--accent-color) !important;
 }
 
-button.text-green-500 svg {
+button.text-green-500 svg,
+button.in-queue svg {
     filter: drop-shadow(0 0 8px rgba(30, 215, 96, 0.6));
     transform: scale(1.1);
 }

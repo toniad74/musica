@@ -901,7 +901,7 @@ function renderSearchResults(videos) {
     } else {
         videos.forEach((video, index) => {
             const inQueue = isSongInQueue(video.id);
-            const inQueueClass = inQueue ? 'text-green-500' : 'text-[#b3b3b3]';
+            const inQueueClass = inQueue ? 'in-queue' : 'text-[#b3b3b3]';
 
             const row = document.createElement('div');
             row.className = 'result-row flex items-center gap-4 p-3 cursor-pointer group';
@@ -1077,18 +1077,19 @@ async function playSong(song, list = [], fromQueue = false) {
 
 // --- QUEUE MANAGEMENT ---
 function isSongInQueue(songId) {
-    return queue.some(s => s.id === songId);
+    if (!songId) return false;
+    return queue.some(s => String(s.id) === String(songId));
 }
 
 function updateQueueIcons() {
     // Update all queue buttons in search results and playlists
     document.querySelectorAll('.queue-btn').forEach(btn => {
-        const songId = btn.dataset.songId;
+        const songId = btn.getAttribute('data-song-id');
         if (isSongInQueue(songId)) {
-            btn.classList.add('text-green-500');
+            btn.classList.add('in-queue');
             btn.classList.remove('text-[#b3b3b3]');
         } else {
-            btn.classList.remove('text-green-500');
+            btn.classList.remove('in-queue');
             btn.classList.add('text-[#b3b3b3]');
         }
     });
@@ -1383,7 +1384,7 @@ function openPlaylist(id) {
     } else {
         pl.songs.forEach((song, index) => {
             const inQueue = isSongInQueue(song.id);
-            const inQueueClass = inQueue ? 'text-green-500' : 'text-[#b3b3b3]';
+            const inQueueClass = inQueue ? 'in-queue' : 'text-[#b3b3b3]';
 
             const row = document.createElement('div');
             row.className = 'result-row flex items-center gap-4 p-3 cursor-pointer group hover:bg-white/5';
