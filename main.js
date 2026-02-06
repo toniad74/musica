@@ -923,7 +923,7 @@ function renderSearchResults(videos) {
                 <img src="${video.thumbnail}" class="w-10 h-10 rounded object-cover">
                 <div class="flex-1 min-w-0">
                     <div class="marquee-container">
-                        <h3 class="text-white font-medium marquee-content">${video.title}</h3>
+                        <h3 class="text-white font-medium marquee-content">${video.title}${isCurrent ? ' <span class="playing-badge">SONANT</span>' : ''}</h3>
                     </div>
                     <p class="text-[#b3b3b3] text-sm truncate">${video.channel}</p>
                 </div>
@@ -1438,7 +1438,7 @@ function openPlaylist(id) {
                 <img src="${song.thumbnail}" class="w-10 h-10 rounded object-cover">
                 <div class="flex-1 min-w-0">
                     <div class="marquee-container">
-                        <h3 class="text-white font-medium marquee-content song-title">${song.title}</h3>
+                        <h3 class="text-white font-medium marquee-content song-title">${song.title}${isCurrent ? ' <span class="playing-badge">SONANT</span>' : ''}</h3>
                     </div>
                     <p class="text-[#b3b3b3] text-sm truncate">${song.channel}</p>
                 </div>
@@ -1762,7 +1762,7 @@ function renderHomePlaylists() {
                     </div>` : ''}
                 </div>
                 <div class="flex-1 min-w-0">
-                    <h3 class="${isPlaying ? 'text-green-500' : 'text-white'} font-bold text-lg truncate">${pl.name}</h3>
+                    <h3 class="${isPlaying ? 'text-green-500' : 'text-white'} font-bold text-lg truncate">${pl.name}${isPlaying ? ' <span class="playing-badge">SONANT</span>' : ''}</h3>
                     <div class="flex items-center gap-2 text-gray-400 text-sm truncate">
                         <span>${pl.songs.length} canç.</span>
                         <span class="opacity-30">•</span>
