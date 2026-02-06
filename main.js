@@ -921,10 +921,10 @@ function renderSearchResults(videos) {
                     <p class="text-[#b3b3b3] text-sm truncate">${video.channel}</p>
                 </div>
                 <div class="flex items-center gap-2 transition-opacity">
-                    <button onclick="event.stopPropagation(); addToQueue(${JSON.stringify(video).replace(/"/g, '&quot;')})" 
+                    <button onclick="event.stopPropagation(); toggleQueue(${JSON.stringify(video).replace(/"/g, '&quot;')})" 
                         class="queue-btn p-2 hover:text-white ${inQueueClass}" 
                         data-song-id="${video.id}"
-                        title="Afegir a la cua">
+                        title="Afegir/Treure de la cua">
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/></svg>
                     </button>
                     <button onclick="event.stopPropagation(); showAddToPlaylistMenu(event, ${JSON.stringify(video).replace(/"/g, '&quot;')})" 
@@ -1095,9 +1095,29 @@ function updateQueueIcons() {
     });
 }
 
-function addToQueue(song) {
-    // Add to queue array
-    queue.push(song);
+function toggleQueue(song) {
+    const index = queue.findIndex(s => String(s.id) === String(song.id));
+
+    if (index !== -1) {
+        // Already in queue, remove it
+        if (currentTrack && index === currentQueueIndex) {
+            showToast("No pots eliminar la cançó que està sonant", "warning");
+            return;
+        }
+
+        const removedSong = queue.splice(index, 1)[0];
+
+        // Adjust currentQueueIndex if needed
+        if (currentTrack && index < currentQueueIndex) {
+            currentQueueIndex--;
+        }
+
+        showToast(`Eliminat de la cua: ${removedSong.title}`);
+    } else {
+        // Not in queue, add it
+        queue.push(song);
+        showToast(`Afegit a la cua: ${song.title}`);
+    }
 
     // Update visual count
     updateQueueCount();
@@ -1105,8 +1125,11 @@ function addToQueue(song) {
     // Update icons colors
     updateQueueIcons();
 
-    // Feedback
-    showToast(`Afegit a la cua: ${song.title}`);
+    // Refresh queue modal if visible
+    const modal = document.getElementById('queueModal');
+    if (modal && !modal.classList.contains('hidden')) {
+        showQueue();
+    }
 }
 
 function updateQueueCount() {
@@ -1404,10 +1427,10 @@ function openPlaylist(id) {
                     <p class="text-[#b3b3b3] text-sm truncate">${song.channel}</p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button onclick="event.stopPropagation(); addToQueue(${JSON.stringify(song).replace(/"/g, '&quot;')})" 
+                    <button onclick="event.stopPropagation(); toggleQueue(${JSON.stringify(song).replace(/"/g, '&quot;')})" 
                         class="queue-btn p-2 hover:text-white ${inQueueClass}" 
                         data-song-id="${song.id}"
-                        title="Afegir a la cua">
+                        title="Afegir/Treure de la cua">
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/></svg>
                     </button>
                     <button onclick="event.stopPropagation(); removeSongFromPlaylist('${pl.id}', '${song.id}')" class="text-gray-500 hover:text-red-500 p-2 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity" title="Eliminar de la llista">
