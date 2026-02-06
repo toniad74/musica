@@ -529,7 +529,7 @@ body>iframe:not(#youtubePlayer):not(#ytStage iframe) {
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    button:not(.bg-white):not(.text-green-500):hover {
+    button:not(.bg-white):not(.text-green-500):not(.in-queue):hover {
         transform: scale(1.1);
         color: white !important;
     }
