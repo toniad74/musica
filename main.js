@@ -6,7 +6,8 @@ let queue = [];
 let currentQueueIndex = -1;
 let currentlyPlayingPlaylistId = localStorage.getItem('amaya_playing_pl_id') || null;
 let playlists = JSON.parse(localStorage.getItem('amaya_playlists')) || [];
-let apiKey = localStorage.getItem('amaya_yt_key') || '';
+let apiKeys = JSON.parse(localStorage.getItem('amaya_yt_keys')) || [];
+let currentKeyIndex = parseInt(localStorage.getItem('amaya_yt_key_index')) || 0;
 let isShuffle = false;
 let repeatMode = 0; // 0: No repeat, 1: Repeat playlist, 2: Repeat one
 let nextSearchToken = '';
@@ -57,8 +58,11 @@ window.onload = () => {
     firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
     // Initial UI load
-    if (apiKey) {
-        document.getElementById('apiKeyInput').value = apiKey;
+    if (apiKeys.length > 0) {
+        apiKeys.forEach((key, i) => {
+            const input = document.getElementById(`apiKeyInput${i + 1}`);
+            if (input) input.value = key;
+        });
         document.getElementById('apiKeySection').classList.add('hidden');
         document.getElementById('apiKeyToggleButton').innerText = "Mostrar clau API";
         document.getElementById('apiWarning').classList.add('hidden');
@@ -785,17 +789,36 @@ async function onPlayerError(event) {
 
 // --- API KEY MANAGEMENT ---
 function saveApiKey() {
-    const key = document.getElementById('apiKeyInput').value.trim();
-    if (key) {
-        apiKey = key;
-        localStorage.setItem('amaya_yt_key', key);
+    const keys = [];
+    for (let i = 1; i <= 3; i++) {
+        const val = document.getElementById(`apiKeyInput${i}`).value.trim();
+        if (val) keys.push(val);
+    }
+
+    if (keys.length > 0) {
+        apiKeys = keys;
+        currentKeyIndex = 0;
+        localStorage.setItem('amaya_yt_keys', JSON.stringify(keys));
+        localStorage.setItem('amaya_yt_key_index', 0);
         document.getElementById('apiKeySection').classList.add('hidden');
         document.getElementById('apiKeyToggleButton').innerText = "Mostrar clau API";
         document.getElementById('apiWarning').classList.add('hidden');
-        showToast("Clau API desada amb èxit");
+        showToast(`Desades ${keys.length} claus amb èxit`);
     } else {
-        showToast("Si us plau, introdueix una clau vàlida", "error");
+        showToast("Si us plau, introdueix almenys una clau", "error");
     }
+}
+
+function rotateApiKey() {
+    if (apiKeys.length <= 1) return false;
+    currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
+    localStorage.setItem('amaya_yt_key_index', currentKeyIndex);
+    console.log(`🔄 Rotant a clau API #${currentKeyIndex + 1}`);
+    return true;
+}
+
+function getCurrentApiKey() {
+    return apiKeys[currentKeyIndex] || '';
 }
 
 function toggleApiKeySection() {
@@ -833,12 +856,13 @@ function clearSearch() {
 }
 
 // --- SEARCH ---
-async function searchMusic(pageToken = '') {
+async function searchMusic(pageToken = '', retryCount = 0) {
     const query = document.getElementById('searchInput').value.trim();
     if (!query) return;
 
-    if (!apiKey) {
-        showToast("Configura la teva clau API primer", "error");
+    const currentKey = getCurrentApiKey();
+    if (!currentKey) {
+        showToast("Configura les teves claus API", "error");
         document.getElementById('apiKeySection').classList.remove('hidden');
         return;
     }
@@ -848,15 +872,24 @@ async function searchMusic(pageToken = '') {
 
     document.getElementById('loading').classList.remove('hidden');
     document.getElementById('resultsSection').classList.add('hidden');
-    document.getElementById('homeSection').classList.add('hidden');
+    // document.getElementById('homeSection').classList.add('hidden'); // Optional: keep home visible while loading
     document.getElementById('playlistView').classList.add('hidden');
     document.getElementById('errorMessage').classList.add('hidden');
 
     try {
-        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&key=${apiKey}${pageToken ? `&pageToken=${pageToken}` : ''}`);
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&key=${currentKey}${pageToken ? `&pageToken=${pageToken}` : ''}`);
         const data = await response.json();
 
-        if (data.error) throw new Error(data.error.message);
+        if (data.error) {
+            // Check for quota error
+            if (data.error.errors && data.error.errors.some(e => e.reason === 'quotaExceeded')) {
+                if (rotateApiKey() && retryCount < apiKeys.length) {
+                    showToast("Límit de quota. Rotant clau...", "warning");
+                    return searchMusic(pageToken, retryCount + 1);
+                }
+            }
+            throw new Error(data.error.message);
+        }
 
         nextSearchToken = data.nextPageToken || '';
         prevSearchToken = data.prevPageToken || '';
@@ -866,12 +899,12 @@ async function searchMusic(pageToken = '') {
             title: decodeHtml(item.snippet.title),
             channel: decodeHtml(item.snippet.channelTitle),
             thumbnail: item.snippet.thumbnails.medium.url,
-            duration: '0:00' // Search API doesn't give durations, we'll fetch them next
+            duration: '0:00'
         }));
 
-        // Fetch durations for these videos
+        // Fetch durations
         const ids = videos.map(v => v.id).join(',');
-        const detailsResp = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${apiKey}`);
+        const detailsResp = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${getCurrentApiKey()}`);
         const detailsData = await detailsResp.json();
 
         if (detailsData.items) {

@@ -170,15 +170,29 @@
                                     obtenir-la?</button>
                             </p>
                         </div>
-                        <div class="bg-[#282828] rounded-lg p-4">
-                            <div class="flex flex-col sm:flex-row gap-3">
-                                <input type="password" id="apiKeyInput"
-                                    placeholder="Enganxa la teva clau API de Google aquí"
-                                    class="flex-1 bg-[#3e3e3e] border-none text-white px-4 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500">
-                                <button onclick="saveApiKey()"
-                                    class="bg-green-500 hover:bg-green-400 px-8 py-3 rounded-full font-bold transition-all text-black">
-                                    Desar
-                                </button>
+                        <div class="bg-[#282828] rounded-lg p-6">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1 ml-4">CANAL 1 (Principal)</label>
+                                    <input type="password" id="apiKeyInput1" placeholder="Enganxa la primera clau aquí"
+                                        class="w-full bg-[#3e3e3e] border-none text-white px-4 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1 ml-4">CANAL 2 (Reserva)</label>
+                                    <input type="password" id="apiKeyInput2" placeholder="Enganxa la segona clau aquí"
+                                        class="w-full bg-[#3e3e3e] border-none text-white px-4 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1 ml-4">CANAL 3 (Reserva)</label>
+                                    <input type="password" id="apiKeyInput3" placeholder="Enganxa la tercera clau aquí"
+                                        class="w-full bg-[#3e3e3e] border-none text-white px-4 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500">
+                                </div>
+                                <div class="pt-2 text-center">
+                                    <button onclick="saveApiKey()"
+                                        class="w-full sm:w-auto bg-green-500 hover:bg-green-400 px-12 py-3 rounded-full font-bold transition-all text-black">
+                                        Desar totes les claus
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
