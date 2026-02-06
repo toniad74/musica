@@ -21,6 +21,7 @@ let isUserPaused = false;
 // Native audio player
 let nativeAudio = null;
 let useNativeAudio = true; // Prefer native audio over YouTube IFrame
+let isMediaPlaying = false;
 
 // Invidious instances (fallback if one fails)
 // Prioritize instances known for speed and M4A support
@@ -181,18 +182,10 @@ function onPlayerStateChange(event) {
 
     if (event.data === YT.PlayerState.PLAYING) {
         if (!useNativeAudio) isUserPaused = false; // Only reset if YT is the active engine
+        isMediaPlaying = true;
 
         const path = "M6 4h4v16H6zm8 0h4v16h-4z"; // Pause icon
-        playPauseIcon.setAttribute('d', path);
-        if (mobilePlayPauseIcon) mobilePlayPauseIcon.innerHTML = `<path d="${path}"/>`;
-        if (mobileMainPlayIcon) mobileMainPlayIcon.innerHTML = `<path d="${path}"/>`;
-
-        // Sync mobile full player central button
-        const mobileMainBtn = document.getElementById('mobileMainPlayIcon');
-        if (mobileMainBtn) mobileMainBtn.innerHTML = `<path d="${path}"/>`;
-
-        document.getElementById('equalizer').classList.remove('hidden');
-        document.querySelector('.equalizer-bars').classList.remove('paused');
+        playPauseIconsUpdate(path, true);
 
         if (navigator.mediaSession) {
             navigator.mediaSession.playbackState = 'playing';
@@ -201,15 +194,9 @@ function onPlayerStateChange(event) {
 
         startSilentAudio();
         startProgressUpdater();
+        refreshUIHighlights();
     } else {
         const path = "M8 5v14l11-7z"; // Play icon
-        playPauseIcon.setAttribute('d', path);
-        if (mobilePlayPauseIcon) mobilePlayPauseIcon.innerHTML = `<path d="${path}"/>`;
-        if (mobileMainPlayIcon) mobileMainPlayIcon.innerHTML = `<path d="${path}"/>`;
-
-        // Sync mobile full player central button
-        const mobileMainBtn = document.getElementById('mobileMainPlayIcon');
-        if (mobileMainBtn) mobileMainBtn.innerHTML = `<path d="${path}"/>`;
 
         if (event.data === YT.PlayerState.PAUSED) {
             // --- PROTECTION AGAINST UNWANTED BACKGROUND PAUSES ---
@@ -218,18 +205,52 @@ function onPlayerStateChange(event) {
                 player.playVideo();
                 return; // Exit early, don't update UI to paused state
             }
-
-            document.querySelector('.equalizer-bars').classList.add('paused');
+            isMediaPlaying = false;
+            playPauseIconsUpdate(path, false);
             if (navigator.mediaSession) {
                 navigator.mediaSession.playbackState = 'paused';
             }
             stopSilentAudio();
+            refreshUIHighlights();
+        } else if (event.data === YT.PlayerState.ENDED) {
+            isMediaPlaying = false;
+            playPauseIconsUpdate(path, false);
+            refreshUIHighlights();
+            if (!useNativeAudio) handleTrackEnded();
         } else {
+            playPauseIconsUpdate(path, false);
             document.getElementById('equalizer').classList.add('hidden');
         }
+    }
+}
 
-        if (event.data === YT.PlayerState.ENDED) {
-            if (!useNativeAudio) handleTrackEnded();
+function refreshUIHighlights() {
+    renderHomePlaylists();
+    if (activePlaylistId) {
+        openPlaylist(activePlaylistId);
+    }
+    // We don't refresh search results here to avoid re-fetching or losing scroll position,
+    // but the next search/scroll will have correct state.
+}
+
+// Helper for YT specific icon updates to keep onPlayerStateChange clean
+function playPauseIconsUpdate(path, isPlaying) {
+    const playPauseIcon = document.getElementById('playPauseIcon');
+    const mobilePlayPauseIcon = document.getElementById('mobilePlayPauseIcon');
+    const mobileMainPlayIcon = document.getElementById('mobileMainPlayIcon');
+
+    if (playPauseIcon) playPauseIcon.setAttribute('d', path);
+    if (mobilePlayPauseIcon) mobilePlayPauseIcon.innerHTML = `<path d="${path}"/>`;
+    if (mobileMainPlayIcon) mobileMainPlayIcon.innerHTML = `<path d="${path}"/>`;
+
+    const equalizer = document.getElementById('equalizer');
+    const equalizerBars = document.querySelector('.equalizer-bars');
+    if (equalizer && equalizerBars) {
+        if (isPlaying) {
+            equalizer.classList.remove('hidden');
+            equalizerBars.classList.remove('paused');
+        } else {
+            equalizerBars.classList.add('paused');
         }
     }
 }
@@ -410,6 +431,7 @@ function setupMediaSessionHandlers() {
 }
 
 function updatePlayPauseIcons(isPlaying) {
+    isMediaPlaying = isPlaying;
     const path = isPlaying ? "M6 4h4v16H6zm8 0h4v16h-4z" : "M8 5v14l11-7z";
     const playPauseIcon = document.getElementById('playPauseIcon');
     const mobilePlayPauseIcon = document.getElementById('mobilePlayPauseIcon');
@@ -429,6 +451,9 @@ function updatePlayPauseIcons(isPlaying) {
             equalizerBars.classList.add('paused');
         }
     }
+
+    // Refresh UI highlights
+    refreshUIHighlights();
 }
 
 // --- INVIDIOUS & PIPED INTEGRATION ---
@@ -937,7 +962,7 @@ function renderSearchResults(videos) {
             const inQueue = isSongInQueue(video.id);
             const inQueueClass = inQueue ? 'in-queue' : 'text-[#b3b3b3]';
 
-            const isCurrent = currentTrack && String(currentTrack.id) === String(video.id);
+            const isCurrent = isMediaPlaying && currentTrack && String(currentTrack.id) === String(video.id);
             const row = document.createElement('div');
             row.className = `result-row flex items-center gap-4 p-3 cursor-pointer group ${isCurrent ? 'is-playing' : ''}`;
             row.dataset.videoId = video.id;
@@ -1452,7 +1477,7 @@ function openPlaylist(id) {
             const inQueue = isSongInQueue(song.id);
             const inQueueClass = inQueue ? 'in-queue' : 'text-[#b3b3b3]';
 
-            const isCurrent = currentTrack && String(currentTrack.id) === String(song.id);
+            const isCurrent = isMediaPlaying && currentTrack && String(currentTrack.id) === String(song.id);
             const row = document.createElement('div');
             row.className = `result-row flex items-center gap-4 p-3 cursor-pointer group hover:bg-white/5 ${isCurrent ? 'is-playing' : ''}`;
             row.dataset.videoId = song.id;
@@ -1776,7 +1801,7 @@ function renderHomePlaylists() {
         const durationStr = formatDuration(totalSeconds, true);
         const coverImg = pl.cover || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=300&h=300&fit=crop';
 
-        const isPlaying = currentlyPlayingPlaylistId && String(currentlyPlayingPlaylistId) === String(pl.id);
+        const isPlaying = isMediaPlaying && currentlyPlayingPlaylistId && String(currentlyPlayingPlaylistId) === String(pl.id);
         const row = document.createElement('div');
         row.className = `group flex items-center justify-between p-3 rounded-xl transition-all cursor-pointer border ${isPlaying ? 'bg-white/10 border-green-500/50 shadow-[0_0_15px_rgba(30,215,96,0.1)]' : 'hover:bg-white/5 border-transparent hover:border-white/10'}`;
         row.onclick = () => openPlaylist(pl.id);
