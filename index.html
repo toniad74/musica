@@ -1,0 +1,739 @@
+<html lang="ca">
+
+<head>
+    <script>
+        // ===== CRITICAL: EXECUTE FIRST - VISIBILITY SPOOFING =====
+        // This MUST run before YouTube IFrame API loads to trick it into thinking page is always visible
+        (function () {
+            try {
+                // Override visibility properties
+                Object.defineProperties(document, {
+                    'hidden': {
+                        get: function () { return false; },
+                        configurable: true
+                    },
+                    'visibilityState': {
+                        get: function () { return 'visible'; },
+                        configurable: true
+                    },
+                    'webkitHidden': {
+                        get: function () { return false; },
+                        configurable: true
+                    }
+                });
+
+                // Intercept blur events that might signal background state
+                window.addEventListener('blur', function (e) {
+                    e.stopImmediatePropagation();
+                }, true);
+
+                document.addEventListener('blur', function (e) {
+                    e.stopImmediatePropagation();
+                }, true);
+
+                // Prevent visibilitychange events from firing
+                document.addEventListener('visibilitychange', function (e) {
+                    e.stopImmediatePropagation();
+                }, true);
+
+                console.log("🛡️ Background playback protection initialized");
+            } catch (e) {
+                console.error("Failed to initialize background protection:", e);
+            }
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Amaya's Music">
+    <meta name="format-detection" content="telephone=no">
+    <title>Amaya's Music</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1db954">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="text-white min-h-screen selection:bg-green-500 selection:text-black">
+    <div id="ambient-bg"></div>
+    <div class="flex h-screen pb-24 gap-4 p-4">
+        <!-- Sidebar -->
+        <aside class="w-64 glass-panel rounded-xl flex flex-col flex-shrink-0 hidden md:flex">
+            <!-- Logo -->
+            <div class="p-6">
+                <h1 class="text-2xl font-bold text-white flex items-center gap-2">
+                    <span class="text-green-500">♪</span> Amaya's Music
+                </h1>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="px-2 mb-4">
+                <button onclick="showHome()"
+                    class="flex items-center gap-4 text-[#b3b3b3] hover:text-white px-4 py-3 rounded-lg hover:bg-[#1a1a1a] w-full transition-colors">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 3L4 9v12h5v-7h6v7h5V9l-8-6z" />
+                    </svg>
+                    <span class="font-semibold">Inici</span>
+                </button>
+                <button onclick="document.getElementById('searchInput').focus()"
+                    class="flex items-center gap-4 text-[#b3b3b3] hover:text-white px-4 py-3 rounded-lg hover:bg-[#1a1a1a] w-full transition-colors">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 001.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 00-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 005.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+                    </svg>
+                    <span class="font-semibold">Cercar</span>
+                </button>
+            </nav>
+
+            <!-- Library Section -->
+            <div class="flex-1 mx-2 bg-transparent rounded-lg overflow-hidden flex flex-col">
+                <div class="p-4 flex items-center justify-between">
+                    <div class="flex items-center gap-3 text-[#b3b3b3] hover:text-white cursor-pointer">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                            <path
+                                d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z" />
+                        </svg>
+                        <span class="font-semibold">La teva Biblioteca</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="triggerPlaylistImport()"
+                            class="text-gray-400 hover:text-white p-2 transition-colors"
+                            title="Importar playlist (.json)">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                            </svg>
+                        </button>
+                        <button onclick="showCreatePlaylistModal()"
+                            class="text-green-500 hover:text-green-400 p-2 transition-colors" title="Crear llista">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Playlists List -->
+                <div class="flex-1 overflow-y-auto sidebar px-2 pb-2" id="playlistsSidebar"></div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 glass-panel rounded-xl overflow-y-auto relative z-10">
+            <!-- Header (Search) -->
+            <header class="sticky top-0 z-20 p-6 md:p-8 backdrop-blur-md bg-black/20">
+                <!-- Mobile Header -->
+                <header class="text-center mb-6 md:hidden">
+                    <h1 class="text-3xl font-bold text-white flex items-center justify-center gap-2">
+                        <span class="text-green-500 text-4xl">♪</span> Amaya's Music
+                    </h1>
+                </header>
+
+                <!-- File Protocol Warning -->
+                <div id="fileProtocolWarning"
+                    class="hidden mb-4 bg-blue-900/30 border border-blue-400/50 rounded-xl p-4 text-sm text-blue-100">
+                    <div class="flex items-start gap-3">
+                        <div class="p-2 bg-blue-500 rounded-full text-white">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
+                            </svg>
+                        </div>
+                        <div class="leading-relaxed">
+                            <p class="font-bold mb-1">💡 Consell de compatibilitat</p>
+                            <p>Has obert l'app directament des de l'arxiu. Algunes cançons poden bloquejar-se per
+                                seguretat del navegador en no tenir un domini "servidor".</p>
+                            <p class="mt-2 text-xs opacity-80">Si tens problemes, utilitza una extensió de "Local
+                                Server"
+                                o puja els arxius a GitHub Pages/Vercel.</p>
+                        </div>
+                    </div>
+                </div>
+
+
+
+                <!-- API Key Section -->
+                <div class="mb-6">
+                    <div class="flex justify-end mb-3">
+                        <button id="apiKeyToggleButton" onclick="toggleApiKeySection()" aria-expanded="true"
+                            class="text-sm px-4 py-2 rounded-full border border-white/20 text-[#b3b3b3] hover:text-white hover:border-white transition-colors">
+                            Amagar clau API
+                        </button>
+                    </div>
+                    <div id="apiKeySection">
+                        <div id="apiWarning" class="bg-yellow-600/20 border border-yellow-500/50 rounded-lg p-4 mb-6">
+                            <p class="text-yellow-300 text-sm">
+                                ⚠️ <strong>Important:</strong> Necessites una clau API de YouTube Data API v3.
+                                <button onclick="showApiInstructions()" class="underline ml-2 hover:text-yellow-200">Com
+                                    obtenir-la?</button>
+                            </p>
+                        </div>
+                        <div class="bg-[#282828] rounded-lg p-4">
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <input type="password" id="apiKeyInput"
+                                    placeholder="Enganxa la teva clau API de Google aquí"
+                                    class="flex-1 bg-[#3e3e3e] border-none text-white px-4 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <button onclick="saveApiKey()"
+                                    class="bg-green-500 hover:bg-green-400 px-8 py-3 rounded-full font-bold transition-all text-black">
+                                    Desar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search Section -->
+                <div class="mb-8">
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <div class="flex-1 relative group">
+                            <input type="text" id="searchInput"
+                                placeholder="Què vols escoltar? (ex: 'Artista Cançó àudio')"
+                                class="w-full bg-[#242424] border-none text-white px-5 py-4 pr-12 rounded-full focus:outline-none focus:ring-2 focus:ring-white text-lg"
+                                onkeypress="if(event.key === 'Enter') searchMusic()" oninput="toggleClearButton()">
+                            <button id="clearSearchBtn" onclick="clearSearch()"
+                                class="hidden absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-2 transition-colors"
+                                title="Esborrar cerca">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <button onclick="searchMusic()"
+                            class="bg-white hover:scale-105 px-10 py-4 rounded-full font-bold transition-all text-black flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            Cercar
+                        </button>
+                    </div>
+                </div>
+
+
+                <!-- Loading Spinner -->
+                <div id="loading" class="hidden text-center py-8">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+                    <p class="mt-2 text-gray-400">Cercant cançons...</p>
+                </div>
+
+                <!-- Error Message -->
+                <div id="errorMessage" class="hidden bg-red-900/20 border border-red-500/50 rounded-lg p-4 mb-6">
+                    <p class="text-red-300" id="errorText"></p>
+                </div>
+
+                <!-- Home Section (Playlists List) -->
+                <div id="homeSection">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-2xl font-bold">Llistes</h2>
+                        <div class="flex items-center gap-2">
+                            <button onclick="triggerPlaylistImport()"
+                                class="text-gray-400 hover:text-white p-2 transition-colors"
+                                title="Importar playlist (.json)">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                                </svg>
+                            </button>
+                            <button onclick="showCreatePlaylistModal()"
+                                class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm font-bold transition-all">
+                                Crear
+                            </button>
+                        </div>
+                    </div>
+                    <div id="homePlaylistsList" class="space-y-2">
+                        <!-- Playlists rows will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Playlist View -->
+                <div id="playlistView" class="hidden">
+                    <div class="flex items-end gap-6 mb-8">
+                        <div class="flex flex-col items-center gap-2">
+                            <div id="playlistCover" onclick="triggerPlaylistCoverUpload()"
+                                class="w-20 h-20 md:w-60 md:h-60 bg-gradient-to-br from-purple-700 to-blue-500 rounded-lg shadow-xl flex items-center justify-center overflow-hidden cursor-pointer group relative">
+                                <img id="playlistCoverImage" src="" alt="Cover"
+                                    class="w-full h-full object-cover hidden transition-transform duration-300 group-hover:scale-110">
+
+                                <div
+                                    class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                        <path
+                                            d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
+                                    </svg>
+                                </div>
+
+                                <svg id="playlistCoverIcon" class="w-10 h-10 text-white/60" fill="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path
+                                        d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                                </svg>
+                            </div>
+                            <!-- Hidden input moved below -->
+                            <input type="file" id="playlistCoverInput" accept="image/*" class="hidden"
+                                onchange="handlePlaylistCoverChange(event)">
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between gap-3">
+                                <p class="text-sm font-medium uppercase md:hidden">Contingut de la Llista</p>
+                                <p class="text-sm font-medium uppercase hidden md:block">Llista</p>
+                                <button onclick="showHome()"
+                                    class="inline-flex items-center gap-2 text-[#b3b3b3] hover:text-white bg-[#1a1a1a] hover:bg-[#2a2a2a] px-3 py-2 rounded-full"
+                                    title="Tornar">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+                                    </svg>
+                                    <span class="text-sm font-semibold">Tornar</span>
+                                </button>
+                            </div>
+                            <h1 id="playlistTitle" class="text-xl md:text-5xl font-black mt-2 mb-1 block"></h1>
+                            <p id="playlistInfo" class="text-gray-400 text-xs md:text-sm block"></p>
+
+                            <!-- Mobile Actions REMOVED -->
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-6 mb-6">
+                        <button onclick="playCurrentPlaylist()"
+                            class="bg-green-500 hover:bg-green-400 hover:scale-105 text-black rounded-full p-4 transition-all shadow-xl"
+                            title="Reproduir llista">
+                            <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" />
+                            </svg>
+                        </button>
+                        <button onclick="showEditPlaylistModal()" class="text-[#b3b3b3] hover:text-white"
+                            title="Editar llista">
+                            <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+                            </svg>
+                        </button>
+                        <button onclick="showDeletePlaylistConfirm()" class="text-[#b3b3b3] hover:text-white"
+                            title="Eliminar llista">
+                            <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                            </svg>
+                        </button>
+                        <button onclick="exportCurrentPlaylist()" class="text-[#b3b3b3] hover:text-white"
+                            title="Exportar arxiu (.json)">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="playlistSongs" class="bg-[#181818] rounded-lg overflow-hidden"></div>
+                </div>
+
+                <!-- Results Section -->
+                <div id="resultsSection" class="hidden">
+                    <h2 class="text-2xl font-bold mb-6">Resultats</h2>
+                    <div class="bg-[#181818] rounded-lg overflow-hidden">
+                        <div id="resultsGrid"></div>
+                        <!-- Search Pagination -->
+                        <div id="searchPagination"
+                            class="hidden border-t border-[#282828] p-4 flex items-center justify-between gap-3">
+                            <button id="prevPageBtn" onclick="searchPrevPage()"
+                                class="px-4 py-2 rounded-full bg-[#282828] hover:bg-[#3e3e3e] text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                                disabled>
+                                Anterior
+                            </button>
+                            <div class="text-xs text-gray-400 font-medium" id="searchPageInfo">Pàgina 1</div>
+                            <button id="nextPageBtn" onclick="searchNextPage()"
+                                class="px-4 py-2 rounded-full bg-[#282828] hover:bg-[#3e3e3e] text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                                disabled>
+                                Següent
+                            </button>
+                        </div>
+                    </div>
+                </div>
+    </div>
+    </main>
+    </div>
+
+    <!-- Native Audio Player (Primary) -->
+    <audio id="nativeAudioPlayer" preload="metadata" class="hidden"></audio>
+
+
+    <!-- Player Bar -->
+    <div id="playerSection"
+        class="hidden fixed bottom-4 left-4 right-4 glass-panel rounded-2xl px-4 py-3 z-50 flex items-center justify-between h-20 transition-all duration-300">
+        <!-- Left: Song Info -->
+        <div class="flex items-center gap-4 w-1/3 min-w-0">
+            <div class="relative group">
+                <img id="currentThumbnail" src="" class="h-14 w-14 rounded object-cover shadow-lg hidden sm:block">
+                <div id="equalizer" class="absolute inset-0 flex items-center justify-center bg-black/40 hidden">
+                    <div class="equalizer-bars">
+                        <div class="equalizer-bar"></div>
+                        <div class="equalizer-bar"></div>
+                        <div class="equalizer-bar"></div>
+                        <div class="equalizer-bar"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="min-w-0 flex-1 overflow-hidden">
+                <div class="marquee-container">
+                    <h3 id="currentTitle" class="marquee-content text-white font-medium text-sm"></h3>
+                </div>
+                <div class="marquee-container mt-0.5">
+                    <p id="currentChannel" class="marquee-content text-[#b3b3b3] text-xs"></p>
+                </div>
+            </div>
+            <button id="addToPlaylistBtn" onclick="showAddToPlaylistMenu(event)"
+                class="text-[#b3b3b3] hover:text-white ml-2 hidden sm:block" title="Afegir a la llista">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Center: Controls -->
+        <div class="flex flex-col items-center justify-center w-1/3 max-w-2xl px-4">
+            <div class="flex items-center gap-4 md:gap-6 mb-2">
+                <button id="shuffleBtn" onclick="toggleShuffle()"
+                    class="text-[#b3b3b3] hover:text-white transition-colors" title="Aleatori">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z" />
+                    </svg>
+                </button>
+                <button onclick="playPrevious()" class="text-[#b3b3b3] hover:text-white transition-colors"
+                    title="Anterior">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                    </svg>
+                </button>
+                <button id="playPauseBtn" onclick="togglePlayPause()"
+                    class="bg-white text-black rounded-full p-2 hover:scale-105 transition-transform w-8 h-8 flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path id="playPauseIcon" d="M8 5v14l11-7z" />
+                    </svg>
+                </button>
+                <button onclick="playNext()" class="text-[#b3b3b3] hover:text-white transition-colors" title="Següent">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                    </svg>
+                </button>
+                <button id="repeatBtn" onclick="toggleRepeat()"
+                    class="text-[#b3b3b3] hover:text-white transition-colors" title="Repetir">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
+                    </svg>
+                </button>
+            </div>
+            <div class="flex items-center w-full gap-2 text-xs text-[#b3b3b3] font-mono group">
+                <span id="currentTime" class="min-w-[40px] text-right">0:00</span>
+                <div class="flex-1 h-1 relative flex items-center">
+                    <input type="range" id="progressBar" class="spotify-range absolute inset-0 w-full h-1 z-10" min="0"
+                        max="100" value="0">
+                    <div class="w-full h-1 bg-[#4d4d4d] rounded-full overflow-hidden pointer-events-none absolute">
+                        <div id="progressFill" class="h-full bg-white group-hover:bg-green-500 w-0 transition-colors">
+                        </div>
+                    </div>
+                    <div id="progressThumb"
+                        class="w-3 h-3 bg-white rounded-full shadow absolute pointer-events-none opacity-0 group-hover:opacity-100 ml-[-6px]"
+                        style="left: 0%"></div>
+                </div>
+                <span id="remainingTime" class="min-w-[40px]">-0:00</span>
+            </div>
+        </div>
+
+        <!-- Right: Volume and Queue -->
+        <div class="flex items-center justify-end gap-2 w-1/3 min-w-0">
+            <button id="showQueueBtn" onclick="showQueue()"
+                class="text-[#b3b3b3] hover:text-white px-2 py-1 rounded-full text-xs bg-green-500 hover:bg-green-400 transition-colors"
+                title="Veure cua">
+                <span id="queueCount" class="text-black font-bold">0</span>
+            </button>
+            <button id="muteBtn" class="text-[#b3b3b3] hover:text-white" onclick="toggleMute()">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" id="volumeIcon">
+                    <path
+                        d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+                </svg>
+            </button>
+            <div class="w-24 h-1 relative group flex items-center">
+                <input type="range" id="volumeBar" class="spotify-range absolute inset-0 w-full h-1 z-10" min="0"
+                    max="100" value="100">
+                <div class="w-full h-1 bg-[#4d4d4d] rounded-full overflow-hidden pointer-events-none absolute">
+                    <div id="volumeFill" class="h-full bg-white group-hover:bg-green-500 w-full transition-colors">
+                    </div>
+                </div>
+                <div id="volumeThumb"
+                    class="w-3 h-3 bg-white rounded-full shadow absolute pointer-events-none opacity-0 group-hover:opacity-100 ml-[-6px]"
+                    style="left: 100%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="createPlaylistModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+        <div class="bg-[#282828] rounded-lg p-6 w-full max-w-md mx-auto">
+            <h3 class="text-2xl font-bold mb-6 text-center">Crear llista</h3>
+            <input type="text" id="newPlaylistName" placeholder="Nom"
+                class="w-full bg-[#3e3e3e] text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 mb-6"
+                onkeypress="if(event.key === 'Enter') createPlaylist()">
+            <div class="flex justify-end gap-3">
+                <button onclick="hideCreatePlaylistModal()"
+                    class="px-6 py-3 rounded-full font-semibold hover:bg-[#3e3e3e] transition-colors">Cancel·lar</button>
+                <button onclick="createPlaylist()"
+                    class="bg-green-500 hover:bg-green-400 px-8 py-3 rounded-full font-bold text-black transition-colors">Crear</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="addToPlaylistMenu"
+        class="hidden fixed bg-[#282828] rounded-lg shadow-2xl py-2 z-50 min-w-[200px] context-menu">
+        <p class="px-4 py-2 text-sm text-gray-400 border-b border-[#3e3e3e]">Afegir a la llista</p>
+        <div id="playlistMenuItems"></div>
+        <button onclick="showCreatePlaylistModal(); hideAddToPlaylistMenu();"
+            class="w-full text-left px-4 py-3 hover:bg-[#3e3e3e] flex items-center gap-3">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+            </svg>
+            Nova llista
+        </button>
+    </div>
+
+    <div id="editPlaylistModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+        <div class="bg-[#282828] rounded-2xl p-6 w-full max-w-lg space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-2xl font-bold">Editar llista</h3>
+                <button onclick="hideEditPlaylistModal()" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                    </svg>
+                </button>
+            </div>
+            <label class="block text-sm font-semibold text-gray-300">Nom</label>
+            <input type="text" id="editPlaylistName"
+                class="w-full bg-[#3e3e3e] text-white px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500">
+            <label class="block text-sm font-semibold text-gray-300">Descripció</label>
+            <textarea id="editPlaylistDescription" rows="3"
+                class="w-full bg-[#3e3e3e] text-white px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"></textarea>
+            <div class="flex justify-end gap-3 pt-4">
+                <button onclick="hideEditPlaylistModal()"
+                    class="px-6 py-3 rounded-full font-semibold hover:bg-[#3a3a3a] transition-colors">Cancel·lar</button>
+                <button onclick="savePlaylistEdits()"
+                    class="px-6 py-3 rounded-full font-semibold bg-green-500 text-black hover:bg-green-400 transition-colors">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="deletePlaylistModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+        <div class="bg-[#282828] rounded-lg p-6 w-full max-w-sm">
+            <h3 class="text-xl font-bold mb-4">Eliminar llista?</h3>
+            <div class="flex justify-end gap-3">
+                <button onclick="hideDeletePlaylistConfirm()"
+                    class="px-6 py-3 rounded-full font-semibold hover:bg-[#3e3e3e]">Cancel·lar</button>
+                <button onclick="deleteCurrentPlaylist()"
+                    class="bg-red-600 hover:bg-red-500 px-8 py-3 rounded-full font-bold text-white">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile UI Elements -->
+    <div id="mobilePlayerMini" onclick="openMobilePlayer()"
+        class="mobile-player-mini hidden glass-panel cursor-pointer">
+        <div class="progress-bar-mini">
+            <div id="progressFillMini" class="progress-fill-mini"></div>
+        </div>
+        <div class="flex items-center justify-center w-full gap-4">
+            <!-- Shuffle (Mini) -->
+            <button onclick="event.stopPropagation(); toggleShuffle()" class="text-white p-2 shuffle-btn">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                        d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z" />
+                </svg>
+            </button>
+            <!-- Prev (Mini) -->
+            <button onclick="event.stopPropagation(); playPrevious()" class="text-white p-2">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                </svg>
+            </button>
+            <!-- Play/Pause (Mini) -->
+            <button onclick="event.stopPropagation(); togglePlayPause()"
+                class="w-10 h-10 flex items-center justify-center bg-white text-black rounded-full">
+                <svg id="mobilePlayPauseIcon" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                </svg>
+            </button>
+            <!-- Next (Mini) -->
+            <button onclick="event.stopPropagation(); playNext()" class="text-white p-2">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                </svg>
+            </button>
+            <!-- Repeat (Mini) -->
+            <button onclick="event.stopPropagation(); toggleRepeat()" class="text-white p-2 repeat-btn">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v6z" />
+                </svg>
+            </button>
+            <!-- Queue (Mini) -->
+            <button onclick="event.stopPropagation(); showQueue()"
+                class="relative text-white p-2 flex items-center justify-center">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                        d="M4 6h18V4H4c-1.1 0-2 .9-2 2v1h2V6zm14 4h4V8h-4v2zm0 4h4v-2h-4v2zm0 4h4v-2h-4v2zM4 8h12c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h4v2H4c-1.1 0-2-.9-2-2V10c0-1.1.9-2 2-2z" />
+                </svg>
+                <span id="queueCountMini"
+                    class="absolute -top-1 -right-1 bg-green-500 text-black text-[10px] font-bold px-1.5 rounded-full min-w-[18px] hidden">0</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="mobilePlayerFull" class="mobile-player-full">
+        <div class="drag-handle" onclick="closeMobilePlayer()"></div>
+        <div class="flex items-center justify-between mb-2">
+            <button onclick="closeMobilePlayer()" class="p-2"><svg class="w-6 h-6" fill="currentColor"
+                    viewBox="0 0 24 24">
+                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
+                </svg></button>
+            <span class="text-xs text-gray-400 uppercase tracking-wider">Reproduint</span>
+            <div class="flex items-center gap-2">
+            </div>
+        </div>
+        <div class="flex-1 flex items-center justify-center px-4">
+            <div id="mobileArtworkContainer"
+                class="w-full aspect-square rounded-lg overflow-hidden shadow-2xl bg-black relative">
+                <img id="mobileFullArt" src="" class="w-full h-full object-cover">
+            </div>
+        </div>
+        <div class="text-center mt-8 mb-4 px-6 overflow-hidden">
+            <div class="marquee-container">
+                <h2 id="mobileFullTitle" class="marquee-content text-xl font-bold text-white"></h2>
+            </div>
+            <div class="marquee-container mt-1">
+                <p id="mobileFullChannel" class="marquee-content text-gray-400 text-sm"></p>
+            </div>
+        </div>
+        <div class="px-4 mb-4">
+            <div class="relative h-1 bg-[#4d4d4d] rounded-full">
+                <input type="range" id="mobileProgressBar" class="spotify-range absolute inset-0 w-full h-full z-10"
+                    min="0" max="100" value="0" oninput="seekMobile(this.value)">
+                <div id="mobileProgressFill" class="h-full bg-white rounded-full" style="width: 0%"></div>
+            </div>
+            <div class="flex justify-between mt-2 text-xs text-gray-400">
+                <span id="mobileCurrentTime">0:00</span>
+                <span id="mobileRemainingTime">-0:00</span>
+            </div>
+        </div>
+        <div class="flex items-center justify-center gap-6 mb-8">
+            <button onclick="toggleShuffle()" class="text-gray-400 p-2 shuffle-btn">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                        d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z" />
+                </svg>
+            </button>
+            <button onclick="playPrevious()" class="text-white p-3"><svg class="w-8 h-8" fill="currentColor"
+                    viewBox="0 0 24 24">
+                    <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                </svg></button>
+            <button id="mobileMainPlayBtn" onclick="togglePlayPause()" class="bg-white text-black rounded-full p-4">
+                <svg id="mobileMainPlayIcon" class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                </svg>
+            </button>
+            <button onclick="playNext()" class="text-white p-3"><svg class="w-8 h-8" fill="currentColor"
+                    viewBox="0 0 24 24">
+                    <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                </svg></button>
+            <button onclick="toggleRepeat()" class="text-gray-400 p-2 repeat-btn">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v6z" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <div id="mobileMenu" class="hidden fixed inset-0 bg-black/90 z-50 flex items-end">
+        <div class="bg-[#282828] w-full rounded-t-2xl p-4 pb-8">
+            <div class="w-12 h-1 bg-gray-600 rounded-full mx-auto mb-6"></div>
+            <div class="space-y-2">
+                <button onclick="showAddToPlaylistMenu(event); hideMobileMenu()"
+                    class="w-full flex items-center gap-4 p-4 hover:bg-[#3e3e3e] rounded-lg">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                    </svg><span>Afegir a la llista</span>
+                </button>
+                <button onclick="hideMobileMenu()"
+                    class="w-full flex items-center gap-4 p-4 hover:bg-[#3e3e3e] rounded-lg text-gray-400">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                    </svg><span>Tancar</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="queueModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-end z-40">
+        <div class="bg-[#181818] w-full max-w-md h-full flex flex-col shadow-2xl">
+            <div class="p-4 border-b border-[#282828]">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold text-white">Cua</h3>
+                    <button onclick="hideQueue()" class="text-gray-400 hover:text-white p-2">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                            <path
+                                d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                        </svg>
+                    </button>
+                </div>
+                <button onclick="clearQueue()"
+                    class="w-full text-red-400 hover:text-red-300 py-2 px-4 rounded-lg hover:bg-red-900/20 font-bold">
+                    Buidar cua
+                </button>
+            </div>
+            <div id="queueContent" class="flex-1 overflow-y-auto p-4 pb-32 md:pb-4"></div>
+        </div>
+    </div>
+
+    <!-- Instructions Modal -->
+    <div id="instructionsModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+        <div class="bg-[#282828] rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h3 class="text-2xl font-bold mb-6 text-green-400">📖 Com obtenir la teva clau API</h3>
+            <ol class="list-decimal list-inside space-y-3 text-gray-300">
+                <li>Ves a Google Cloud Console</li>
+                <li>Crea un projecte</li>
+                <li>Activa la YouTube Data API v3</li>
+                <li>Crea credencials (clau API de Google)</li>
+            </ol>
+            <button onclick="hideApiInstructions()"
+                class="mt-6 bg-green-500 hover:bg-green-400 px-8 py-3 rounded-full font-bold text-black w-full">Entesos</button>
+        </div>
+    </div>
+
+
+
+
+    <!-- Toast container -->
+    <div id="toastContainer"
+        class="fixed bottom-28 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-2 pointer-events-none">
+    </div>
+
+    <!-- Hidden Audio Engine (YouTube Fallback) -->
+    <div id="ytStage" class="yt-stage">
+        <div id="youtubePlayer"></div>
+    </div>
+
+    <!-- Hidden Input for Playlist Import -->
+    <input type="file" id="playlistImportInput" accept=".json" class="hidden" onchange="handlePlaylistImport(event)">
+
+    <script src="main.js"></script>
+    <!-- Silent Audio Hack for Background Playback -->
+    <audio id="silentAudio" loop preload="auto">
+        <source src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAP8A/wD/"
+            type="audio/wav">
+    </audio>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+</body>
+
+</html>

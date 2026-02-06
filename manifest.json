@@ -1,0 +1,24 @@
+{
+  "name": "Amaya's Music",
+  "short_name": "AmayaMusic",
+  "description": "El teu reproductor de música personal amb suport per a segon pla.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#1db954",
+  "icons": [
+    {
+      "src": "https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=192&h=192&fit=crop",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=512&h=512&fit=crop",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "scope": "./"
+}
