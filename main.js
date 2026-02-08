@@ -448,10 +448,10 @@ function setupNativeAudioHandlers() {
         localStorage.removeItem('amaya_fastest_server');
 
         if (currentTrack) {
-            console.log('Intento de fallback temporal a YouTube IFrame...');
-            showToast('Reiniciando con YouTube Player...', 'info');
+            console.warn('❌ Clean audio failed. Skipping song instead of using IFrame (Nuclear Option).');
+            showToast('Audio limpio no disponible. Saltando canción...', 'error');
             // NO desactivamos useNativeAudio globalmente para que la siguiente canción vuelva a intentar modo sin anuncios
-            loadYouTubeIFrame(currentTrack.id);
+            setTimeout(() => playNext(), 1500);
         }
     });
 
