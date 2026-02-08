@@ -42,6 +42,7 @@ let isUserPaused = false;
 // Native audio player
 let nativeAudio = null;
 let useNativeAudio = true; // Prefer native audio over YouTube IFrame
+let isCurrentlyUsingNative = false; // Track engine active for CURRENT track
 let isMediaPlaying = false;
 
 // Invidious instances (fallback if one fails)
@@ -281,14 +282,14 @@ function onPlayerReady(event) {
             const state = player.getPlayerState();
 
             // If paused but user didn't pause it, force resume
-            // ONLY if we are NOT using native audio
-            if (!useNativeAudio && state === YT.PlayerState.PAUSED && !isUserPaused) {
+            // ONLY if we are NOT using any native audio for this track
+            if (!isCurrentlyUsingNative && state === YT.PlayerState.PAUSED && !isUserPaused) {
                 console.log("⚠️ Watchdog: Detected unwanted pause in YT. Force resuming...");
                 player.playVideo();
             }
 
             // If somehow stopped or cued, also try to resume if we have a track
-            if (!useNativeAudio && (state === YT.PlayerState.CUED || state === -1) && currentTrack && !isUserPaused) {
+            if (!isCurrentlyUsingNative && (state === YT.PlayerState.CUED || state === -1) && currentTrack && !isUserPaused) {
                 console.log("⚠️ Watchdog: YT Player stopped. Attempting recovery...");
                 player.playVideo();
             }
@@ -306,7 +307,7 @@ function onPlayerStateChange(event) {
     const mobileMainPlayIcon = document.getElementById('mobileMainPlayIcon');
 
     if (event.data === YT.PlayerState.PLAYING) {
-        if (!useNativeAudio) isUserPaused = false; // Only reset if YT is the active engine
+        if (!isCurrentlyUsingNative) isUserPaused = false; // Only reset if YT is the active engine
         isMediaPlaying = true;
 
         const path = "M6 4h4v16H6zm8 0h4v16h-4z"; // Pause icon
@@ -325,7 +326,7 @@ function onPlayerStateChange(event) {
 
         if (event.data === YT.PlayerState.PAUSED) {
             // --- PROTECTION AGAINST UNWANTED BACKGROUND PAUSES ---
-            if (!isUserPaused && !useNativeAudio) {
+            if (!isUserPaused && !isCurrentlyUsingNative) {
                 console.log("Unwanted YT pause detected! Force resuming...");
                 player.playVideo();
                 return; // Exit early, don't update UI to paused state
@@ -341,7 +342,7 @@ function onPlayerStateChange(event) {
             isMediaPlaying = false;
             playPauseIconsUpdate(path, false);
             refreshUIHighlights();
-            if (!useNativeAudio) handleTrackEnded();
+            if (!isCurrentlyUsingNative) handleTrackEnded();
         } else {
             playPauseIconsUpdate(path, false);
             document.getElementById('equalizer').classList.add('hidden');
@@ -467,7 +468,7 @@ function playNativeAudio(url) {
     nativeAudio.play().then(() => {
         console.log("✅ Native playback started");
         isUserPaused = false;
-        useNativeAudio = true;
+        isCurrentlyUsingNative = true;
         updatePlayPauseIcons(true);
         if (currentTrack && currentTrack.thumbnail) {
             updateAmbientBackground(currentTrack.thumbnail);
@@ -501,7 +502,7 @@ function setupMediaSessionHandlers() {
         console.log("MediaSession: Play");
         isUserPaused = false;
         navigator.mediaSession.playbackState = 'playing';
-        if (useNativeAudio && nativeAudio) {
+        if (isCurrentlyUsingNative && nativeAudio) {
             nativeAudio.play().catch(e => console.error("MS Play error:", e));
         } else if (player) {
             player.playVideo();
@@ -512,7 +513,7 @@ function setupMediaSessionHandlers() {
         console.log("MediaSession: Pause");
         isUserPaused = true;
         navigator.mediaSession.playbackState = 'paused';
-        if (useNativeAudio && nativeAudio) {
+        if (isCurrentlyUsingNative && nativeAudio) {
             nativeAudio.pause();
         } else if (player) {
             player.pauseVideo();
@@ -523,7 +524,7 @@ function setupMediaSessionHandlers() {
         console.log("MediaSession: Stop");
         isUserPaused = true;
         navigator.mediaSession.playbackState = 'none';
-        if (useNativeAudio && nativeAudio) {
+        if (isCurrentlyUsingNative && nativeAudio) {
             nativeAudio.pause();
             nativeAudio.currentTime = 0;
         } else if (player) {
@@ -544,7 +545,7 @@ function setupMediaSessionHandlers() {
     safeSetHandler('seekto', (details) => {
         console.log("MediaSession: Seek To", details.seekTime);
         if (details.seekTime !== undefined) {
-            if (useNativeAudio && nativeAudio) {
+            if (isCurrentlyUsingNative && nativeAudio) {
                 nativeAudio.currentTime = details.seekTime;
             } else if (player && player.seekTo) {
                 player.seekTo(details.seekTime);
@@ -556,7 +557,7 @@ function setupMediaSessionHandlers() {
     safeSetHandler('seekbackward', (details) => {
         console.log("MediaSession: Seek Backward");
         const skipTime = details.seekOffset || 10;
-        if (useNativeAudio && nativeAudio) {
+        if (isCurrentlyUsingNative && nativeAudio) {
             nativeAudio.currentTime = Math.max(nativeAudio.currentTime - skipTime, 0);
         } else if (player) {
             player.seekTo(Math.max(player.getCurrentTime() - skipTime, 0));
@@ -567,7 +568,7 @@ function setupMediaSessionHandlers() {
     safeSetHandler('seekforward', (details) => {
         console.log("MediaSession: Seek Forward");
         const skipTime = details.seekOffset || 10;
-        if (useNativeAudio && nativeAudio) {
+        if (isCurrentlyUsingNative && nativeAudio) {
             nativeAudio.currentTime = Math.min(nativeAudio.currentTime + skipTime, nativeAudio.duration || 0);
         } else if (player) {
             player.seekTo(Math.min(player.getCurrentTime() + skipTime, player.getDuration() || 0));
@@ -1350,6 +1351,7 @@ async function playSong(song, list = [], fromQueue = false) {
 
         // Try native audio first
         if (useNativeAudio && nativeAudio) {
+            isCurrentlyUsingNative = true;
             try {
                 console.log(`🎵 Intentando reproducir con audio nativo: ${song.title}`);
 
@@ -1384,11 +1386,13 @@ async function playSong(song, list = [], fromQueue = false) {
                 }
                 console.log('📡 Fallback temporal a YouTube Player...');
                 showToast('Cargando reproductor...', 'info');
+                isCurrentlyUsingNative = false;
                 // No desactivamos el motor nativo para permitir que la siguiente canción lo intente de nuevo
                 loadYouTubeIFrame(song.id);
             }
         } else {
             console.log('📡 Usando YouTube Player directamente');
+            isCurrentlyUsingNative = false;
             loadYouTubeIFrame(song.id);
         }
     } catch (error) {
@@ -1513,9 +1517,9 @@ async function resumePlaybackBruteForce() {
 }
 
 function togglePlayPause() {
-    console.log("⏯️ togglePlayPause. Engine:", useNativeAudio ? "Native" : "YouTube");
+    console.log("⏯️ togglePlayPause. Engine:", isCurrentlyUsingNative ? "Native" : "YouTube");
 
-    if (useNativeAudio && nativeAudio) {
+    if (isCurrentlyUsingNative && nativeAudio) {
         console.log("  Native Audio - paused:", nativeAudio.paused, "src:", nativeAudio.src ? "set" : "empty");
         if (nativeAudio.paused) {
             console.log("  Attempting nativeAudio.play()...");
@@ -1542,13 +1546,13 @@ function togglePlayPause() {
             player.playVideo();
         }
     } else {
-        console.warn("  ⚠️ No active player to toggle. useNativeAudio:", useNativeAudio, "nativeAudio:", !!nativeAudio, "player:", !!player);
+        console.warn("  ⚠️ No active player to toggle. isCurrentlyUsingNative:", isCurrentlyUsingNative, "nativeAudio:", !!nativeAudio, "player:", !!player);
     }
 }
 
 function playNext() {
     if (repeatMode === 2) {
-        if (useNativeAudio && nativeAudio) {
+        if (isCurrentlyUsingNative && nativeAudio) {
             nativeAudio.currentTime = 0;
             nativeAudio.play();
         } else if (player && player.seekTo) {
@@ -2313,7 +2317,7 @@ let progressUpdaterInterval; // Renamed from progressInterval to avoid conflict 
 function updateProgressBar() {
     let currentTime, duration;
 
-    if (useNativeAudio && nativeAudio && !nativeAudio.paused) {
+    if (isCurrentlyUsingNative && nativeAudio && !nativeAudio.paused) {
         currentTime = nativeAudio.currentTime;
         duration = nativeAudio.duration;
     } else if (player && typeof player.getCurrentTime === 'function') {
@@ -2363,7 +2367,7 @@ function updateMediaSessionPosition() {
 
     let currentTime, duration, playbackRate;
 
-    if (useNativeAudio && nativeAudio && !isNaN(nativeAudio.duration)) {
+    if (isCurrentlyUsingNative && nativeAudio && !isNaN(nativeAudio.duration)) {
         currentTime = nativeAudio.currentTime;
         duration = nativeAudio.duration;
         playbackRate = nativeAudio.playbackRate;
@@ -2642,7 +2646,7 @@ let heartbeatInterval = null;
 function startHeartbeat() {
     if (heartbeatInterval) clearInterval(heartbeatInterval);
     heartbeatInterval = setInterval(() => {
-        if (!useNativeAudio && player && player.getPlayerState) {
+        if (!isCurrentlyUsingNative && player && player.getPlayerState) {
             const state = player.getPlayerState();
             // If it stopped but it should be playing (based on our state)
             if (state === YT.PlayerState.PAUSED && wasPlaying && !isUserPaused) {
