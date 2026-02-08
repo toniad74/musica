@@ -451,9 +451,9 @@ function setupNativeAudioHandlers() {
         localStorage.removeItem('amaya_fastest_server');
 
         if (currentTrack) {
-            console.log('Intento de fallback a YouTube IFrame...');
+            console.log('Intento de fallback temporal a YouTube IFrame...');
             showToast('Reiniciando con YouTube Player...', 'info');
-            useNativeAudio = false;
+            // NO desactivamos useNativeAudio globalmente para que la siguiente canción vuelva a intentar modo sin anuncios
             loadYouTubeIFrame(currentTrack.id);
         }
     });
@@ -494,7 +494,7 @@ function playNativeAudio(url) {
             showToast("⚠️ Toca 'Play' para iniciar", "warning");
         } else {
             showToast("Error de audio. Reintentando con YouTube...", "info");
-            useNativeAudio = false;
+            // SOLO fallback para esta canción, no desactivamos el motor globalmente
             if (currentTrack) loadYouTubeIFrame(currentTrack.id);
         }
     });
@@ -1382,9 +1382,9 @@ async function playSong(song, list = [], fromQueue = false) {
                     // The user just needs to hit the main play button now.
                     return;
                 }
-                console.log('📡 Fallback a YouTube Player...');
+                console.log('📡 Fallback temporal a YouTube Player...');
                 showToast('Cargando reproductor...', 'info');
-                useNativeAudio = false; // Disable for this session
+                // No desactivamos el motor nativo para permitir que la siguiente canción lo intente de nuevo
                 loadYouTubeIFrame(song.id);
             }
         } else {
