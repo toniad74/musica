@@ -1498,8 +1498,8 @@ async function playSong(song, list = [], fromQueue = false) {
                 setTimeout(() => playNext(), 1500);
             }
         } else {
-            // Even if useNativeAudio is false (which shouldn't happen in strict mode),
-            // we force a skip or try to enable native audio.
+            // STRICT MODE: FORCE NATIVE AUDIO ALWAYS
+            // If we ended up here, it means useNativeAudio was false. We fix that.
             console.warn("⚠️ Intentando forzar audio nativo.");
             useNativeAudio = true;
             playSong(song, list, fromQueue);
@@ -1593,19 +1593,28 @@ function updateQueueCount() {
     }
 }
 
-// Function to load YouTube IFrame as fallback
+// --- YOUTUBE IFRAME (EXTERMINATED) ---
+// This function is kept as a stub to prevent crashes if called,
+// but it will NEVER load the player (and thus never load ads).
 function loadYouTubeIFrame(videoId) {
-    console.log(`📺 Cargando YouTube IFrame para: ${videoId}`);
+    console.error(`⛔ BLOQUEADO: Intento de cargar YouTube IFrame para: ${videoId}`);
+    showToast("🚫 Publicidad bloqueada. Saltando canción...", "error");
 
-    if (isVideoReady && player && player.loadVideoById) {
-        player.loadVideoById(videoId);
-        player.playVideo();
-        // Also helper to check sponsorblock even for IFrame
-        fetchSponsorBlockSegments(videoId);
-    } else {
-        console.log("Player not ready, retrying in 500ms...");
-        setTimeout(() => loadYouTubeIFrame(videoId), 500);
-    }
+    // Skip to next song immediately
+    setTimeout(() => playNext(), 1000);
+}
+
+function onYouTubeIframeAPIReady() {
+    // Disabled
+    console.log("YouTube API Ready but disabled for ad-free experience.");
+}
+
+function onPlayerReady(event) {
+    // Disabled
+}
+
+function onPlayerStateChange(event) {
+    // Disabled
 }
 
 async function resumePlaybackBruteForce() {
