@@ -2808,3 +2808,6 @@ Object.assign(window, {
     loginWithGoogle,
     logout
 });
+
+console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE - V4");
+setTimeout(() => showToast("App Actualizada (V4)"), 1000);

@@ -806,6 +806,44 @@
 
 
 
+    <!-- ERROR HANDLER -->
+    <script>
+        window.onerror = function (msg, url, line, col, error) {
+            // Create error container if not exists
+            let container = document.getElementById('globalErrorContainer');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'globalErrorContainer';
+                container.style.cssText = "position: fixed; top: 0; left: 0; right: 0; z-index: 10000; padding: 10px; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 10px;";
+                document.body.appendChild(container);
+            }
+
+            const toast = document.createElement('div');
+            toast.style.cssText = "background: rgba(220, 38, 38, 0.95); color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-family: monospace; max-width: 90vw; pointer-events: auto; text-align: left;";
+
+            let helpfulHint = "";
+            if (msg.includes("Script error") || msg.includes("Failed to fetch dynamically imported module")) {
+                helpfulHint = "<br><br><strong>⚠️ CAUSA PROBABLE (CORS):</strong><br>Estás abriendo el archivo directamente (file:///...).<br>Las funciones modernas de Google (Firebase) requieren un Servidor Local.<br>👉 Usa la extensión 'Live Server' en VSCode o súbelo a GitHub.";
+            }
+
+            toast.innerHTML = `<strong>❌ ERROR CRÍTICO:</strong><br>${msg}<br><small>${url ? url.split('/').pop() : 'inline'}:${line}:${col}</small>${helpfulHint}`;
+
+            // Close button
+            const closeBtn = document.createElement('button');
+            closeBtn.innerHTML = "×";
+            closeBtn.style.cssText = "float: right; background: none; border: none; color: white; font-size: 20px; cursor: pointer; margin-left: 10px; line-height: 1;";
+            closeBtn.onclick = () => toast.remove();
+            toast.prepend(closeBtn);
+
+            container.appendChild(toast);
+            return false;
+        };
+
+        // Catch Promise Rejections (Async errors)
+        window.addEventListener('unhandledrejection', function (event) {
+            console.error(event.reason); // Log full error object
+        });
+    </script>
     <script type="module" src="main.js"></script>
     <!-- Silent Audio Hack for Background Playback -->
     <audio id="silentAudio" loop preload="auto">
