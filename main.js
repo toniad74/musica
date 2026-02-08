@@ -167,26 +167,62 @@ window.onload = () => {
 
     setupMediaSessionHandlers();
     renderPlaylists();
-    setupAuthListener();
-    switchTab('search');
-    updateQueueCount();
+    showHome();
+};
 
-    // Check for mobile-specific messages
-    if (window.innerWidth <= 768) {
-        const bgHint = document.getElementById('bgPlaybackHint');
-        if (bgHint) bgHint.classList.remove('hidden');
+function renderHomePlaylists() {
+    // 1. Render Playlists Row
+    const plContainer = document.getElementById('homePlaylists');
+    plContainer.innerHTML = '';
+
+    if (playlists.length === 0) {
+        plContainer.innerHTML = '<p class="text-sm text-gray-500 italic">Crea una lista para empezar</p>';
+    } else {
+        playlists.forEach(pl => {
+            const card = document.createElement('div');
+            card.className = "flex-shrink-0 w-32 cursor-pointer group";
+            card.onclick = () => openPlaylist(pl.id);
+
+            const coverImg = pl.cover || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=150&h=150&fit=crop';
+            card.innerHTML = `
+                <div class="relative aspect-square mb-2 overflow-hidden rounded-md">
+                    <img src="${coverImg}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <svg class="w-10 h-10 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </div>
+                </div>
+                <h3 class="text-sm font-medium text-white truncate">${pl.name}</h3>
+                <p class="text-xs text-[#b3b3b3] truncate">${pl.songs.length} canciones</p>
+            `;
+            plContainer.appendChild(card);
+        });
     }
 
-    if (window.location.protocol === 'file:') {
-        const warning = document.getElementById('fileProtocolWarning');
-        if (warning) warning.classList.remove('hidden');
-    }
+    // 2. Render "Recently Played" or similar logic if we had history
+}
 
-    // Register Service Worker for background keepalive
-    registerServiceWorker();
+setupAuthListener();
+switchTab('search');
+updateQueueCount();
 
-    // Check for shared playlists in URL
-    checkSharedPlaylist();
+// Check for mobile-specific messages
+if (window.innerWidth <= 768) {
+    const bgHint = document.getElementById('bgPlaybackHint');
+    if (bgHint) bgHint.classList.remove('hidden');
+}
+
+if (window.location.protocol === 'file:') {
+    const warning = document.getElementById('fileProtocolWarning');
+    if (warning) warning.classList.remove('hidden');
+}
+
+// Register Service Worker for background keepalive
+if ('serviceWorker' in navigator) {
+    try { navigator.serviceWorker.register('sw.js'); } catch (e) { }
+}
+
+// Check for shared playlists in URL
+checkSharedPlaylist();
 };
 
 function setupAuthListener() {
@@ -2740,6 +2776,7 @@ window.addEventListener('resize', () => {
 // Only expose functions that are actually defined in this file or imported
 Object.assign(window, {
     showHome,
+    renderHomePlaylists,
     switchTab,
     showCreatePlaylistModal,
     hideCreatePlaylistModal,
