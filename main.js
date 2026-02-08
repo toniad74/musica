@@ -498,21 +498,20 @@ function playNativeAudio(url) {
                 // Avoid infinite loop loops
                 if (!currentTrack.retryCount) currentTrack.retryCount = 0;
 
-                if (currentTrack.retryCount < 3) {
+                if (currentTrack.retryCount < 4) { // Increased to 4 retries
                     currentTrack.retryCount++;
-                    showToast(`Error de audio. Reintentando (${currentTrack.retryCount}/3)...`);
+                    showToast(`Buscando otra fuente (${currentTrack.retryCount}/4)...`);
 
                     // Force a fresh fetch (ignoring cache if needed)
-                    // We remove current "fastest server" if it failed us
                     localStorage.removeItem('amaya_fastest_server');
 
                     setTimeout(() => {
                         playSong(currentTrack, queue, true);
                     }, 1000);
                 } else {
-                    // Only after 3 failed attempts with different servers do we accept defeat to IFrame
-                    showToast("No se pudo cargar audio limpio. Usando reproductor alternativo.", "warning");
-                    loadYouTubeIFrame(currentTrack.id);
+                    // STRICT MODE: Skip instead of IFrame
+                    showToast("No se encontró audio sin anuncios. Pasando a la siguiente.", "error");
+                    setTimeout(() => playNext(), 1500);
                 }
             }
         }
@@ -1493,16 +1492,17 @@ async function playSong(song, list = [], fromQueue = false) {
                     // The user just needs to hit the main play button now.
                     return;
                 }
-                console.log('📡 Fallback temporal a YouTube Player...');
-                showToast('Cargando reproductor...', 'info');
-                isCurrentlyUsingNative = false;
-                // No desactivamos el motor nativo para permitir que la siguiente canción lo intente de nuevo
-                loadYouTubeIFrame(song.id);
+                // Fallback to YouTube IFrame REMOVED (Strict No-Ad Policy)
+                console.warn("❌ Clean audio failed. Skipping song instead of using IFrame with ads.");
+                showToast("Audio limpio no disponible. Saltando canción...", "error");
+                setTimeout(() => playNext(), 1500);
             }
         } else {
-            console.log('📡 Usando YouTube Player directamente');
-            isCurrentlyUsingNative = false;
-            loadYouTubeIFrame(song.id);
+            // Even if useNativeAudio is false (which shouldn't happen in strict mode),
+            // we force a skip or try to enable native audio.
+            console.warn("⚠️ Intentando forzar audio nativo.");
+            useNativeAudio = true;
+            playSong(song, list, fromQueue);
         }
     } catch (error) {
         console.error("Error playing song:", error);
