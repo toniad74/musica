@@ -48,20 +48,24 @@ let isMediaPlaying = false;
 
 // Invidious instances (fallback if one fails)
 // Prioritize instances known for speed and M4A support
+// Invidious instances (fallback if one fails)
+// Prioritize instances known for speed and M4A support
 const INVIDIOUS_INSTANCES = [
-    'inv.tux.pizza',             // Reliable
-    'invidious.drgns.space',     // Fast
-    'invidious.privacydev.net',  // Stable
-    'invidious.fdn.fr',          // Good fallback
-    'yewtu.be',                  // High traffic but reliable
-    'vid.puffyan.us',            // US based
-    'invidious.perennialte.ch'
+    'https://inv.tux.pizza',
+    'https://invidious.drgns.space',
+    'https://invidious.privacydev.net',
+    'https://invidious.fdn.fr',
+    'https://invidious.perennialte.ch',
+    'https://yt.artemislena.eu',
+    'https://invidious.protokolla.fi',
+    'https://iv.ggtyler.dev'
 ];
 
-// Piped instances (Secondary fallback)
+// Piped instances (Main Engine)
+// These are usually faster and support SponsorBlock natively
 const PIPED_INSTANCES = [
-    'https://pipedapi.kavin.rocks',      // Official
-    'https://api.piped.privacydev.net',  // Reliable
+    'https://pipedapi.kavin.rocks',
+    'https://api.piped.privacydev.net',
     'https://pipedapi.drgns.space',
     'https://api.piped.projectsegfau.lt',
     'https://pipedapi.tokhmi.xyz',
@@ -72,7 +76,9 @@ const PIPED_INSTANCES = [
     'https://api.piped.yt',
     'https://pa.il.ax',
     'https://pipedapi.system41.cl',
-    'https://piped-api.garudalinux.org'
+    'https://piped-api.garudalinux.org',
+    'https://api.piped.adminforge.de',
+    'https://pipedapi.mole.bet'
 ];
 
 // --- INITIALIZATION ---
@@ -647,7 +653,7 @@ async function getAudioUrl(videoId) {
                 if (attempt % 3 === 0) showToast(`Probando fuente ${attempt}/${candidates.length}...`);
 
                 console.log(`Trying Piped: ${instance}`);
-                const result = await fetchFromPiped(instance, videoId, 4000); // 4s timeout per server
+                const result = await fetchFromPiped(instance, videoId, 5000); // Increased to 5s to be more patient
                 if (result && result.url) {
                     console.log(`✅ Éxito en: ${instance}`);
                     localStorage.setItem('amaya_fastest_server', instance);
@@ -671,12 +677,15 @@ async function getAudioUrl(videoId) {
 
         for (let instance of INVIDIOUS_INSTANCES) {
             try {
-                const url = `https://${instance}/api/v1/videos/${videoId}`;
+                const url = `${instance}/api/v1/videos/${videoId}`;
 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 3000);
+                // Normalized URL handling (some instances in list might miss https://)
+                const fetchUrl = url.startsWith('http') ? url : `https://${url}`;
 
-                const response = await fetch(url, { method: 'GET', signal: controller.signal });
+                const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+                const response = await fetch(fetchUrl, { method: 'GET', signal: controller.signal });
                 clearTimeout(timeoutId);
                 if (!response.ok) continue;
 
@@ -703,7 +712,7 @@ async function getAudioUrl(videoId) {
 
         throw new Error('No se pudo obtener audio de ninguna fuente.');
     } catch (finalError) {
-        showToast(`Error CRÍTICO de audio: ${finalError.message}`, "error");
+        console.error("Audio fetch failed:", finalError);
         throw finalError;
     }
 }
