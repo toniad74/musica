@@ -35,6 +35,7 @@ let nextSearchToken = '';
 let prevSearchToken = '';
 let currentSearchQuery = '';
 let currentSearchPage = 1;
+let currentSegments = []; // Store SponsorBlock segments
 
 // Track user intent to distinguish between unwanted background pauses and clicks
 let isUserPaused = false;
@@ -622,8 +623,12 @@ async function getAudioUrl(videoId) {
         if (cachedInstance) {
             console.log(`⚡ Usando servidor rápido guardado: ${cachedInstance}`);
             try {
-                const url = await fetchFromPiped(cachedInstance, videoId, 3000);
-                if (url) return url;
+                const result = await fetchFromPiped(cachedInstance, videoId, 3000);
+                if (result && result.url) {
+                    currentSegments = result.segments || [];
+                    console.log(`🔍 SponsorBlock: ${currentSegments.length} segmentos encontrados`);
+                    return result.url;
+                }
             } catch (e) {
                 console.warn("Servidor guardado falló, probando otros...");
                 localStorage.removeItem('amaya_fastest_server');
@@ -642,11 +647,13 @@ async function getAudioUrl(videoId) {
                 if (attempt % 3 === 0) showToast(`Probando fuente ${attempt}/${candidates.length}...`);
 
                 console.log(`Trying Piped: ${instance}`);
-                const url = await fetchFromPiped(instance, videoId, 4000); // 4s timeout per server
-                if (url) {
+                const result = await fetchFromPiped(instance, videoId, 4000); // 4s timeout per server
+                if (result && result.url) {
                     console.log(`✅ Éxito en: ${instance}`);
                     localStorage.setItem('amaya_fastest_server', instance);
-                    return url;
+                    currentSegments = result.segments || [];
+                    console.log(`🔍 SponsorBlock: ${currentSegments.length} segmentos encontrados`);
+                    return result.url;
                 }
             } catch (e) {
                 // Continúa al siguiente
@@ -656,6 +663,8 @@ async function getAudioUrl(videoId) {
         // STAGE 2: Try Invidious Instances (Fallback)
         console.log("⚠️ Piped falló. Intentando Invidious (Fallback)...");
         showToast("Probando servidores de seguridad...");
+
+        currentSegments = []; // Clear segments for Invidious fallback (no support currently)
 
         for (let instance of INVIDIOUS_INSTANCES) {
             try {
@@ -713,6 +722,9 @@ async function fetchFromPiped(apiBase, videoId, timeoutMs) {
         const data = await response.json();
         if (!data.audioStreams || data.audioStreams.length === 0) throw new Error("No streams");
 
+        // Extract SponsorBlock segments
+        const segments = data.sponsorblock || [];
+
         // Prefer M4A/MP4
         const audioStreams = data.audioStreams.sort((a, b) => {
             const getScore = (stream) => {
@@ -730,7 +742,12 @@ async function fetchFromPiped(apiBase, videoId, timeoutMs) {
 
             // Save winner for next time to make startup instant
             localStorage.setItem('amaya_fastest_server', apiBase);
-            return audioStreams[0].url;
+
+            // Return object with URL and segments
+            return {
+                url: audioStreams[0].url,
+                segments: segments
+            };
         }
         throw new Error("No valid streams");
     } catch (e) {
@@ -2339,6 +2356,34 @@ function showToast(m, t = 'success') {
 
 let progressUpdaterInterval; // Renamed from progressInterval to avoid conflict and be more descriptive
 
+function checkSkipping(currentTime) {
+    if (!currentSegments || currentSegments.length === 0) return;
+
+    // Categories to skip: sponsor, intro, outro, selfpromo, interaction
+    // We strictly want to skip "advertising" at the start, but SponsorBlock defines specific categories.
+    // 'sponsor' is keeping the lights on, usually integrated.
+    // 'intro' is non-music intro.
+    // 'music_offtopic' is non-music parts.
+    const skipCategories = ['sponsor', 'intro', 'selfpromo', 'interaction', 'music_offtopic'];
+
+    for (const segment of currentSegments) {
+        if (skipCategories.includes(segment.category)) {
+            if (currentTime >= segment.start && currentTime < segment.end) {
+                console.log(`⏭️ Saltando segmento (${segment.category}): ${segment.start} -> ${segment.end}`);
+                showToast(`Saltando ${segment.category}...`, 'info');
+
+                // Seek to end of segment
+                if (isCurrentlyUsingNative && nativeAudio) {
+                    nativeAudio.currentTime = segment.end;
+                } else if (player && typeof player.seekTo === 'function') {
+                    player.seekTo(segment.end);
+                }
+                break; // Only skip one at a time per check
+            }
+        }
+    }
+}
+
 // --- PROGRESS BAR ---
 function updateProgressBar() {
     let currentTime, duration;
@@ -2374,6 +2419,9 @@ function updateProgressBar() {
     if (mobileProgressBar) mobileProgressBar.value = progress;
     if (mobileProgressFill) mobileProgressFill.style.width = progress + '%';
     if (progressFillMini) progressFillMini.style.width = progress + '%';
+
+    // Check for SponsorBlock segments
+    checkSkipping(currentTime);
 
     // Update time labels
     document.getElementById('currentTime').textContent = formatTime(currentTime);
