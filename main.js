@@ -58,14 +58,19 @@ const INVIDIOUS_INSTANCES = [
 
 // Piped instances (Secondary fallback)
 const PIPED_INSTANCES = [
-    'https://pipedapi.kavin.rocks',      // Hero 1 (Official)
-    'https://api.piped.privacydev.net',  // Hero 2 (Stable)
+    'https://pipedapi.kavin.rocks',      // Official
+    'https://api.piped.privacydev.net',  // Reliable
     'https://pipedapi.drgns.space',
     'https://api.piped.projectsegfau.lt',
     'https://pipedapi.tokhmi.xyz',
     'https://piped-api.lunar.icu',
-    'https://api.piped.kotatsu.org',     // New
-    'https://piped.smnz.de/api'          // New
+    'https://api.piped.kotatsu.org',
+    'https://piped.smnz.de/api',
+    'https://pipedapi.r4fo.com',
+    'https://api.piped.yt',
+    'https://pa.il.ax',
+    'https://pipedapi.system41.cl',
+    'https://piped-api.garudalinux.org'
 ];
 
 // --- INITIALIZATION ---
@@ -576,49 +581,40 @@ function updatePlayPauseIcons(isPlaying) {
 }
 
 // --- INVIDIOUS & PIPED INTEGRATION ---
+// --- INVIDIOUS & PIPED INTEGRATION (ROBUST SEQUENTIAL) ---
 async function getAudioUrl(videoId) {
     console.log(`🔍 Obteniendo URL de audio para: ${videoId}`);
-
-    // --- OPTIMIZED PIPED STRATEGY (PARALLEL RACE) ---
-    console.log("🚀 Iniciando búsqueda optimizada (Piped Race)...");
     showToast("Buscando audio...");
 
-    // 1. Try Cached Instance First (Smart Cache)
+    // 1. Try Cached Instance First
     const cachedInstance = localStorage.getItem('amaya_fastest_server');
     if (cachedInstance) {
         console.log(`⚡ Usando servidor rápido guardado: ${cachedInstance}`);
         try {
-            const url = await fetchFromPiped(cachedInstance, videoId, 2500); // 2.5s strict timeout
+            const url = await fetchFromPiped(cachedInstance, videoId, 3000);
             if (url) return url;
         } catch (e) {
-            console.warn("Servidor guardado falló, iniciando carrera...");
+            console.warn("Servidor guardado falló, probando otros...");
             localStorage.removeItem('amaya_fastest_server');
         }
     }
 
-    // 2. Race Strategies (Cold Start Fix)
-    // Problem: Random 3 might pick 3 slow ones. Mobile cold start takes time.
-    // Solution: "Hero Strategy" - Always include the best servers in the race.
+    // 2. Sequential Exhaustive Search
+    // Shuffle to load balance
+    const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
 
-    const heroes = [
-        'https://pipedapi.kavin.rocks',
-        'https://api.piped.privacydev.net'
-    ];
-
-    // Mix heroes with some randoms for diversity
-    const others = PIPED_INSTANCES.filter(i => !heroes.includes(i)).sort(() => 0.5 - Math.random());
-
-    // Candidate list: 2 Heroes + 2 Others (Total 4 racers)
-    const raceCandidates = [...heroes, ...others.slice(0, 2)];
-
-    try {
-        // Timeout set to 5000ms (5s) for better balance.
-        // This gives Piped servers time to respond but won't make users wait too long.
-        const url = await Promise.any(raceCandidates.map(instance => fetchFromPiped(instance, videoId, 5000)));
-        console.log("🏆 Carrera ganada!");
-        return url;
-    } catch (aggregateError) {
-        console.warn("🏁 Carrera de servidores Piped falló:", aggregateError);
+    for (const instance of candidates) {
+        try {
+            console.log(`Trying Piped: ${instance}`);
+            const url = await fetchFromPiped(instance, videoId, 4000); // 4s timeout per server
+            if (url) {
+                console.log(`✅ Éxito en: ${instance}`);
+                localStorage.setItem('amaya_fastest_server', instance);
+                return url;
+            }
+        } catch (e) {
+            // Continúa al siguiente
+        }
     }
 
     // STAGE 2: Try Invidious Instances (Fallback)
@@ -628,10 +624,9 @@ async function getAudioUrl(videoId) {
     for (let instance of INVIDIOUS_INSTANCES) {
         try {
             const url = `https://${instance}/api/v1/videos/${videoId}`;
-            // ... (keep invidious logic as sequential last resort) ...
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
 
             const response = await fetch(url, { method: 'GET', signal: controller.signal });
             clearTimeout(timeoutId);
@@ -642,7 +637,6 @@ async function getAudioUrl(videoId) {
 
             const audioFormats = data.adaptiveFormats.filter(f => f.type && f.type.includes('audio'))
                 .sort((a, b) => {
-                    // Prefer MP4/M4A
                     const getScore = (format) => {
                         let score = 0;
                         if (format.type && (format.type.includes('mp4') || format.type.includes('m4a'))) score += 1000;
@@ -654,13 +648,12 @@ async function getAudioUrl(videoId) {
 
             if (audioFormats.length > 0) {
                 console.log(`✅ Audio Invidious: ${instance}`);
-                showToast("Reproduciendo...");
                 return audioFormats[0].url;
             }
         } catch (error) { continue; }
     }
 
-    throw new Error('No se pudo obtener audio de ninguna fuente (Piped/Invidious)');
+    throw new Error('No se pudo obtener audio de ninguna fuente.');
 }
 
 // Helper for Racing
