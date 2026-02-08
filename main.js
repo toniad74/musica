@@ -1,5 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyBHCTj7Jhlklf2ZL7AcE6ggkOvdgP9eotY",
@@ -13,7 +14,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
 
+let currentUserUid = null;
 let player;
 let isVideoReady = false;
 let currentTrack = null;
@@ -87,7 +91,7 @@ window.onload = () => {
 
     setupMediaSessionHandlers();
     renderPlaylists();
-    loadPlaylistsFromCloud();
+    setupAuthListener();
     switchTab('search');
     updateQueueCount();
 
@@ -106,17 +110,56 @@ window.onload = () => {
     registerServiceWorker();
 };
 
-async function loadPlaylistsFromCloud() {
+function setupAuthListener() {
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            currentUserUid = user.uid;
+            document.getElementById('loggedOutUI').classList.add('hidden');
+            document.getElementById('loggedInUI').classList.remove('hidden');
+            document.getElementById('userName').innerText = user.displayName;
+            document.getElementById('userAvatar').src = user.photoURL;
+            loadPlaylistsFromCloud();
+        } else {
+            currentUserUid = null;
+            document.getElementById('loggedOutUI').classList.remove('hidden');
+            document.getElementById('loggedInUI').classList.add('hidden');
+            // Reset playlists to local only when logged out
+            playlists = JSON.parse(localStorage.getItem('amaya_playlists')) || [];
+            renderPlaylists();
+        }
+    });
+}
+
+async function loginWithGoogle() {
     try {
-        const docRef = doc(db, "users", "default_user");
+        await signInWithPopup(auth, googleProvider);
+        showToast("Sessió iniciada rectament");
+    } catch (error) {
+        console.error("Login error:", error);
+        showToast("Error en iniciar sessió", "error");
+    }
+}
+
+async function logout() {
+    try {
+        await signOut(auth);
+        showToast("Sessió tancada");
+    } catch (error) {
+        console.error("Logout error:", error);
+    }
+}
+
+async function loadPlaylistsFromCloud() {
+    if (!currentUserUid) return;
+    try {
+        const docRef = doc(db, "users", currentUserUid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
             const cloudPlaylists = docSnap.data().playlists;
             if (cloudPlaylists && cloudPlaylists.length > 0) {
-                // Merge or prioritize cloud? For now, we'll replace local to ensure sync.
                 playlists = cloudPlaylists;
                 renderPlaylists();
-                console.log("☁️ Playlists carregades des del núvol");
+                console.log("☁️ Playlists carregades des del núvol per a l'usuari:", currentUserUid);
             }
         }
     } catch (e) {
@@ -1442,12 +1485,16 @@ function createPlaylist() {
 
 async function savePlaylists() {
     localStorage.setItem('amaya_playlists', JSON.stringify(playlists));
+    if (!currentUserUid) {
+        console.log("ℹ️ Sessió no iniciada. Guardant només localment.");
+        return;
+    }
     try {
-        await setDoc(doc(db, "users", "default_user"), {
+        await setDoc(doc(db, "users", currentUserUid), {
             playlists: playlists,
             lastUpdate: new Date().toISOString()
         });
-        console.log("☁️ Playlists sincronitzades amb el núvol");
+        console.log("☁️ Playlists sincronitzades amb el núvol per a l'usuari:", currentUserUid);
     } catch (e) {
         console.error("Error al sincronitzar amb el núvol:", e);
     }
@@ -2429,5 +2476,7 @@ Object.assign(window, {
     triggerPlaylistCoverUpload,
     handlePlaylistCoverChange,
     triggerPlaylistImport,
-    handlePlaylistImport
+    handlePlaylistImport,
+    loginWithGoogle,
+    logout
 });
