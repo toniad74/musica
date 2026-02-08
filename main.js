@@ -490,9 +490,31 @@ function playNativeAudio(url) {
         if (error.name === 'NotAllowedError') {
             showToast("⚠️ Toca 'Play' para iniciar", "warning");
         } else {
-            showToast("Error de audio. Reintentando con YouTube...", "info");
-            // SOLO fallback para esta canción, no desactivamos el motor globalmente
-            if (currentTrack) loadYouTubeIFrame(currentTrack.id);
+            if (currentTrack) {
+                // If native audio fails, DO NOT immediately fallback to IFrame (which has ads).
+                // Retry with a different server/source.
+                console.warn("⚠️ Native Audio Error - Retrying with different source...");
+
+                // Avoid infinite loop loops
+                if (!currentTrack.retryCount) currentTrack.retryCount = 0;
+
+                if (currentTrack.retryCount < 3) {
+                    currentTrack.retryCount++;
+                    showToast(`Error de audio. Reintentando (${currentTrack.retryCount}/3)...`);
+
+                    // Force a fresh fetch (ignoring cache if needed)
+                    // We remove current "fastest server" if it failed us
+                    localStorage.removeItem('amaya_fastest_server');
+
+                    setTimeout(() => {
+                        playSong(currentTrack, queue, true);
+                    }, 1000);
+                } else {
+                    // Only after 3 failed attempts with different servers do we accept defeat to IFrame
+                    showToast("No se pudo cargar audio limpio. Usando reproductor alternativo.", "warning");
+                    loadYouTubeIFrame(currentTrack.id);
+                }
+            }
         }
     });
 }
@@ -696,6 +718,8 @@ async function getAudioUrl(videoId) {
                     .sort((a, b) => {
                         const getScore = (format) => {
                             let score = 0;
+                            // Prioritize WebM/Opus (more reliable on Piped/Invidious) AND MP4
+                            if (format.type && (format.type.includes('webm') || format.type.includes('opus'))) score += 1200;
                             if (format.type && (format.type.includes('mp4') || format.type.includes('m4a'))) score += 1000;
                             if (format.bitrate) score += parseInt(format.bitrate) / 1000;
                             return score;
@@ -737,10 +761,12 @@ async function fetchFromPiped(apiBase, videoId, timeoutMs) {
         // Extract SponsorBlock segments
         const segments = data.sponsorblock || [];
 
-        // Prefer M4A/MP4
+        // Prefer WebM/Opus AND MP4/M4A
         const audioStreams = data.audioStreams.sort((a, b) => {
             const getScore = (stream) => {
                 let score = 0;
+                // WebM/Opus is often unthrottled and more available
+                if (stream.mimeType && (stream.mimeType.includes('webm') || stream.mimeType.includes('opus'))) score += 1200;
                 if (stream.mimeType && stream.mimeType.includes('mp4')) score += 1000;
                 if (stream.bitrate) score += stream.bitrate / 1000;
                 return score;
