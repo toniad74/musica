@@ -54,10 +54,16 @@ const INVIDIOUS_INSTANCES = [
     'invidious.fdn.fr',          // Good fallback
     'yewtu.be',                  // High traffic but reliable
     'vid.puffyan.us',            // US based
-    'invidious.perennialte.ch'
+    'invidious.perennialte.ch',
+    'invidious.nerdvpn.de',      // German server
+    'inv.nadeko.net',            // Additional reliable instance
+    'invidious.slipfox.xyz',     // Community instance
+    'invidious.projectsegfau.lt',// Privacy-focused
+    'inv.riverside.rocks',       // US based
+    'invidious.flokinet.to'      // European server
 ];
 
-// Piped instances (Secondary fallback)
+// Piped instances (Primary source - more reliable)
 const PIPED_INSTANCES = [
     'https://pipedapi.kavin.rocks',      // Official
     'https://api.piped.privacydev.net',  // Reliable
@@ -71,7 +77,12 @@ const PIPED_INSTANCES = [
     'https://api.piped.yt',
     'https://pa.il.ax',
     'https://pipedapi.system41.cl',
-    'https://piped-api.garudalinux.org'
+    'https://piped-api.garudalinux.org',
+    'https://pipedapi.adminforge.de',    // German server
+    'https://pipedapi.pfcd.me',          // Additional instance
+    'https://api-piped.mha.fi',          // Finnish server
+    'https://pipedapi.in.projectsegfau.lt', // India server
+    'https://pipedapi.us.projectsegfau.lt'  // US server
 ];
 
 // --- INITIALIZATION ---
@@ -80,11 +91,8 @@ window.onload = () => {
     nativeAudio = document.getElementById('nativeAudioPlayer');
     setupNativeAudioHandlers();
 
-    // Load YouTube IFrame API (fallback)
-    const tag = document.createElement('script');
-    tag.src = "https://www.youtube.com/iframe_api";
-    const firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    // NOTE: YouTube IFrame API removed to eliminate ads
+    // App now uses only Invidious/Piped for ad-free audio
 
     // Initial UI load
     if (apiKeys.length > 0) {
@@ -1381,16 +1389,28 @@ async function playSong(song, list = [], fromQueue = false) {
                     // The user just needs to hit the main play button now.
                     return;
                 }
-                console.log('📡 Fallback temporal a YouTube Player...');
-                showToast('Cargando reproductor...', 'info');
-                isCurrentlyUsingNative = false;
-                // No desactivamos el motor nativo para permitir que la siguiente canción lo intente de nuevo
-                loadYouTubeIFrame(song.id);
+
+                // No YouTube fallback - show clear error message
+                console.error('❌ No se pudo obtener audio de ninguna fuente');
+                showToast('❌ No se pudo cargar el audio. Intenta con otra canción.', 'error');
+                isMediaPlaying = false;
+                updatePlayPauseIcons(false);
+
+                // Try next song in queue if available
+                if (queue.length > 0 && currentQueueIndex < queue.length - 1) {
+                    setTimeout(() => {
+                        showToast('⏭️ Saltando a la siguiente canción...', 'info');
+                        playNext();
+                    }, 2000);
+                }
+                return;
             }
         } else {
-            console.log('📡 Usando YouTube Player directamente');
-            isCurrentlyUsingNative = false;
-            loadYouTubeIFrame(song.id);
+            // Native audio disabled - show error
+            console.error('❌ Audio nativo deshabilitado');
+            showToast('❌ Activa el audio nativo en la configuración', 'error');
+            isMediaPlaying = false;
+            updatePlayPauseIcons(false);
         }
     } catch (error) {
         console.error("Error playing song:", error);
@@ -1478,19 +1498,6 @@ function updateQueueCount() {
         } else {
             queueCountMiniEl.classList.add('hidden');
         }
-    }
-}
-
-// Function to load YouTube IFrame as fallback
-function loadYouTubeIFrame(videoId) {
-    console.log(`📺 Cargando YouTube IFrame para: ${videoId}`);
-
-    if (isVideoReady && player && player.loadVideoById) {
-        player.loadVideoById(videoId);
-        player.playVideo();
-    } else {
-        console.log("Player not ready, retrying in 500ms...");
-        setTimeout(() => loadYouTubeIFrame(videoId), 500);
     }
 }
 
