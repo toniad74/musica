@@ -158,6 +158,62 @@ button.in-queue svg {
     background: #333;
 }
 
+/* --- TABS SYSTEM --- */
+.tabs-container {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 32px;
+    padding: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 20px;
+    width: fit-content;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+}
+
+.tab-btn {
+    padding: 12px 28px;
+    border-radius: 16px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #b3b3b3;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    border: 1px solid transparent;
+    letter-spacing: 0.5px;
+}
+
+.tab-btn:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateY(-1px);
+}
+
+.tab-btn.active {
+    background: white;
+    color: black;
+    box-shadow: 0 8px 20px rgba(255, 255, 255, 0.15);
+    transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+    .tabs-container {
+        width: 100%;
+        gap: 6px;
+        padding: 5px;
+        margin-bottom: 24px;
+        border-radius: 16px;
+    }
+
+    .tab-btn {
+        flex: 1;
+        text-align: center;
+        padding: 14px 10px;
+        font-size: 14px;
+        border-radius: 12px;
+    }
+}
+
 body {
     background: #080808;
     color: #fff;

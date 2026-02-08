@@ -70,20 +70,20 @@
 
             <!-- Navigation -->
             <nav class="px-2 mb-4">
-                <button onclick="showHome()"
+                <button onclick="switchTab('playlists')"
                     class="flex items-center gap-4 text-[#b3b3b3] hover:text-white px-4 py-3 rounded-lg hover:bg-[#1a1a1a] w-full transition-colors">
                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M12 3L4 9v12h5v-7h6v7h5V9l-8-6z" />
                     </svg>
-                    <span class="font-semibold">Inici</span>
+                    <span class="font-semibold">Llistes</span>
                 </button>
-                <button onclick="document.getElementById('searchInput').focus()"
+                <button onclick="switchTab('search')"
                     class="flex items-center gap-4 text-[#b3b3b3] hover:text-white px-4 py-3 rounded-lg hover:bg-[#1a1a1a] w-full transition-colors">
                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                         <path
                             d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 001.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 00-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 005.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
                     </svg>
-                    <span class="font-semibold">Cercar</span>
+                    <span class="font-semibold">Cerca</span>
                 </button>
             </nav>
 
@@ -238,10 +238,20 @@
                     <p class="text-red-300" id="errorText"></p>
                 </div>
 
+                <!-- Tabs Navigation -->
+                <div class="tabs-container mb-8">
+                    <button id="tab-playlists" onclick="switchTab('playlists')" class="tab-btn active">
+                        Llistes
+                    </button>
+                    <button id="tab-search" onclick="switchTab('search')" class="tab-btn">
+                        Cerca
+                    </button>
+                </div>
+
                 <!-- Home Section (Playlists List) -->
                 <div id="homeSection">
                     <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-2xl font-bold">Llistes</h2>
+                        <h2 class="text-2xl font-bold">La teva Biblioteca</h2>
                         <div class="flex items-center gap-2">
                             <button onclick="triggerPlaylistImport()"
                                 class="text-gray-400 hover:text-white p-2 transition-colors"

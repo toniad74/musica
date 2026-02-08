@@ -895,11 +895,8 @@ async function searchMusic(pageToken = '', retryCount = 0) {
     currentSearchQuery = query;
     if (!pageToken) currentSearchPage = 1;
 
+    switchTab('search');
     document.getElementById('loading').classList.remove('hidden');
-    document.getElementById('resultsSection').classList.add('hidden');
-    // document.getElementById('homeSection').classList.add('hidden'); // Optional: keep home visible while loading
-    document.getElementById('playlistView').classList.add('hidden');
-    document.getElementById('errorMessage').classList.add('hidden');
 
     try {
         const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&key=${currentKey}${pageToken ? `&pageToken=${pageToken}` : ''}`);
@@ -1446,6 +1443,13 @@ function openPlaylist(id) {
     if (!pl) return;
 
     activePlaylistId = id;
+
+    // Maintain tab state
+    const tabPlaylists = document.getElementById('tab-playlists');
+    const tabSearch = document.getElementById('tab-search');
+    if (tabPlaylists) tabPlaylists.classList.add('active');
+    if (tabSearch) tabSearch.classList.remove('active');
+
     document.getElementById('resultsSection').classList.add('hidden');
     document.getElementById('homeSection').classList.add('hidden');
     document.getElementById('playlistView').classList.remove('hidden');
@@ -1757,27 +1761,33 @@ function highlightCurrentTrack(videoId) {
 }
 
 // --- UI UPDATES ---
-function showHome() {
-    document.getElementById('playlistView').classList.add('hidden');
-    document.getElementById('errorMessage').classList.add('hidden');
-
-    const resultsGrid = document.getElementById('resultsGrid');
-    const resultsSection = document.getElementById('resultsSection');
+function switchTab(tab) {
     const homeSection = document.getElementById('homeSection');
+    const resultsSection = document.getElementById('resultsSection');
+    const playlistView = document.getElementById('playlistView');
+    const tabPlaylists = document.getElementById('tab-playlists');
+    const tabSearch = document.getElementById('tab-search');
 
-    // If there are search results, show resultsSection and hide homeSection
-    if (resultsGrid && resultsGrid.children.length > 0) {
-        resultsSection.classList.remove('hidden');
-        homeSection.classList.add('hidden');
-        if (currentTrack) highlightCurrentTrack(currentTrack.id);
-    } else {
-        // Show homeSection with playlists library
-        resultsSection.classList.add('hidden');
+    // Update tab buttons
+    if (tabPlaylists) tabPlaylists.classList.toggle('active', tab === 'playlists');
+    if (tabSearch) tabSearch.classList.toggle('active', tab === 'search');
+
+    if (tab === 'playlists') {
         homeSection.classList.remove('hidden');
+        resultsSection.classList.add('hidden');
+        playlistView.classList.add('hidden');
         renderHomePlaylists();
+        activePlaylistId = null;
+    } else if (tab === 'search') {
+        homeSection.classList.add('hidden');
+        resultsSection.classList.remove('hidden');
+        playlistView.classList.add('hidden');
+        document.getElementById('searchInput').focus();
     }
+}
 
-    activePlaylistId = null;
+function showHome() {
+    switchTab('playlists');
 }
 
 function renderHomePlaylists() {
