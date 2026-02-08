@@ -166,7 +166,7 @@
         <!-- Main Content -->
         <main class="flex-1 glass-panel rounded-xl overflow-y-auto relative z-10">
             <!-- Header (User/API Section - Scrollable) -->
-            <header class="p-2 md:p-4 backdrop-blur-xl bg-black/80 border-b border-white/5">
+            <header class="px-4 py-2 md:px-8 md:py-4 backdrop-blur-xl bg-black/80 border-b border-white/5">
                 <!-- Mobile Header -->
                 <header class="mb-3 md:hidden">
                     <div class="flex items-center justify-between">
@@ -322,7 +322,7 @@
 
 
             <!-- Home Section (Playlists List) -->
-            <div id="homeSection">
+            <div id="homeSection" class="px-4 md:px-8">
                 <div class="flex items-center justify-between mb-6">
                     <h2 class="text-2xl font-bold">Tu Biblioteca</h2>
                     <div class="flex items-center gap-2">
@@ -338,7 +338,7 @@
             </div>
 
             <!-- Playlist View -->
-            <div id="playlistView" class="hidden">
+            <div id="playlistView" class="hidden px-4 md:px-8">
                 <div class="flex items-end gap-6 mb-8">
                     <div class="flex flex-col items-center gap-2">
                         <div id="playlistCover" onclick="triggerPlaylistCoverUpload()"
@@ -431,7 +431,7 @@
             </div>
 
             <!-- Results Section -->
-            <div id="resultsSection" class="hidden">
+            <div id="resultsSection" class="hidden px-4 md:px-8">
                 <h2 class="text-2xl font-bold mb-6">Resultados</h2>
                 <div class="bg-[#181818] rounded-lg overflow-hidden">
                     <div id="resultsGrid"></div>
