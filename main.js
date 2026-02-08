@@ -118,15 +118,46 @@ function setupAuthListener() {
     onAuthStateChanged(auth, (user) => {
         if (user) {
             currentUserUid = user.uid;
-            document.getElementById('loggedOutUI').classList.add('hidden');
-            document.getElementById('loggedInUI').classList.remove('hidden');
-            document.getElementById('userName').innerText = user.displayName;
-            document.getElementById('userAvatar').src = user.photoURL;
+
+            // Toggle Desktop UI
+            const loggedOutUI = document.getElementById('loggedOutUI');
+            const loggedInUI = document.getElementById('loggedInUI');
+            if (loggedOutUI) loggedOutUI.classList.add('hidden');
+            if (loggedInUI) loggedInUI.classList.remove('hidden');
+
+            // Toggle Mobile UI
+            const loggedOutUIMobile = document.getElementById('loggedOutUIMobile');
+            const loggedInUIMobile = document.getElementById('loggedInUIMobile');
+            if (loggedOutUIMobile) loggedOutUIMobile.classList.add('hidden');
+            if (loggedInUIMobile) loggedInUIMobile.classList.remove('hidden');
+
+            // Set Data
+            const userName = document.getElementById('userName');
+            const userAvatar = document.getElementById('userAvatar');
+            const userNameMobile = document.getElementById('userNameMobile');
+            const userAvatarMobile = document.getElementById('userAvatarMobile');
+
+            if (userName) userName.innerText = user.displayName;
+            if (userAvatar) userAvatar.src = user.photoURL;
+            if (userNameMobile) userNameMobile.innerText = user.displayName.split(' ')[0]; // First name only for mobile
+            if (userAvatarMobile) userAvatarMobile.src = user.photoURL;
+
             loadPlaylistsFromCloud();
         } else {
             currentUserUid = null;
-            document.getElementById('loggedOutUI').classList.remove('hidden');
-            document.getElementById('loggedInUI').classList.add('hidden');
+
+            // Toggle Desktop UI
+            const loggedOutUI = document.getElementById('loggedOutUI');
+            const loggedInUI = document.getElementById('loggedInUI');
+            if (loggedOutUI) loggedOutUI.classList.remove('hidden');
+            if (loggedInUI) loggedInUI.classList.add('hidden');
+
+            // Toggle Mobile UI
+            const loggedOutUIMobile = document.getElementById('loggedOutUIMobile');
+            const loggedInUIMobile = document.getElementById('loggedInUIMobile');
+            if (loggedOutUIMobile) loggedOutUIMobile.classList.remove('hidden');
+            if (loggedInUIMobile) loggedInUIMobile.classList.add('hidden');
+
             // Reset playlists to local only when logged out
             playlists = JSON.parse(localStorage.getItem('amaya_playlists')) || [];
             renderPlaylists();
