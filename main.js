@@ -1097,8 +1097,12 @@ function clearSearch() {
 
 // --- SEARCH ---
 async function searchMusic(pageToken = '', retryCount = 0) {
-    const query = document.getElementById('searchInput').value.trim();
+    const input = document.getElementById('searchInput');
+    const query = input.value.trim();
     if (!query) return;
+
+    // Blur to hide mobile keyboard
+    input.blur();
 
     const currentKey = getCurrentApiKey();
     // Allow search even if no key - go straight to fallback
@@ -1111,6 +1115,9 @@ async function searchMusic(pageToken = '', retryCount = 0) {
 
     switchTab('search');
     document.getElementById('loading').classList.remove('hidden');
+
+    // Scroll to results section for better visibility on small screens
+    document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
 
     try {
         const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&key=${currentKey}${pageToken ? `&pageToken=${pageToken}` : ''}`);
