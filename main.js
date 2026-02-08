@@ -620,6 +620,13 @@ function updatePlayPauseIcons(isPlaying) {
     refreshUIHighlights();
 }
 
+function refreshUIHighlights() {
+    if (currentTrack) {
+        highlightCurrentTrack(currentTrack.id);
+    }
+}
+}
+
 // --- INVIDIOUS & PIPED INTEGRATION ---
 // --- INVIDIOUS & PIPED INTEGRATION (ROBUST SEQUENTIAL) ---
 async function getAudioUrl(videoId) {
@@ -1537,13 +1544,13 @@ function togglePlayPause() {
             isUserPaused = true;
             nativeAudio.pause();
         }
-    } else if (player) {
-        // YouTube IFrame control
+    } else if (player && typeof player.getPlayerState === 'function') {
         const state = player.getPlayerState();
-        if (state === YT.PlayerState.PLAYING) {
+        if (state === 1) { // YT.PlayerState.PLAYING
             isUserPaused = true;
             player.pauseVideo();
         } else {
+            isUserPaused = false;
             player.playVideo();
         }
     }
