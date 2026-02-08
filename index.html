@@ -279,160 +279,161 @@
                         </button>
                     </form>
                 </div>
+            </header>
 
 
-                <!-- Loading Spinner -->
-                <div id="loading" class="hidden text-center py-8">
-                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
-                    <p class="mt-2 text-gray-400">Buscando canciones...</p>
-                </div>
+            <!-- Loading Spinner -->
+            <div id="loading" class="hidden text-center py-8">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+                <p class="mt-2 text-gray-400">Buscando canciones...</p>
+            </div>
 
-                <!-- Error Message -->
-                <div id="errorMessage" class="hidden bg-red-900/20 border border-red-500/50 rounded-lg p-4 mb-6">
-                    <p class="text-red-300" id="errorText"></p>
-                </div>
+            <!-- Error Message -->
+            <div id="errorMessage" class="hidden bg-red-900/20 border border-red-500/50 rounded-lg p-4 mb-6">
+                <p class="text-red-300" id="errorText"></p>
+            </div>
 
-                <!-- Tabs Navigation -->
-                <div class="tabs-container mb-8">
-                    <button id="tab-playlists" onclick="switchTab('playlists')" class="tab-btn">
-                        Listas
-                    </button>
-                    <button id="tab-search" onclick="switchTab('search')" class="tab-btn active">
-                        Buscar
-                    </button>
-                </div>
+            <!-- Tabs Navigation -->
+            <div class="tabs-container mb-8">
+                <button id="tab-playlists" onclick="switchTab('playlists')" class="tab-btn">
+                    Listas
+                </button>
+                <button id="tab-search" onclick="switchTab('search')" class="tab-btn active">
+                    Buscar
+                </button>
+            </div>
 
-                <!-- Home Section (Playlists List) -->
-                <div id="homeSection">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-2xl font-bold">Tu Biblioteca</h2>
-                        <div class="flex items-center gap-2">
-                            <button onclick="showCreatePlaylistModal()"
-                                class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm font-bold transition-all">
-                                Crear
-                            </button>
-                        </div>
-                    </div>
-                    <div id="homePlaylistsList" class="space-y-2">
-                        <!-- Playlists rows will be injected here -->
+            <!-- Home Section (Playlists List) -->
+            <div id="homeSection">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold">Tu Biblioteca</h2>
+                    <div class="flex items-center gap-2">
+                        <button onclick="showCreatePlaylistModal()"
+                            class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm font-bold transition-all">
+                            Crear
+                        </button>
                     </div>
                 </div>
+                <div id="homePlaylistsList" class="space-y-2">
+                    <!-- Playlists rows will be injected here -->
+                </div>
+            </div>
 
-                <!-- Playlist View -->
-                <div id="playlistView" class="hidden">
-                    <div class="flex items-end gap-6 mb-8">
-                        <div class="flex flex-col items-center gap-2">
-                            <div id="playlistCover" onclick="triggerPlaylistCoverUpload()"
-                                class="w-20 h-20 md:w-60 md:h-60 bg-gradient-to-br from-purple-700 to-blue-500 rounded-lg shadow-xl flex items-center justify-center overflow-hidden cursor-pointer group relative">
-                                <img id="playlistCoverImage" src="" alt="Cover"
-                                    class="w-full h-full object-cover hidden transition-transform duration-300 group-hover:scale-110">
+            <!-- Playlist View -->
+            <div id="playlistView" class="hidden">
+                <div class="flex items-end gap-6 mb-8">
+                    <div class="flex flex-col items-center gap-2">
+                        <div id="playlistCover" onclick="triggerPlaylistCoverUpload()"
+                            class="w-20 h-20 md:w-60 md:h-60 bg-gradient-to-br from-purple-700 to-blue-500 rounded-lg shadow-xl flex items-center justify-center overflow-hidden cursor-pointer group relative">
+                            <img id="playlistCoverImage" src="" alt="Cover"
+                                class="w-full h-full object-cover hidden transition-transform duration-300 group-hover:scale-110">
 
-                                <div
-                                    class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                                        <path
-                                            d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
-                                    </svg>
-                                </div>
-
-                                <svg id="playlistCoverIcon" class="w-10 h-10 text-white/60" fill="currentColor"
-                                    viewBox="0 0 24 24">
+                            <div
+                                class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
                                     <path
-                                        d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                                        d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
                                 </svg>
                             </div>
-                            <!-- Hidden input moved below -->
-                            <input type="file" id="playlistCoverInput" accept="image/*" class="hidden"
-                                onchange="handlePlaylistCoverChange(event)">
-                        </div>
-                        <div class="flex-1">
-                            <div class="flex items-center justify-between gap-3">
-                                <p class="text-sm font-medium uppercase md:hidden">Contenido de la Lista</p>
-                                <p class="text-sm font-medium uppercase hidden md:block">Lista</p>
-                                <button onclick="showHome()"
-                                    class="inline-flex items-center gap-2 text-[#b3b3b3] hover:text-white bg-[#1a1a1a] hover:bg-[#2a2a2a] px-3 py-2 rounded-full"
-                                    title="Volver">
-                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
-                                    </svg>
-                                    <span class="text-sm font-semibold">Volver</span>
-                                </button>
-                            </div>
-                            <h1 id="playlistTitle" class="text-xl md:text-5xl font-black mt-2 mb-1 block"></h1>
-                            <p id="playlistInfo" class="text-gray-400 text-xs md:text-sm block"></p>
 
-                            <!-- Mobile Actions REMOVED -->
+                            <svg id="playlistCoverIcon" class="w-10 h-10 text-white/60" fill="currentColor"
+                                viewBox="0 0 24 24">
+                                <path
+                                    d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                            </svg>
                         </div>
+                        <!-- Hidden input moved below -->
+                        <input type="file" id="playlistCoverInput" accept="image/*" class="hidden"
+                            onchange="handlePlaylistCoverChange(event)">
                     </div>
-                    <div class="flex items-center flex-wrap gap-6 mb-6">
-                        <button onclick="playCurrentPlaylist()"
-                            class="bg-green-500 hover:bg-green-400 hover:scale-105 text-black rounded-full p-3 transition-all shadow-xl"
-                            title="Reproducir lista">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between gap-3">
+                            <p class="text-sm font-medium uppercase md:hidden">Contenido de la Lista</p>
+                            <p class="text-sm font-medium uppercase hidden md:block">Lista</p>
+                            <button onclick="showHome()"
+                                class="inline-flex items-center gap-2 text-[#b3b3b3] hover:text-white bg-[#1a1a1a] hover:bg-[#2a2a2a] px-3 py-2 rounded-full"
+                                title="Volver">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+                                </svg>
+                                <span class="text-sm font-semibold">Volver</span>
+                            </button>
+                        </div>
+                        <h1 id="playlistTitle" class="text-xl md:text-5xl font-black mt-2 mb-1 block"></h1>
+                        <p id="playlistInfo" class="text-gray-400 text-xs md:text-sm block"></p>
+
+                        <!-- Mobile Actions REMOVED -->
+                    </div>
+                </div>
+                <div class="flex items-center flex-wrap gap-6 mb-6">
+                    <button onclick="playCurrentPlaylist()"
+                        class="bg-green-500 hover:bg-green-400 hover:scale-105 text-black rounded-full p-3 transition-all shadow-xl"
+                        title="Reproducir lista">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                        </svg>
+                    </button>
+                    <div id="playlistOwnerActions" class="flex items-center gap-6">
+                        <button onclick="showEditPlaylistModal()"
+                            class="text-[#b3b3b3] hover:text-white p-3 rounded-full hover:bg-white/10 transition-colors"
+                            title="Editar lista">
                             <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M8 5v14l11-7z" />
+                                <path
+                                    d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
                             </svg>
                         </button>
-                        <div id="playlistOwnerActions" class="flex items-center gap-6">
-                            <button onclick="showEditPlaylistModal()"
-                                class="text-[#b3b3b3] hover:text-white p-3 rounded-full hover:bg-white/10 transition-colors"
-                                title="Editar lista">
-                                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                                    <path
-                                        d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
-                                </svg>
-                            </button>
-                            <button onclick="showDeletePlaylistConfirm()"
-                                class="text-[#b3b3b3] hover:text-white p-3 rounded-full hover:bg-white/10 transition-colors"
-                                title="Eliminar lista">
-                                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                                    <path
-                                        d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
-                                </svg>
-                            </button>
-                            <button onclick="shareCurrentPlaylist()"
-                                class="text-[#b3b3b3] hover:text-white p-3 rounded-full hover:bg-white/10 transition-colors"
-                                title="Compartir lista (nube)">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                                </svg>
-                            </button>
-                        </div>
-                        <div id="playlistSharedActions" class="hidden">
-                            <button onclick="importSharedPlaylist()"
-                                class="bg-white text-black px-6 py-3 rounded-full font-bold hover:scale-105 transition-transform flex items-center gap-2">
-                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                                </svg>
-                                Añadir a mi biblioteca
-                            </button>
-                        </div>
+                        <button onclick="showDeletePlaylistConfirm()"
+                            class="text-[#b3b3b3] hover:text-white p-3 rounded-full hover:bg-white/10 transition-colors"
+                            title="Eliminar lista">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                            </svg>
+                        </button>
+                        <button onclick="shareCurrentPlaylist()"
+                            class="text-[#b3b3b3] hover:text-white p-3 rounded-full hover:bg-white/10 transition-colors"
+                            title="Compartir lista (nube)">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                            </svg>
+                        </button>
                     </div>
-                    <div id="playlistSongs" class="bg-[#181818] rounded-lg overflow-hidden"></div>
+                    <div id="playlistSharedActions" class="hidden">
+                        <button onclick="importSharedPlaylist()"
+                            class="bg-white text-black px-6 py-3 rounded-full font-bold hover:scale-105 transition-transform flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                            </svg>
+                            Añadir a mi biblioteca
+                        </button>
+                    </div>
                 </div>
+                <div id="playlistSongs" class="bg-[#181818] rounded-lg overflow-hidden"></div>
+            </div>
 
-                <!-- Results Section -->
-                <div id="resultsSection" class="hidden">
-                    <h2 class="text-2xl font-bold mb-6">Resultados</h2>
-                    <div class="bg-[#181818] rounded-lg overflow-hidden">
-                        <div id="resultsGrid"></div>
-                        <!-- Search Pagination -->
-                        <div id="searchPagination"
-                            class="hidden border-t border-[#282828] p-4 flex items-center justify-between gap-3">
-                            <button id="prevPageBtn" onclick="searchPrevPage()"
-                                class="px-4 py-2 rounded-full bg-[#282828] hover:bg-[#3e3e3e] text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
-                                disabled>
-                                Anterior
-                            </button>
-                            <div class="text-xs text-gray-400 font-medium" id="searchPageInfo">Página 1</div>
-                            <button id="nextPageBtn" onclick="searchNextPage()"
-                                class="px-4 py-2 rounded-full bg-[#282828] hover:bg-[#3e3e3e] text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
-                                disabled>
-                                Siguiente
-                            </button>
-                        </div>
+            <!-- Results Section -->
+            <div id="resultsSection" class="hidden">
+                <h2 class="text-2xl font-bold mb-6">Resultados</h2>
+                <div class="bg-[#181818] rounded-lg overflow-hidden">
+                    <div id="resultsGrid"></div>
+                    <!-- Search Pagination -->
+                    <div id="searchPagination"
+                        class="hidden border-t border-[#282828] p-4 flex items-center justify-between gap-3">
+                        <button id="prevPageBtn" onclick="searchPrevPage()"
+                            class="px-4 py-2 rounded-full bg-[#282828] hover:bg-[#3e3e3e] text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                            disabled>
+                            Anterior
+                        </button>
+                        <div class="text-xs text-gray-400 font-medium" id="searchPageInfo">Página 1</div>
+                        <button id="nextPageBtn" onclick="searchNextPage()"
+                            class="px-4 py-2 rounded-full bg-[#282828] hover:bg-[#3e3e3e] text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                            disabled>
+                            Siguiente
+                        </button>
                     </div>
                 </div>
+            </div>
         </main>
     </div>
 
