@@ -448,11 +448,17 @@ function setupNativeAudioHandlers() {
         // Clear cached server as it might be the cause
         localStorage.removeItem('amaya_fastest_server');
 
-        if (currentTrack) {
-            console.log('Intento de fallback temporal a YouTube IFrame...');
-            showToast('Reiniciando con YouTube Player...', 'info');
-            // NO desactivamos useNativeAudio globalmente para que la siguiente canción vuelva a intentar modo sin anuncios
-            loadYouTubeIFrame(currentTrack.id);
+        // Try next song in queue if available (no YouTube fallback)
+        if (currentTrack && queue.length > 0 && currentQueueIndex < queue.length - 1) {
+            console.log('⏭️ Error de audio, saltando a la siguiente canción...');
+            setTimeout(() => {
+                showToast('⏭️ Saltando a la siguiente canción...', 'info');
+                playNext();
+            }, 2000);
+        } else {
+            console.error('❌ No se pudo cargar el audio y no hay más canciones en la cola');
+            isMediaPlaying = false;
+            updatePlayPauseIcons(false);
         }
     });
 
