@@ -250,32 +250,12 @@ function startServiceWorkerKeepAlive() {
 function stopServiceWorkerKeepAlive() {
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'KEEP_ALIVE_STOP' });
+
         console.log('⏹️ Service Worker keep-alive detenido');
     }
 }
 
-function onYouTubeIframeAPIReady() {
-    const origin = window.location.protocol === 'file:' ? '*' : window.location.origin;
-    player = new YT.Player('youtubePlayer', {
-        height: '100%',
-        width: '100%',
-        videoId: '',
-        playerVars: {
-            'autoplay': 1,
-            'controls': 1,
-            'modestbranding': 1,
-            'rel': 0,
-            'playsinline': 1,
-            'origin': origin,
-            'widget_referrer': origin
-        },
-        events: {
-            'onReady': onPlayerReady,
-            'onStateChange': onPlayerStateChange,
-            'onError': onPlayerError
-        }
-    });
-}
+// onYouTubeIframeAPIReady removed (Duplicate / Disabled)
 
 function onPlayerReady(event) {
     isVideoReady = true;
@@ -439,10 +419,10 @@ function setupNativeAudioHandlers() {
                 case err.MEDIA_ERR_NETWORK: errorMsg = 'Error de red (posible bloqueo 403)'; break;
                 case err.MEDIA_ERR_DECODE: errorMsg = 'Error de decodificación (formato no soportado)'; break;
                 case err.MEDIA_ERR_SRC_NOT_SUPPORTED: errorMsg = 'Formato no soportado / 403 Forbidden'; break;
-                default: errorMsg = `Código: ${err.code}`;
+                default: errorMsg = `Código: ${err.code} `;
             }
         }
-        showToast(`Error de audio: ${errorMsg}`, 'error');
+        showToast(`Error de audio: ${errorMsg} `, 'error');
 
         // Clear cached server as it might be the cause
         localStorage.removeItem('amaya_fastest_server');
@@ -500,7 +480,7 @@ function playNativeAudio(url) {
 
                 if (currentTrack.retryCount < 4) { // Increased to 4 retries
                     currentTrack.retryCount++;
-                    showToast(`Buscando otra fuente (${currentTrack.retryCount}/4)...`);
+                    showToast(`Buscando otra fuente(${currentTrack.retryCount} / 4)...`);
 
                     // Force a fresh fetch (ignoring cache if needed)
                     localStorage.removeItem('amaya_fastest_server');
@@ -620,8 +600,8 @@ function updatePlayPauseIcons(isPlaying) {
     const mobileMainPlayIcon = document.getElementById('mobileMainPlayIcon');
 
     if (playPauseIcon) playPauseIcon.setAttribute('d', path);
-    if (mobilePlayPauseIcon) mobilePlayPauseIcon.innerHTML = `<path d="${path}"/>`;
-    if (mobileMainPlayIcon) mobileMainPlayIcon.innerHTML = `<path d="${path}"/>`;
+    if (mobilePlayPauseIcon) mobilePlayPauseIcon.innerHTML = `< path d = "${path}" /> `;
+    if (mobileMainPlayIcon) mobileMainPlayIcon.innerHTML = `< path d = "${path}" /> `;
 
     const equalizer = document.getElementById('equalizer');
     const equalizerBars = document.querySelector('.equalizer-bars');
@@ -642,13 +622,13 @@ function updatePlayPauseIcons(isPlaying) {
 // --- INVIDIOUS & PIPED INTEGRATION (ROBUST SEQUENTIAL) ---
 async function getAudioUrl(videoId) {
     try {
-        console.log(`🔍 Obteniendo URL de audio para: ${videoId}`);
+        console.log(`🔍 Obteniendo URL de audio para: ${videoId} `);
         showToast("Buscando audio...");
 
         // 1. Try Cached Instance First
         const cachedInstance = localStorage.getItem('amaya_fastest_server');
         if (cachedInstance) {
-            console.log(`⚡ Usando servidor rápido guardado: ${cachedInstance}`);
+            console.log(`⚡ Usando servidor rápido guardado: ${cachedInstance} `);
             try {
                 const result = await fetchFromPiped(cachedInstance, videoId, 3000);
                 if (result && result.url) {
