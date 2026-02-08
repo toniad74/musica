@@ -363,8 +363,6 @@ function refreshUIHighlights() {
 function playPauseIconsUpdate(path, isPlaying) {
     updatePlayPauseIcons(isPlaying);
 }
-    }
-}
 
 // --- NATIVE AUDIO SETUP ---
 function setupNativeAudioHandlers() {
