@@ -2764,7 +2764,25 @@ Object.assign(window, {
     onPlayerStateChange,
     onPlayerError,
     playNativeAudio,
-    setupAuthListener
+    setupAuthListener,
+    openMobilePlayer,
+    closeMobilePlayer,
+    seekMobile,
+    showMobileMenu,
+    hideMobileMenu,
+    triggerPlaylistImport,
+    handlePlaylistImport,
+    triggerPlaylistCoverUpload,
+    handlePlaylistCoverChange,
+    openEditPlaylistModal,
+    savePlaylistEdits,
+    hideEditPlaylistModal,
+    showDeletePlaylistConfirm,
+    hideDeletePlaylistConfirm,
+    deleteCurrentPlaylist,
+    playCurrentPlaylist,
+    toggleMute,
+    removeFromQueue
 });
 
 console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE - V4");
