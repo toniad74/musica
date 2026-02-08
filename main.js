@@ -352,11 +352,16 @@ function onPlayerStateChange(event) {
 
 function refreshUIHighlights() {
     renderHomePlaylists();
-    if (activePlaylistId) {
-        openPlaylist(activePlaylistId);
-    }
+
+    // Refresh highlight in the currently open playlist/search view
     if (currentTrack) {
         highlightCurrentTrack(currentTrack.id);
+    }
+
+    // Refresh queue modal if it's open
+    const queueModal = document.getElementById('queueModal');
+    if (queueModal && !queueModal.classList.contains('hidden')) {
+        showQueue();
     }
 }
 
@@ -1272,7 +1277,7 @@ async function playSong(song, list = [], fromQueue = false) {
         highlightCurrentTrack(song.id);
         updateQueueIcons();
         updateQueueCount();
-        renderHomePlaylists();
+        refreshUIHighlights();
 
         // CRITICAL MOBILE FIX: Initialize audio context IMMEDIATELY on user click
         try {
@@ -2141,35 +2146,38 @@ function clearQueue() {
 function highlightCurrentTrack(videoId) {
     if (!videoId) return;
 
-    // Remove highlight from all potential track rows
-    document.querySelectorAll('.result-row, .playlist-row').forEach(row => {
+    // 1. CLEANUP: Remove highlight class and badges from ALL elements
+    document.querySelectorAll('.is-playing, .result-row, .playlist-item, [data-video-id]').forEach(row => {
         row.classList.remove('is-playing');
-        // Also remove any "SONANDO" badges if they were added dynamically
-        const badge = row.querySelector('.playing-badge');
-        if (badge && !row.innerHTML.includes('SONANDO')) {
-            // If the badge was hardcoded in the template it won't be removed, 
-            // but if it was added by a previous highlight call it should be.
-            // Actually, the templates usually use ${isCurrent ? '...' : ''}
-        }
-    });
 
-    // Add highlight to rows matching current videoId
-    document.querySelectorAll('.result-row, [data-video-id]').forEach(row => {
-        if (String(row.dataset.videoId) === String(videoId)) {
-            row.classList.add('is-playing');
-
-            // Ensure the badge is visible if the template didn't render it
-            const titleEl = row.querySelector('.song-title, h3');
-            if (titleEl && !titleEl.innerHTML.includes('playing-badge')) {
-                // We don't want to double-add if it's already there from render
+        // Remove badge while preserving title text
+        const titleEl = row.querySelector('.song-title, .marquee-content, h3');
+        if (titleEl) {
+            const badge = titleEl.querySelector('.playing-badge');
+            if (badge) {
+                // If the badge exists, we remove only the badge element
+                badge.remove();
+                // If it was a text span within h3, sometimes it's easier to just strip the badge
             }
         }
     });
 
-    // Also refresh the specific playlist view if open to ensure the badge is there
-    if (activePlaylistId) {
-        // Redrawing the whole list might be expensive, so we just rely on class toggling
-    }
+    // 2. APPLY: Add highlight to rows matching current videoId
+    // We target both .result-row (search) and [data-video-id] (playlist views)
+    document.querySelectorAll('.result-row, [data-video-id]').forEach(row => {
+        if (String(row.dataset.videoId) === String(videoId)) {
+            row.classList.add('is-playing');
+
+            // Add badge if not present
+            const titleEl = row.querySelector('.song-title, .marquee-content, h3');
+            if (titleEl && !titleEl.querySelector('.playing-badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'playing-badge';
+                badge.innerText = 'SONANDO';
+                titleEl.appendChild(badge);
+            }
+        }
+    });
 }
 
 // --- UI UPDATES ---
