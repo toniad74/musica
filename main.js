@@ -1,3 +1,19 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBHCTj7Jhlklf2ZL7AcE6ggkOvdgP9eotY",
+    authDomain: "musica-amaya.firebaseapp.com",
+    projectId: "musica-amaya",
+    storageBucket: "musica-amaya.firebasestorage.app",
+    messagingSenderId: "754394913699",
+    appId: "1:754394913699:web:f2f0c8f8f0ee30de65d816",
+    measurementId: "G-077C93FT2T"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
 let player;
 let isVideoReady = false;
 let currentTrack = null;
@@ -71,21 +87,42 @@ window.onload = () => {
 
     setupMediaSessionHandlers();
     renderPlaylists();
+    loadPlaylistsFromCloud();
     switchTab('search');
     updateQueueCount();
 
     // Check for mobile-specific messages
     if (window.innerWidth <= 768) {
-        document.getElementById('bgPlaybackHint').classList.remove('hidden');
+        const bgHint = document.getElementById('bgPlaybackHint');
+        if (bgHint) bgHint.classList.remove('hidden');
     }
 
     if (window.location.protocol === 'file:') {
-        document.getElementById('fileProtocolWarning').classList.remove('hidden');
+        const warning = document.getElementById('fileProtocolWarning');
+        if (warning) warning.classList.remove('hidden');
     }
 
     // Register Service Worker for background keepalive
     registerServiceWorker();
 };
+
+async function loadPlaylistsFromCloud() {
+    try {
+        const docRef = doc(db, "users", "default_user");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            const cloudPlaylists = docSnap.data().playlists;
+            if (cloudPlaylists && cloudPlaylists.length > 0) {
+                // Merge or prioritize cloud? For now, we'll replace local to ensure sync.
+                playlists = cloudPlaylists;
+                renderPlaylists();
+                console.log("☁️ Playlists carregades des del núvol");
+            }
+        }
+    } catch (e) {
+        console.error("Error al carregar des del núvol:", e);
+    }
+}
 
 // Service Worker registration and keepalive
 async function registerServiceWorker() {
@@ -1403,8 +1440,17 @@ function createPlaylist() {
     showToast(`Llista "${name}" creada`);
 }
 
-function savePlaylists() {
+async function savePlaylists() {
     localStorage.setItem('amaya_playlists', JSON.stringify(playlists));
+    try {
+        await setDoc(doc(db, "users", "default_user"), {
+            playlists: playlists,
+            lastUpdate: new Date().toISOString()
+        });
+        console.log("☁️ Playlists sincronitzades amb el núvol");
+    } catch (e) {
+        console.error("Error al sincronitzar amb el núvol:", e);
+    }
 }
 
 function renderPlaylists() {
@@ -2330,4 +2376,58 @@ window.addEventListener('resize', () => {
     // Debounced resize update
     clearTimeout(window.marqueeResizeTimeout);
     window.marqueeResizeTimeout = setTimeout(updateMarquees, 500);
+});
+// --- EXPOSE TO GLOBAL SCOPE (For HTML onclick handlers) ---
+Object.assign(window, {
+    showHome,
+    switchTab,
+    triggerPlaylistImport,
+    showCreatePlaylistModal,
+    searchMusic,
+    toggleClearButton,
+    clearSearch,
+    searchPrevPage,
+    searchNextPage,
+    triggerPlaylistCoverUpload,
+    handlePlaylistCoverChange,
+    playCurrentPlaylist,
+    showEditPlaylistModal,
+    showDeletePlaylistConfirm,
+    exportCurrentPlaylist,
+    toggleShuffle,
+    playPrevious,
+    togglePlayPause,
+    playNext,
+    toggleRepeat,
+    showQueue,
+    toggleMute,
+    createPlaylist,
+    hideCreatePlaylistModal,
+    hideAddToPlaylistMenu,
+    savePlaylistEdits,
+    hideEditPlaylistModal,
+    hideDeletePlaylistConfirm,
+    deleteCurrentPlaylist,
+    showAddToPlaylistMenu,
+    openMobilePlayer,
+    closeMobilePlayer,
+    seekMobile,
+    hideMobileMenu,
+    hideQueue,
+    clearQueue,
+    hideApiInstructions,
+    showApiInstructions,
+    toggleApiKeySection,
+    saveApiKey,
+    handlePlaylistImport,
+    openPlaylist,
+    removeSongFromPlaylist,
+    toggleQueue,
+    playSong,
+    updateMarquees,
+    updateMarquee,
+    triggerPlaylistCoverUpload,
+    handlePlaylistCoverChange,
+    triggerPlaylistImport,
+    handlePlaylistImport
 });
