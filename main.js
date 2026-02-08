@@ -603,8 +603,13 @@ async function getAudioUrl(videoId) {
     // Shuffle to load balance
     const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
 
+    let attempt = 0;
     for (const instance of candidates) {
+        attempt++;
         try {
+            const shortName = instance.replace('https://', '').split('.')[0];
+            if (attempt % 3 === 0) showToast(`Probando fuente ${attempt}/${candidates.length}...`);
+
             console.log(`Trying Piped: ${instance}`);
             const url = await fetchFromPiped(instance, videoId, 4000); // 4s timeout per server
             if (url) {
@@ -1302,10 +1307,10 @@ async function playSong(song, list = [], fromQueue = false) {
         try {
             console.log(`🎵 Intentando reproducir con audio nativo: ${song.title}`);
 
-            // Set a timeout for getAudioUrl to prevent hanging
             const audioUrlPromise = getAudioUrl(song.id);
+            // Increased timeout to 60s to allow exhaustive search of all servers
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Audio URL timeout')), 12000)
+                setTimeout(() => reject(new Error('Audio URL timeout')), 60000)
             );
 
             const audioUrl = await Promise.race([audioUrlPromise, timeoutPromise]);
