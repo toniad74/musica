@@ -608,9 +608,9 @@ async function getAudioUrl(videoId) {
     const raceCandidates = [...heroes, ...others.slice(0, 2)];
 
     try {
-        // Timeout set to 8000ms (8s) for the initial race.
-        // This gives Piped servers enough time to respond reliably.
-        const url = await Promise.any(raceCandidates.map(instance => fetchFromPiped(instance, videoId, 8000)));
+        // Timeout set to 5000ms (5s) for better balance.
+        // This gives Piped servers time to respond but won't make users wait too long.
+        const url = await Promise.any(raceCandidates.map(instance => fetchFromPiped(instance, videoId, 5000)));
         console.log("🏆 Carrera ganada!");
         return url;
     } catch (aggregateError) {
@@ -1227,7 +1227,18 @@ async function playSong(song, list = [], fromQueue = false) {
     if (useNativeAudio && nativeAudio) {
         try {
             console.log(`🎵 Intentando reproducir con audio nativo: ${song.title}`);
-            const audioUrl = await getAudioUrl(song.id);
+
+            // Set a timeout for getAudioUrl to prevent hanging
+            const audioUrlPromise = getAudioUrl(song.id);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Audio URL timeout')), 12000)
+            );
+
+            const audioUrl = await Promise.race([audioUrlPromise, timeoutPromise]);
+
+            if (!audioUrl) {
+                throw new Error('No audio URL returned');
+            }
 
             nativeAudio.src = audioUrl;
             await nativeAudio.play();
@@ -1244,13 +1255,13 @@ async function playSong(song, list = [], fromQueue = false) {
                 // The user just needs to hit the main play button now.
                 return;
             }
-            console.log('📡 Usando motor secundario...');
-            showToast('Usando reproductor secundario', 'info');
+            console.log('📡 Fallback a YouTube Player...');
+            showToast('Cargando reproductor...', 'info');
             useNativeAudio = false; // Disable for this session
             loadYouTubeIFrame(song.id);
         }
     } else {
-        console.log('📡 Usando motor secundario directamente');
+        console.log('📡 Usando YouTube Player directamente');
         loadYouTubeIFrame(song.id);
     }
 }
