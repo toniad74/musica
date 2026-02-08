@@ -201,7 +201,6 @@ button.in-queue svg {
 
 @media (max-width: 768px) {
     .tabs-container {
-        width: 100%;
         gap: 6px;
         padding: 5px;
         margin-bottom: 24px;
