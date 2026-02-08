@@ -656,83 +656,90 @@ function updatePlayPauseIcons(isPlaying) {
 // --- INVIDIOUS & PIPED INTEGRATION ---
 // --- INVIDIOUS & PIPED INTEGRATION (ROBUST SEQUENTIAL) ---
 async function getAudioUrl(videoId) {
-    console.log(`🔍 Obteniendo URL de audio para: ${videoId}`);
-    showToast("Buscando audio...");
+    try {
+        console.log(`🔍 Obteniendo URL de audio para: ${videoId}`);
+        showToast("Buscando audio...");
 
-    // 1. Try Cached Instance First
-    const cachedInstance = localStorage.getItem('amaya_fastest_server');
-    if (cachedInstance) {
-        console.log(`⚡ Usando servidor rápido guardado: ${cachedInstance}`);
-        try {
-            const url = await fetchFromPiped(cachedInstance, videoId, 3000);
-            if (url) return url;
-        } catch (e) {
-            console.warn("Servidor guardado falló, probando otros...");
-            localStorage.removeItem('amaya_fastest_server');
-        }
-    }
-
-    // 2. Sequential Exhaustive Search
-    // Shuffle to load balance
-    const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
-
-    let attempt = 0;
-    for (const instance of candidates) {
-        attempt++;
-        try {
-            const shortName = instance.replace('https://', '').split('.')[0];
-            if (attempt % 3 === 0) showToast(`Probando fuente ${attempt}/${candidates.length}...`);
-
-            console.log(`Trying Piped: ${instance}`);
-            const url = await fetchFromPiped(instance, videoId, 4000); // 4s timeout per server
-            if (url) {
-                console.log(`✅ Éxito en: ${instance}`);
-                localStorage.setItem('amaya_fastest_server', instance);
-                return url;
+        // 1. Try Cached Instance First
+        const cachedInstance = localStorage.getItem('amaya_fastest_server');
+        if (cachedInstance) {
+            console.log(`⚡ Usando servidor rápido guardado: ${cachedInstance}`);
+            try {
+                const url = await fetchFromPiped(cachedInstance, videoId, 3000);
+                if (url) return url;
+            } catch (e) {
+                console.warn("Servidor guardado falló, probando otros...");
+                localStorage.removeItem('amaya_fastest_server');
             }
-        } catch (e) {
-            // Continúa al siguiente
         }
-    }
 
-    // STAGE 2: Try Invidious Instances (Fallback)
-    console.log("⚠️ Piped falló. Intentando Invidious (Fallback)...");
-    showToast("Probando servidores de seguridad...");
+        // 2. Sequential Exhaustive Search
+        // Shuffle to load balance
+        const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
 
-    for (let instance of INVIDIOUS_INSTANCES) {
-        try {
-            const url = `https://${instance}/api/v1/videos/${videoId}`;
+        let attempt = 0;
+        for (const instance of candidates) {
+            attempt++;
+            try {
+                const shortName = instance.replace('https://', '').split('.')[0];
+                if (attempt % 3 === 0) showToast(`Probando fuente ${attempt}/${candidates.length}...`);
 
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-            const response = await fetch(url, { method: 'GET', signal: controller.signal });
-            clearTimeout(timeoutId);
-            if (!response.ok) continue;
-
-            const data = await response.json();
-            if (!data.adaptiveFormats || data.adaptiveFormats.length === 0) continue;
-
-            const audioFormats = data.adaptiveFormats.filter(f => f.type && f.type.includes('audio'))
-                .sort((a, b) => {
-                    const getScore = (format) => {
-                        let score = 0;
-                        if (format.type && (format.type.includes('mp4') || format.type.includes('m4a'))) score += 1000;
-                        if (format.bitrate) score += parseInt(format.bitrate) / 1000;
-                        return score;
-                    };
-                    return getScore(b) - getScore(a);
-                });
-
-            if (audioFormats.length > 0) {
-                console.log(`✅ Audio Invidious: ${instance}`);
-                return audioFormats[0].url;
+                console.log(`Trying Piped: ${instance}`);
+                const url = await fetchFromPiped(instance, videoId, 4000); // 4s timeout per server
+                if (url) {
+                    console.log(`✅ Éxito en: ${instance}`);
+                    localStorage.setItem('amaya_fastest_server', instance);
+                    return url;
+                }
+            } catch (e) {
+                // Continúa al siguiente
             }
-        } catch (error) { continue; }
-    }
+        }
 
-    throw new Error('No se pudo obtener audio de ninguna fuente.');
+        // STAGE 2: Try Invidious Instances (Fallback)
+        console.log("⚠️ Piped falló. Intentando Invidious (Fallback)...");
+        showToast("Probando servidores de seguridad...");
+
+        for (let instance of INVIDIOUS_INSTANCES) {
+            try {
+                const url = `https://${instance}/api/v1/videos/${videoId}`;
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+                const response = await fetch(url, { method: 'GET', signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!response.ok) continue;
+
+                const data = await response.json();
+                if (!data.adaptiveFormats || data.adaptiveFormats.length === 0) continue;
+
+                const audioFormats = data.adaptiveFormats.filter(f => f.type && f.type.includes('audio'))
+                    .sort((a, b) => {
+                        const getScore = (format) => {
+                            let score = 0;
+                            if (format.type && (format.type.includes('mp4') || format.type.includes('m4a'))) score += 1000;
+                            if (format.bitrate) score += parseInt(format.bitrate) / 1000;
+                            return score;
+                        };
+                        return getScore(b) - getScore(a);
+                    });
+
+                if (audioFormats.length > 0) {
+                    console.log(`✅ Audio Invidious: ${instance}`);
+                    return audioFormats[0].url;
+                }
+            } catch (error) { continue; }
+        }
+
+        throw new Error('No se pudo obtener audio de ninguna fuente.');
+    } catch (finalError) {
+        showToast(`Error CRÍTICO de audio: ${finalError.message}`, "error");
+        throw finalError;
+    }
 }
+
+
 
 // Helper for Racing
 async function fetchFromPiped(apiBase, videoId, timeoutMs) {
@@ -1295,126 +1302,133 @@ function updateSearchPagination() {
 
 // --- PLAYBACK ---
 async function playSong(song, list = [], fromQueue = false) {
-    isUserPaused = false; // Reset intent state: starting a song implies active user intent
-    currentTrack = song;
-    if (!fromQueue) {
-        queue = [...list];
-        currentQueueIndex = list.findIndex(s => s.id === song.id);
-    }
-
-    // Update Queue Count 2.0
-    updateQueueCount();
-
-    // Highlight active track in all lists
-    highlightCurrentTrack(song.id);
-
-    // Refresh home highlights
-    renderHomePlaylists();
-
-    // CRITICAL MOBILE FIX: Initialize audio context IMMEDIATELY on user click
     try {
-        startSilentAudio();
-
-        // Ensure ALL audio engines are stopped immediately to avoid overlaps
-        if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
-        if (nativeAudio) {
-            nativeAudio.pause();
-            nativeAudio.src = ""; // Clear src to stop buffering old track
+        isUserPaused = false; // Reset intent state: starting a song implies active user intent
+        currentTrack = song;
+        if (!fromQueue) {
+            queue = [...list];
+            currentQueueIndex = list.findIndex(s => s.id === song.id);
         }
 
-        // Reset progress UI while loading
-        if (navigator.mediaSession) {
-            try {
-                navigator.mediaSession.setPositionState(null);
-                navigator.mediaSession.playbackState = 'paused';
-            } catch (e) { }
-        }
-    } catch (e) { console.error("Early audio init failed", e); }
+        // Update Queue Count 2.0
+        updateQueueCount();
 
-    // Update UI
-    document.getElementById('playerSection').classList.remove('hidden');
-    document.getElementById('currentTitle').innerText = song.title;
-    document.getElementById('currentChannel').innerText = song.channel;
-    document.getElementById('currentThumbnail').src = song.thumbnail;
-    document.getElementById('currentThumbnail').classList.remove('hidden');
+        // Highlight active track in all lists
+        highlightCurrentTrack(song.id);
 
-    // Mobile updates
-    const miniPlayer = document.getElementById('mobilePlayerMini');
-    if (miniPlayer) miniPlayer.classList.remove('hidden');
+        // Refresh home highlights
+        renderHomePlaylists();
 
-    const fullTitle = document.getElementById('mobileFullTitle');
-    if (fullTitle) fullTitle.innerText = song.title;
-
-    const fullChannel = document.getElementById('mobileFullChannel');
-    if (fullChannel) fullChannel.innerText = song.channel;
-
-    // Artwork
-    const mobileArt = document.getElementById('mobileFullArt');
-    if (mobileArt) mobileArt.src = song.thumbnail;
-
-    // Update Ambient Background 2.0
-    updateAmbientBackground(song.thumbnail);
-
-    // Dynamic Marquee update
-    updateMarquees();
-    // Media Session API - Metadata Update
-    if ('mediaSession' in navigator) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-            title: song.title,
-            artist: song.channel,
-            album: "Amaya's Music",
-            artwork: [
-                { src: song.thumbnail, sizes: '96x96', type: 'image/jpeg' },
-                { src: song.thumbnail, sizes: '128x128', type: 'image/jpeg' },
-                { src: song.thumbnail, sizes: '192x192', type: 'image/jpeg' },
-                { src: song.thumbnail, sizes: '256x256', type: 'image/jpeg' },
-                { src: song.thumbnail, sizes: '384x384', type: 'image/jpeg' },
-                { src: song.thumbnail, sizes: '512x512', type: 'image/jpeg' },
-            ]
-        });
-        navigator.mediaSession.playbackState = 'playing';
-    }
-
-    // Try native audio first
-    if (useNativeAudio && nativeAudio) {
+        // CRITICAL MOBILE FIX: Initialize audio context IMMEDIATELY on user click
         try {
-            console.log(`🎵 Intentando reproducir con audio nativo: ${song.title}`);
+            startSilentAudio();
 
-            const audioUrlPromise = getAudioUrl(song.id);
-            // Increased timeout to 60s to allow exhaustive search of all servers
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Audio URL timeout')), 60000)
-            );
-
-            const audioUrl = await Promise.race([audioUrlPromise, timeoutPromise]);
-
-            if (!audioUrl) {
-                throw new Error('No audio URL returned');
+            // Ensure ALL audio engines are stopped immediately to avoid overlaps
+            if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
+            if (nativeAudio) {
+                nativeAudio.pause();
+                nativeAudio.src = ""; // Clear src to stop buffering old track
             }
 
-            nativeAudio.src = audioUrl;
-            await nativeAudio.play();
-
-            console.log('✅ Reproducción nativa exitosa');
-        } catch (error) {
-            console.error('❌ Error con audio nativo:', error);
-
-            // Handle "NotAllowedError" (Autoplay blocked)
-            if (error.name === 'NotAllowedError') {
-                showToast("⚠️ Toca 'Play' para iniciar", "warning");
-                // The user interaction requirement was lost during the async fetch.
-                // We leave the player in "paused" state but with src loaded.
-                // The user just needs to hit the main play button now.
-                return;
+            // Reset progress UI while loading
+            if (navigator.mediaSession) {
+                try {
+                    navigator.mediaSession.setPositionState(null);
+                    navigator.mediaSession.playbackState = 'paused';
+                } catch (e) { }
             }
-            console.log('📡 Fallback a YouTube Player...');
-            showToast('Cargando reproductor...', 'info');
-            useNativeAudio = false; // Disable for this session
+        } catch (e) { console.error("Early audio init failed", e); }
+
+        // Update UI
+        document.getElementById('playerSection').classList.remove('hidden');
+        document.getElementById('currentTitle').innerText = song.title;
+        document.getElementById('currentChannel').innerText = song.channel;
+        document.getElementById('currentThumbnail').src = song.thumbnail;
+        document.getElementById('currentThumbnail').classList.remove('hidden');
+
+        // Mobile updates
+        const miniPlayer = document.getElementById('mobilePlayerMini');
+        if (miniPlayer) miniPlayer.classList.remove('hidden');
+
+        const fullTitle = document.getElementById('mobileFullTitle');
+        if (fullTitle) fullTitle.innerText = song.title;
+
+        const fullChannel = document.getElementById('mobileFullChannel');
+        if (fullChannel) fullChannel.innerText = song.channel;
+
+        // Artwork
+        const mobileArt = document.getElementById('mobileFullArt');
+        if (mobileArt) mobileArt.src = song.thumbnail;
+
+        // Update Ambient Background 2.0
+        updateAmbientBackground(song.thumbnail);
+
+        // Dynamic Marquee update
+        updateMarquees();
+        // Media Session API - Metadata Update
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: song.title,
+                artist: song.channel,
+                album: "Amaya's Music",
+                artwork: [
+                    { src: song.thumbnail, sizes: '96x96', type: 'image/jpeg' },
+                    { src: song.thumbnail, sizes: '128x128', type: 'image/jpeg' },
+                    { src: song.thumbnail, sizes: '192x192', type: 'image/jpeg' },
+                    { src: song.thumbnail, sizes: '256x256', type: 'image/jpeg' },
+                    { src: song.thumbnail, sizes: '384x384', type: 'image/jpeg' },
+                    { src: song.thumbnail, sizes: '512x512', type: 'image/jpeg' },
+                ]
+            });
+            navigator.mediaSession.playbackState = 'playing';
+        }
+
+        // Try native audio first
+        if (useNativeAudio && nativeAudio) {
+            try {
+                console.log(`🎵 Intentando reproducir con audio nativo: ${song.title}`);
+
+                const audioUrlPromise = getAudioUrl(song.id);
+                // Increased timeout to 60s to allow exhaustive search of all servers
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Audio URL timeout')), 60000)
+                );
+
+                const audioUrl = await Promise.race([audioUrlPromise, timeoutPromise]);
+
+                if (!audioUrl) {
+                    throw new Error('No audio URL returned');
+                }
+
+                nativeAudio.src = audioUrl;
+                await nativeAudio.play();
+
+                console.log('✅ Reproducción nativa exitosa');
+            } catch (error) {
+                console.error('❌ Error con audio nativo:', error);
+
+                // Handle "NotAllowedError" (Autoplay blocked)
+                if (error.name === 'NotAllowedError') {
+                    showToast("⚠️ Toca 'Play' para iniciar", "warning");
+                    // The user interaction requirement was lost during the async fetch.
+                    // We leave the player in "paused" state but with src loaded.
+                    // The user just needs to hit the main play button now.
+                    return;
+                }
+                console.log('📡 Fallback a YouTube Player...');
+                showToast('Cargando reproductor...', 'info');
+                useNativeAudio = false; // Disable for this session
+                loadYouTubeIFrame(song.id);
+            }
+        } else {
+            console.log('📡 Usando YouTube Player directamente');
             loadYouTubeIFrame(song.id);
         }
-    } else {
-        console.log('📡 Usando YouTube Player directamente');
-        loadYouTubeIFrame(song.id);
+    } catch (error) {
+        console.error("Error playing song:", error);
+        showToast(`Error al reproducir: ${error.message}`, "error");
+        isMediaPlaying = false;
+        updatePlayPauseIcons(false);
     }
 }
 
