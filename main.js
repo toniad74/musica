@@ -2222,7 +2222,6 @@ function switchTab(tab) {
         resultsSection.classList.remove('hidden');
         playlistView.classList.add('hidden');
         if (searchInputSection) searchInputSection.classList.remove('hidden');
-        document.getElementById('searchInput').focus();
     }
 }
 
