@@ -354,8 +354,9 @@ function refreshUIHighlights() {
     if (activePlaylistId) {
         openPlaylist(activePlaylistId);
     }
-    // We don't refresh search results here to avoid re-fetching or losing scroll position,
-    // but the next search/scroll will have correct state.
+    if (currentTrack) {
+        highlightCurrentTrack(currentTrack.id);
+    }
 }
 
 // Helper for YT specific icon updates to keep onPlayerStateChange clean
@@ -618,13 +619,6 @@ function updatePlayPauseIcons(isPlaying) {
 
     // Refresh UI highlights
     refreshUIHighlights();
-}
-
-function refreshUIHighlights() {
-    if (currentTrack) {
-        highlightCurrentTrack(currentTrack.id);
-    }
-}
 }
 
 // --- INVIDIOUS & PIPED INTEGRATION ---
