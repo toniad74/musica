@@ -71,7 +71,7 @@ window.onload = () => {
 
     setupMediaSessionHandlers();
     renderPlaylists();
-    showHome();
+    switchTab('search');
     updateQueueCount();
 
     // Check for mobile-specific messages
