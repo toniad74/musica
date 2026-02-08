@@ -18,6 +18,7 @@ const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
 let currentUserUid = null;
+let sharedPlaylistData = null; // Store temp data for shared playlists
 let player;
 let isVideoReady = false;
 let currentTrack = null;
@@ -108,6 +109,9 @@ window.onload = () => {
 
     // Register Service Worker for background keepalive
     registerServiceWorker();
+
+    // Check for shared playlists in URL
+    checkSharedPlaylist();
 };
 
 function setupAuthListener() {
@@ -1500,6 +1504,120 @@ async function savePlaylists() {
     }
 }
 
+async function shareCurrentPlaylist() {
+    if (!activePlaylistId) return;
+    const pl = playlists.find(p => p.id === activePlaylistId);
+    if (!pl) return;
+
+    try {
+        // Upload to a public 'shared_playlists' collection
+        await setDoc(doc(db, "shared_playlists", pl.id), {
+            ...pl,
+            ownerName: auth.currentUser ? auth.currentUser.displayName : 'Usuari Amaya',
+            sharedAt: new Date().toISOString()
+        });
+
+        const shareUrl = `${window.location.origin}${window.location.pathname}?share=${pl.id}`;
+        await navigator.clipboard.writeText(shareUrl);
+        showToast("Enllaç de compartició copiat al porta-retalls! 🔗");
+    } catch (e) {
+        console.error("Error en compartir:", e);
+        showToast("Error en compartir la llista", "error");
+    }
+}
+
+async function checkSharedPlaylist() {
+    const params = new URLSearchParams(window.location.search);
+    const sharedId = params.get('share');
+    if (!sharedId) return;
+
+    try {
+        const docRef = doc(db, "shared_playlists", sharedId);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            sharedPlaylistData = docSnap.data();
+            renderSharedPlaylist(sharedPlaylistData);
+        } else {
+            showToast("La llista compartida no existeix", "error");
+        }
+    } catch (e) {
+        console.error("Error fetching shared playlist:", e);
+    }
+}
+
+function renderSharedPlaylist(pl) {
+    activePlaylistId = pl.id;
+
+    // UI elements
+    document.getElementById('playlistTitle').innerText = pl.name;
+    document.getElementById('playlistInfo').innerText = `Compartida per ${pl.ownerName || 'Amaya User'} • ${pl.songs.length} cançons`;
+
+    // Handle cover
+    const coverImg = document.getElementById('playlistCoverImage');
+    const coverIcon = document.getElementById('playlistCoverIcon');
+    if (pl.cover) {
+        coverImg.src = pl.cover;
+        coverImg.classList.remove('hidden');
+        coverIcon.classList.add('hidden');
+    } else {
+        coverImg.classList.add('hidden');
+        coverIcon.classList.remove('hidden');
+    }
+
+    // Toggle actions
+    document.getElementById('playlistOwnerActions').classList.add('hidden');
+    document.getElementById('playlistSharedActions').classList.remove('hidden');
+
+    // Render songs
+    const container = document.getElementById('playlistSongs');
+    container.innerHTML = '';
+    playlist = pl.songs; // Use shared songs for playback
+
+    pl.songs.forEach((song, index) => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer group';
+        row.onclick = () => playSong(index);
+        row.innerHTML = `
+            <span class="w-8 text-center text-gray-500 group-hover:hidden">${index + 1}</span>
+            <div class="hidden group-hover:flex w-8 justify-center">
+                <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            </div>
+            <img src="${song.thumbnail}" class="w-10 h-10 rounded object-cover">
+            <div class="flex-1 min-w-0">
+                <p class="font-medium text-white truncate">${song.title}</p>
+                <p class="text-sm text-gray-400 truncate">${song.channelTitle}</p>
+            </div>
+            <span class="text-sm text-gray-500">${song.duration || ''}</span>
+        `;
+        container.appendChild(row);
+    });
+
+    // Show view
+    document.getElementById('homeSection').classList.add('hidden');
+    document.getElementById('resultsSection').classList.add('hidden');
+    document.getElementById('playlistView').classList.remove('hidden');
+}
+
+function importSharedPlaylist() {
+    if (!sharedPlaylistData) return;
+
+    // Check if already exists
+    if (playlists.find(p => p.id === sharedPlaylistData.id)) {
+        showToast("Aquesta llista ja és a la teva biblioteca");
+        return;
+    }
+
+    const newPl = { ...sharedPlaylistData, id: 'pl_' + Date.now() }; // New ID for personal copy
+    playlists.push(newPl);
+    savePlaylists();
+    renderPlaylists();
+
+    // Return to owner view for this new copy
+    openPlaylist(newPl.id);
+    showToast(`Llista "${newPl.name}" afegida a la teva biblioteca!`);
+}
+
 function renderPlaylists() {
     const sidebar = document.getElementById('playlistsSidebar');
     sidebar.innerHTML = '';
@@ -1536,6 +1654,7 @@ function openPlaylist(id) {
     if (!pl) return;
 
     activePlaylistId = id;
+    sharedPlaylistData = null; // Standard playlist, not shared view
 
     // Maintain tab state
     const tabPlaylists = document.getElementById('tab-playlists');
@@ -1546,6 +1665,10 @@ function openPlaylist(id) {
     document.getElementById('resultsSection').classList.add('hidden');
     document.getElementById('homeSection').classList.add('hidden');
     document.getElementById('playlistView').classList.remove('hidden');
+
+    // Toggle actions (show owner actions)
+    document.getElementById('playlistOwnerActions').classList.remove('hidden');
+    document.getElementById('playlistSharedActions').classList.add('hidden');
 
     const totalSeconds = getPlaylistTotalDuration(pl);
     const durationStr = formatDuration(totalSeconds, true);
@@ -2478,5 +2601,7 @@ Object.assign(window, {
     triggerPlaylistImport,
     handlePlaylistImport,
     loginWithGoogle,
-    logout
+    logout,
+    shareCurrentPlaylist,
+    importSharedPlaylist
 });
