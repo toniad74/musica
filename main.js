@@ -1101,8 +1101,10 @@ async function searchMusic(pageToken = '', retryCount = 0) {
     const query = input.value.trim();
     if (!query) return;
 
-    // Blur to hide mobile keyboard
+    // Robust keyboard closing: Multiple blurs and focus shift
     input.blur();
+    setTimeout(() => input.blur(), 50);
+    window.focus();
 
     const currentKey = getCurrentApiKey();
     // Allow search even if no key - go straight to fallback
@@ -1116,8 +1118,10 @@ async function searchMusic(pageToken = '', retryCount = 0) {
     switchTab('search');
     document.getElementById('loading').classList.remove('hidden');
 
-    // Scroll to results section for better visibility on small screens
-    document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+    // Delayed scroll to results section to allow keyboard to clear the viewport first
+    setTimeout(() => {
+        document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
 
     try {
         const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&key=${currentKey}${pageToken ? `&pageToken=${pageToken}` : ''}`);
