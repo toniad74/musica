@@ -253,12 +253,12 @@
             </div>
 
             <!-- Search Section -->
-            <div class="mb-8">
+            <div class="mb-4">
                 <form onsubmit="event.preventDefault(); searchMusic();" class="flex flex-col sm:flex-row gap-4">
                     <div class="flex-1 relative group">
                         <input type="text" id="searchInput"
                             placeholder="¿Qué quieres escuchar? (ej: 'Artista Canción audio')"
-                            class="w-full bg-[#242424] border-none text-white px-5 py-4 pr-12 rounded-full focus:outline-none focus:ring-2 focus:ring-white text-lg"
+                            class="w-full bg-[#242424] border-none text-white px-4 py-2 pr-12 rounded-full focus:outline-none focus:ring-2 focus:ring-white text-base"
                             oninput="toggleClearButton()">
                         <button type="button" id="clearSearchBtn" onclick="clearSearch()"
                             class="hidden absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-2 transition-colors"
@@ -270,7 +270,7 @@
                         </button>
                     </div>
                     <button type="submit"
-                        class="bg-white hover:scale-105 px-10 py-4 rounded-full font-bold transition-all text-black flex items-center justify-center gap-2">
+                        class="bg-white hover:scale-105 px-6 py-2 rounded-full font-bold transition-all text-black flex items-center justify-center gap-2">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
