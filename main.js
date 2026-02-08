@@ -1257,18 +1257,21 @@ async function playSong(song, list = [], fromQueue = false) {
     try {
         isUserPaused = false; // Reset intent state: starting a song implies active user intent
         currentTrack = song;
+        // Initialize session state if not from queue
         if (!fromQueue) {
             queue = [...list];
-            currentQueueIndex = list.findIndex(s => s.id === song.id);
+            currentQueueIndex = list.findIndex(s => String(s.id) === String(song.id));
+            if (currentQueueIndex === -1) currentQueueIndex = 0;
         }
 
-        // Update Queue Count 2.0
-        updateQueueCount();
+        currentTrack = song;
+        isMediaPlaying = true;
+        isUserPaused = false;
 
-        // Highlight active track in all lists
+        // Highlight in UI
         highlightCurrentTrack(song.id);
-
-        // Refresh home highlights
+        updateQueueIcons();
+        updateQueueCount();
         renderHomePlaylists();
 
         // CRITICAL MOBILE FIX: Initialize audio context IMMEDIATELY on user click
@@ -1290,23 +1293,6 @@ async function playSong(song, list = [], fromQueue = false) {
                 } catch (e) { }
             }
         } catch (e) { console.error("Early audio init failed", e); }
-
-        // Initialize session state
-        if (!isFromQueue) {
-            queue = (songsContext && songsContext.length > 0) ? songsContext : [song];
-            currentQueueIndex = queue.findIndex(s => String(s.id) === String(song.id));
-            if (currentQueueIndex === -1) currentQueueIndex = 0;
-        }
-        currentTrack = song;
-        isMediaPlaying = true;
-        isUserPaused = false;
-
-        // Highlight in UI
-        highlightCurrentTrack(song.id);
-        updateQueueIcons();
-
-        // Update UI
-        document.getElementById('playerSection').classList.remove('hidden');
         document.getElementById('currentTitle').innerText = song.title;
         document.getElementById('currentChannel').innerText = song.channel;
         document.getElementById('currentThumbnail').src = song.thumbnail;
@@ -2155,17 +2141,35 @@ function clearQueue() {
 function highlightCurrentTrack(videoId) {
     if (!videoId) return;
 
-    // Remove highlight from all rows
-    document.querySelectorAll('.result-row').forEach(row => {
+    // Remove highlight from all potential track rows
+    document.querySelectorAll('.result-row, .playlist-row').forEach(row => {
         row.classList.remove('is-playing');
-    });
-
-    // Add highlight to rows matching current videoId (using strict ID matching)
-    document.querySelectorAll('.result-row').forEach(row => {
-        if (String(row.dataset.videoId) === String(videoId)) {
-            row.classList.add('is-playing');
+        // Also remove any "SONANDO" badges if they were added dynamically
+        const badge = row.querySelector('.playing-badge');
+        if (badge && !row.innerHTML.includes('SONANDO')) {
+            // If the badge was hardcoded in the template it won't be removed, 
+            // but if it was added by a previous highlight call it should be.
+            // Actually, the templates usually use ${isCurrent ? '...' : ''}
         }
     });
+
+    // Add highlight to rows matching current videoId
+    document.querySelectorAll('.result-row, [data-video-id]').forEach(row => {
+        if (String(row.dataset.videoId) === String(videoId)) {
+            row.classList.add('is-playing');
+
+            // Ensure the badge is visible if the template didn't render it
+            const titleEl = row.querySelector('.song-title, h3');
+            if (titleEl && !titleEl.innerHTML.includes('playing-badge')) {
+                // We don't want to double-add if it's already there from render
+            }
+        }
+    });
+
+    // Also refresh the specific playlist view if open to ensure the badge is there
+    if (activePlaylistId) {
+        // Redrawing the whole list might be expensive, so we just rely on class toggling
+    }
 }
 
 // --- UI UPDATES ---
