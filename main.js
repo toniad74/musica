@@ -1118,11 +1118,6 @@ async function searchMusic(pageToken = '', retryCount = 0) {
     switchTab('search');
     document.getElementById('loading').classList.remove('hidden');
 
-    // Delayed scroll to results section to allow keyboard to clear the viewport first
-    setTimeout(() => {
-        document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 300);
-
     try {
         const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&key=${currentKey}${pageToken ? `&pageToken=${pageToken}` : ''}`);
         const data = await response.json();
