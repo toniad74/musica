@@ -641,7 +641,7 @@ async function getAudioUrl(videoId) {
         }
 
         // 2. Sequential Exhaustive Search
-        // Shuffle to load balance
+        // Shuffle to load balance, but keep it deterministic per session to avoid re-trying same failed ones too often
         const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
 
         let attempt = 0;
@@ -1306,6 +1306,20 @@ async function playSong(song, list = [], fromQueue = false) {
             }
         } catch (e) { console.error("Early audio init failed", e); }
 
+        // Initialize session state
+        if (!isFromQueue) {
+            queue = (songsContext && songsContext.length > 0) ? songsContext : [song];
+            currentQueueIndex = queue.findIndex(s => String(s.id) === String(song.id));
+            if (currentQueueIndex === -1) currentQueueIndex = 0;
+        }
+        currentTrack = song;
+        isMediaPlaying = true;
+        isUserPaused = false;
+
+        // Highlight in UI
+        highlightCurrentTrack(song.id);
+        updateQueueIcons();
+
         // Update UI
         document.getElementById('playerSection').classList.remove('hidden');
         document.getElementById('currentTitle').innerText = song.title;
@@ -1370,6 +1384,8 @@ async function playSong(song, list = [], fromQueue = false) {
                 nativeAudio.src = audioUrl;
                 await nativeAudio.play();
 
+                isMediaPlaying = true;
+                updatePlayPauseIcons(true);
                 console.log('✅ Reproducción nativa exitosa');
             } catch (error) {
                 console.error('❌ Error con audio nativo:', error);
