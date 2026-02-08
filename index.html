@@ -183,6 +183,16 @@
                         </div>
                     </div>
                 </header>
+
+                <!-- Tabs Navigation (Top) -->
+                <div class="tabs-container">
+                    <button id="tab-playlists" onclick="switchTab('playlists')" class="tab-btn">
+                        Listas
+                    </button>
+                    <button id="tab-search" onclick="switchTab('search')" class="tab-btn active">
+                        Buscar
+                    </button>
+                </div>
             </header>
 
             <!-- File Protocol Warning -->
@@ -253,7 +263,7 @@
             </div>
 
             <!-- Search Section -->
-            <div class="mb-4 px-6 md:px-8">
+            <div id="searchInputSection" class="mb-4 px-6 md:px-8">
                 <form onsubmit="event.preventDefault(); searchMusic();"
                     class="max-w-xl mx-auto flex flex-col sm:flex-row gap-4">
                     <div class="flex-1 relative group">
@@ -294,15 +304,7 @@
                 <p class="text-red-300" id="errorText"></p>
             </div>
 
-            <!-- Tabs Navigation -->
-            <div class="tabs-container mb-8">
-                <button id="tab-playlists" onclick="switchTab('playlists')" class="tab-btn">
-                    Listas
-                </button>
-                <button id="tab-search" onclick="switchTab('search')" class="tab-btn active">
-                    Buscar
-                </button>
-            </div>
+
 
             <!-- Home Section (Playlists List) -->
             <div id="homeSection">

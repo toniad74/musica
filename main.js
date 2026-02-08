@@ -1856,9 +1856,14 @@ function openPlaylist(id) {
     if (tabPlaylists) tabPlaylists.classList.add('active');
     if (tabSearch) tabSearch.classList.remove('active');
 
+    // Switch views
     document.getElementById('resultsSection').classList.add('hidden');
     document.getElementById('homeSection').classList.add('hidden');
     document.getElementById('playlistView').classList.remove('hidden');
+
+    // Hide search input section when viewing a playlist
+    const searchInputSection = document.getElementById('searchInputSection');
+    if (searchInputSection) searchInputSection.classList.add('hidden');
 
     // Toggle actions (show owner actions)
     document.getElementById('playlistOwnerActions').classList.remove('hidden');
@@ -2203,16 +2208,20 @@ function switchTab(tab) {
     if (tabPlaylists) tabPlaylists.classList.toggle('active', tab === 'playlists');
     if (tabSearch) tabSearch.classList.toggle('active', tab === 'search');
 
+    const searchInputSection = document.getElementById('searchInputSection');
+
     if (tab === 'playlists') {
         homeSection.classList.remove('hidden');
         resultsSection.classList.add('hidden');
         playlistView.classList.add('hidden');
+        if (searchInputSection) searchInputSection.classList.add('hidden');
         renderHomePlaylists();
         activePlaylistId = null;
     } else if (tab === 'search') {
         homeSection.classList.add('hidden');
         resultsSection.classList.remove('hidden');
         playlistView.classList.add('hidden');
+        if (searchInputSection) searchInputSection.classList.remove('hidden');
         document.getElementById('searchInput').focus();
     }
 }

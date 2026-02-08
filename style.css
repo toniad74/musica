@@ -162,7 +162,7 @@ button.in-queue svg {
 .tabs-container {
     display: flex;
     gap: 12px;
-    margin-bottom: 32px;
+    margin-bottom: 8px;
     padding: 6px;
     background: rgba(255, 255, 255, 0.03);
     border-radius: 20px;
