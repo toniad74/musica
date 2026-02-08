@@ -361,23 +361,8 @@ function refreshUIHighlights() {
 
 // Helper for YT specific icon updates to keep onPlayerStateChange clean
 function playPauseIconsUpdate(path, isPlaying) {
-    const playPauseIcon = document.getElementById('playPauseIcon');
-    const mobilePlayPauseIcon = document.getElementById('mobilePlayPauseIcon');
-    const mobileMainPlayIcon = document.getElementById('mobileMainPlayIcon');
-
-    if (playPauseIcon) playPauseIcon.setAttribute('d', path);
-    if (mobilePlayPauseIcon) mobilePlayPauseIcon.innerHTML = `<path d="${path}"/>`;
-    if (mobileMainPlayIcon) mobileMainPlayIcon.innerHTML = `<path d="${path}"/>`;
-
-    const equalizer = document.getElementById('equalizer');
-    const equalizerBars = document.querySelector('.equalizer-bars');
-    if (equalizer && equalizerBars) {
-        if (isPlaying) {
-            equalizer.classList.remove('hidden');
-            equalizerBars.classList.remove('paused');
-        } else {
-            equalizerBars.classList.add('paused');
-        }
+    updatePlayPauseIcons(isPlaying);
+}
     }
 }
 
@@ -1530,16 +1515,27 @@ async function resumePlaybackBruteForce() {
 }
 
 function togglePlayPause() {
+    console.log("⏯️ togglePlayPause. Engine:", useNativeAudio ? "Native" : "YouTube");
+
     if (useNativeAudio && nativeAudio) {
-        // Native audio control
+        console.log("  Native Audio - paused:", nativeAudio.paused, "src:", nativeAudio.src ? "set" : "empty");
         if (nativeAudio.paused) {
-            nativeAudio.play();
+            console.log("  Attempting nativeAudio.play()...");
+            nativeAudio.play().then(() => {
+                console.log("  ✅ nativeAudio.play() success");
+                isUserPaused = false;
+            }).catch(e => {
+                console.error("  ❌ nativeAudio.play() error:", e);
+                showToast("Error al reproducir. Reintentando...", "error");
+            });
         } else {
+            console.log("  Attempting nativeAudio.pause()...");
             isUserPaused = true;
             nativeAudio.pause();
         }
     } else if (player && typeof player.getPlayerState === 'function') {
         const state = player.getPlayerState();
+        console.log("  YT Player - state:", state);
         if (state === 1) { // YT.PlayerState.PLAYING
             isUserPaused = true;
             player.pauseVideo();
@@ -1547,6 +1543,8 @@ function togglePlayPause() {
             isUserPaused = false;
             player.playVideo();
         }
+    } else {
+        console.warn("  ⚠️ No active player to toggle. useNativeAudio:", useNativeAudio, "nativeAudio:", !!nativeAudio, "player:", !!player);
     }
 }
 
