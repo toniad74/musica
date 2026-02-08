@@ -890,26 +890,16 @@ async function onPlayerError(event) {
 
             try {
                 // Background search for audio version - prioritize "Topic" and "Lyrics" for better compatibility
-                const searchQuery = `${currentTrack.title} ${currentTrack.channel} topic audio`;
-                const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q=${encodeURIComponent(searchQuery)}&type=video&videoEmbeddable=true&videoSyndicated=true&videoCategoryId=10&key=${apiKey}`);
-                const data = await response.json();
+                // REPLACED: Use Piped instead of Google API to avoid quota issues
+                const fallbackSongResult = await findPipedFallback(currentTrack);
 
-                if (data.items && data.items.length > 0) {
-                    const item = data.items[0];
-                    const fallbackSong = {
-                        id: item.id.videoId,
-                        title: decodeHtml(item.snippet.title),
-                        channel: decodeHtml(item.snippet.channelTitle),
-                        thumbnail: item.snippet.thumbnails.medium.url,
-                        isFallback: true // mark to avoid infinite loops
-                    };
-
+                if (fallbackSongResult) {
                     showToast("Reproduciendo versión alternativa");
                     // Update current track in queue to avoid repeated failures if re-played
                     if (currentQueueIndex >= 0 && currentQueueIndex < queue.length) {
-                        queue[currentQueueIndex] = fallbackSong;
+                        queue[currentQueueIndex] = fallbackSongResult;
                     }
-                    playSong(fallbackSong, queue, true);
+                    playSong(fallbackSongResult, queue, true);
                     return;
                 }
             } catch (fallbackError) {
@@ -926,6 +916,73 @@ async function onPlayerError(event) {
     if (queue.length > 0) {
         setTimeout(() => playNext(), 2000);
     }
+}
+
+// --- PIPED SEARCH FALLBACK ---
+async function searchPiped(query) {
+    console.log("🕵️ Iniciando búsqueda de respaldo en Piped para:", query);
+    showToast("Usando buscador alternativo...");
+
+    // Try multiple instances until one works
+    // We reuse the PIPED_INSTANCES list
+    // Shuffle slightly to distribute load, but keep "heroes" often
+    const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
+
+    for (let instance of candidates) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
+
+            const response = await fetch(`${instance}/search?q=${encodeURIComponent(query)}&filter=music_videos`, {
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) continue;
+
+            const data = await response.json();
+            if (!data.items || data.items.length === 0) continue;
+
+            console.log(`✅ Búsqueda Piped exitosa en: ${instance}`);
+
+            // Map Piped format to our internal format
+            return data.items.map(item => ({
+                id: item.url.split('/watch?v=')[1],
+                title: item.title,
+                channel: item.uploaderName,
+                thumbnail: item.thumbnail,
+                duration: item.duration ? formatPipedDuration(item.duration) : '0:00'
+            }));
+
+        } catch (e) {
+            continue;
+        }
+    }
+    throw new Error("Piped search failed on all instances");
+}
+
+function formatPipedDuration(seconds) {
+    if (!seconds) return '0:00';
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+// Helper to find audio-only fallback without using API key
+async function findPipedFallback(song) {
+    const query = `${song.title} ${song.channel} topic audio`;
+    try {
+        const results = await searchPiped(query);
+        if (results && results.length > 0) {
+            return {
+                ...results[0],
+                isFallback: true
+            };
+        }
+    } catch (e) {
+        console.error("Piped fallback search failed:", e);
+    }
+    return null;
 }
 
 // --- API KEY MANAGEMENT ---
@@ -1002,10 +1059,9 @@ async function searchMusic(pageToken = '', retryCount = 0) {
     if (!query) return;
 
     const currentKey = getCurrentApiKey();
+    // Allow search even if no key - go straight to fallback
     if (!currentKey) {
-        showToast("Configura tus claves API", "error");
-        document.getElementById('apiKeySection').classList.remove('hidden');
-        return;
+        console.warn("No API Key. Attempting Piped fallback directly.");
     }
 
     currentSearchQuery = query;
@@ -1057,8 +1113,25 @@ async function searchMusic(pageToken = '', retryCount = 0) {
         renderSearchResults(videos);
         updateSearchPagination();
     } catch (error) {
-        document.getElementById('errorText').innerText = "Error: " + error.message;
-        document.getElementById('errorMessage').classList.remove('hidden');
+        console.warn("Google API failed. Trying Piped Fallback...", error);
+
+        // Hide API error message if we are trying fallback
+        document.getElementById('errorMessage').classList.add('hidden');
+
+        try {
+            const pipedResults = await searchPiped(query);
+            renderSearchResults(pipedResults);
+
+            // Disable pagination buttons for Piped (shim)
+            nextSearchToken = '';
+            prevSearchToken = '';
+            updateSearchPagination();
+
+            showToast("Resultados de respaldo cargados", "info");
+        } catch (pipedError) {
+            document.getElementById('errorText').innerText = "Error: " + error.message + " | Fallback: " + pipedError.message;
+            document.getElementById('errorMessage').classList.remove('hidden');
+        }
     } finally {
         document.getElementById('loading').classList.add('hidden');
     }
