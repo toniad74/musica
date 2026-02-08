@@ -42,7 +42,7 @@ let isUserPaused = false;
 // Native audio player
 let nativeAudio = null;
 let useNativeAudio = true; // Prefer native audio over YouTube IFrame
-let isMediaPlaying = false;
+let isMediaPlaying = false; /*
 
 // --- AUTHENTICATION ---
 function loginWithGoogle() {
@@ -113,7 +113,7 @@ async function loadUserPlaylists(uid) {
     }
 }
 
-// Invidious instances (fallback if one fails)
+*/ // Invidious instances (fallback if one fails)
 // Prioritize instances known for speed and M4A support
 const INVIDIOUS_INSTANCES = [
     'inv.tux.pizza',             // Reliable
