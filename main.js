@@ -86,7 +86,7 @@ window.onload = () => {
             if (input) input.value = key;
         });
         document.getElementById('apiKeySection').classList.add('hidden');
-        document.getElementById('apiKeyToggleButton').innerText = "Mostrar clau API";
+        document.getElementById('apiKeyToggleButton').innerText = "Mostrar clave API";
         document.getElementById('apiWarning').classList.add('hidden');
     }
 
@@ -137,17 +137,17 @@ function setupAuthListener() {
 async function loginWithGoogle() {
     try {
         await signInWithPopup(auth, googleProvider);
-        showToast("Sessió iniciada rectament");
+        showToast("Sesión iniciada correctamente");
     } catch (error) {
         console.error("Login error:", error);
-        showToast("Error en iniciar sessió", "error");
+        showToast("Error al iniciar sesión", "error");
     }
 }
 
 async function logout() {
     try {
         await signOut(auth);
-        showToast("Sessió tancada");
+        showToast("Sesión cerrada");
     } catch (error) {
         console.error("Logout error:", error);
     }
@@ -163,11 +163,11 @@ async function loadPlaylistsFromCloud() {
             if (cloudPlaylists && cloudPlaylists.length > 0) {
                 playlists = cloudPlaylists;
                 renderPlaylists();
-                console.log("☁️ Playlists carregades des del núvol per a l'usuari:", currentUserUid);
+                console.log("☁️ Playlists cargadas desde la nube para el usuario:", currentUserUid);
             }
         }
     } catch (e) {
-        console.error("Error al carregar des del núvol:", e);
+        console.error("Error al cargar desde la nube:", e);
     }
 }
 
@@ -369,7 +369,7 @@ function setupNativeAudioHandlers() {
         // MOBILE FIX: If paused but user didn't intend to pause, resume immediately
         // CRITICAL: Don't auto-resume if the audio actually ended to allow track transition
         if (!isUserPaused && !nativeAudio.ended) {
-            console.warn('⚠️ Pausa no autoritzada detectada. Forçant reanudació...');
+            console.warn('⚠️ Pausa no autorizada detectada. Forzando reanudación...');
             setTimeout(() => {
                 if (nativeAudio && nativeAudio.paused && !isUserPaused && !nativeAudio.ended) {
                     nativeAudio.play().catch(e => console.error('Error al reanudar:', e));
@@ -404,11 +404,11 @@ function setupNativeAudioHandlers() {
                 default: errorMsg = `Código: ${err.code}`;
             }
         }
-        showToast(`Error d'àudio: ${errorMsg}`, 'error');
+        showToast(`Error de audio: ${errorMsg}`, 'error');
 
         if (currentTrack) {
             console.log('Intento de fallback a YouTube IFrame...');
-            showToast('Reiniciant amb YouTube Player...', 'info');
+            showToast('Reiniciando con YouTube Player...', 'info');
             useNativeAudio = false;
             loadYouTubeIFrame(currentTrack.id);
         }
@@ -546,7 +546,7 @@ async function getAudioUrl(videoId) {
 
     // --- OPTIMIZED PIPED STRATEGY (PARALLEL RACE) ---
     console.log("🚀 Iniciando búsqueda optimizada (Piped Race)...");
-    showToast("Cercant àudio...");
+    showToast("Buscando audio...");
 
     // 1. Try Cached Instance First (Smart Cache)
     const cachedInstance = localStorage.getItem('amaya_fastest_server');
@@ -588,7 +588,7 @@ async function getAudioUrl(videoId) {
 
     // STAGE 2: Try Invidious Instances (Fallback)
     console.log("⚠️ Piped falló. Intentando Invidious (Fallback)...");
-    showToast("Provant servidors de seguretat...");
+    showToast("Probando servidores de seguridad...");
 
     for (let instance of INVIDIOUS_INSTANCES) {
         try {
@@ -619,7 +619,7 @@ async function getAudioUrl(videoId) {
 
             if (audioFormats.length > 0) {
                 console.log(`✅ Audio Invidious: ${instance}`);
-                showToast("Reproduint...");
+                showToast("Reproduciendo...");
                 return audioFormats[0].url;
             }
         } catch (error) { continue; }
@@ -656,7 +656,7 @@ async function fetchFromPiped(apiBase, videoId, timeoutMs) {
 
         if (audioStreams.length > 0) {
             console.log(`✅ Piped winner: ${apiBase}`);
-            showToast(`Connectat a ${apiBase.replace('https://', '').split('.')[0]}`);
+            showToast(`Conectado a ${apiBase.replace('https://', '').split('.')[0]}`);
 
             // Save winner for next time to make startup instant
             localStorage.setItem('amaya_fastest_server', apiBase);
@@ -854,7 +854,7 @@ async function onPlayerError(event) {
     // Restrictions (External playback forbidden)
     if (event.data === 101 || event.data === 150) {
         if (currentTrack && !currentTrack.isFallback) {
-            showToast("Cançó restringida. Cercant versió d'àudio compatible...", "error");
+            showToast("Canción restringida. Buscando versión de audio compatible...", "error");
 
             try {
                 // Background search for audio version - prioritize "Topic" and "Lyrics" for better compatibility
@@ -872,7 +872,7 @@ async function onPlayerError(event) {
                         isFallback: true // mark to avoid infinite loops
                     };
 
-                    showToast("Reproduint versió alternativa");
+                    showToast("Reproduciendo versión alternativa");
                     // Update current track in queue to avoid repeated failures if re-played
                     if (currentQueueIndex >= 0 && currentQueueIndex < queue.length) {
                         queue[currentQueueIndex] = fallbackSong;
@@ -910,11 +910,11 @@ function saveApiKey() {
         localStorage.setItem('amaya_yt_keys', JSON.stringify(keys));
         localStorage.setItem('amaya_yt_key_index', 0);
         document.getElementById('apiKeySection').classList.add('hidden');
-        document.getElementById('apiKeyToggleButton').innerText = "Mostrar clau API";
+        document.getElementById('apiKeyToggleButton').innerText = "Mostrar clave API";
         document.getElementById('apiWarning').classList.add('hidden');
-        showToast(`Desades ${keys.length} claus amb èxit`);
+        showToast(`Guardadas ${keys.length} claves con éxito`);
     } else {
-        showToast("Si us plau, introdueix almenys una clau", "error");
+        showToast("Por favor, introduce al menos una clave", "error");
     }
 }
 
@@ -922,7 +922,7 @@ function rotateApiKey() {
     if (apiKeys.length <= 1) return false;
     currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
     localStorage.setItem('amaya_yt_key_index', currentKeyIndex);
-    console.log(`🔄 Rotant a clau API #${currentKeyIndex + 1}`);
+    console.log(`🔄 Rotando a clave API #${currentKeyIndex + 1}`);
     return true;
 }
 
@@ -934,7 +934,7 @@ function toggleApiKeySection() {
     const section = document.getElementById('apiKeySection');
     const button = document.getElementById('apiKeyToggleButton');
     const isHidden = section.classList.toggle('hidden');
-    button.innerText = isHidden ? "Mostrar clau API" : "Amagar clau API";
+    button.innerText = isHidden ? "Mostrar clave API" : "Ocultar clave API";
 }
 
 function showApiInstructions() {
@@ -971,7 +971,7 @@ async function searchMusic(pageToken = '', retryCount = 0) {
 
     const currentKey = getCurrentApiKey();
     if (!currentKey) {
-        showToast("Configura les teves claus API", "error");
+        showToast("Configura tus claves API", "error");
         document.getElementById('apiKeySection').classList.remove('hidden');
         return;
     }
@@ -990,7 +990,7 @@ async function searchMusic(pageToken = '', retryCount = 0) {
             // Check for quota error
             if (data.error.errors && data.error.errors.some(e => e.reason === 'quotaExceeded')) {
                 if (rotateApiKey() && retryCount < apiKeys.length) {
-                    showToast("Límit de quota. Rotant clau...", "warning");
+                    showToast("Límite de cuota superado. Rotando clave...", "warning");
                     return searchMusic(pageToken, retryCount + 1);
                 }
             }
@@ -1037,7 +1037,7 @@ function renderSearchResults(videos) {
     grid.innerHTML = '';
 
     if (videos.length === 0) {
-        grid.innerHTML = '<div class="p-8 text-center text-gray-400">No s\'han trobat resultats</div>';
+        grid.innerHTML = '<div class="p-8 text-center text-gray-400">No se han encontrado resultados</div>';
     } else {
         videos.forEach((video, index) => {
             const inQueue = isSongInQueue(video.id);
@@ -1062,7 +1062,7 @@ function renderSearchResults(videos) {
                 <img src="${video.thumbnail}" class="w-10 h-10 rounded object-cover">
                 <div class="flex-1 min-w-0">
                     <div class="marquee-container">
-                        <h3 class="text-white font-medium marquee-content">${video.title}${isCurrent ? ' <span class="playing-badge">SONANT</span>' : ''}</h3>
+                        <h3 class="text-white font-medium marquee-content">${video.title}${isCurrent ? ' <span class="playing-badge">SONANDO</span>' : ''}</h3>
                     </div>
                     <p class="text-[#b3b3b3] text-sm truncate">${video.channel}</p>
                 </div>
@@ -1070,11 +1070,11 @@ function renderSearchResults(videos) {
                     <button onclick="event.stopPropagation(); toggleQueue(${JSON.stringify(video).replace(/"/g, '&quot;')})" 
                         class="queue-btn p-2 hover:text-white ${inQueueClass}" 
                         data-song-id="${video.id}"
-                        title="Afegir/Treure de la cua">
+                        title="Añadir/Quitar de la cola">
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/></svg>
                     </button>
                     <button onclick="event.stopPropagation(); showAddToPlaylistMenu(event, ${JSON.stringify(video).replace(/"/g, '&quot;')})" 
-                        class="p-2 hover:text-white text-[#b3b3b3]" title="Afegir a la llista">
+                        class="p-2 hover:text-white text-[#b3b3b3]" title="Añadir a la lista">
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                     </button>
                 </div>
@@ -1107,7 +1107,7 @@ function updateSearchPagination() {
     document.getElementById('nextPageBtn').disabled = !nextSearchToken;
     document.getElementById('prevPageBtn').disabled = !prevSearchToken;
     const info = document.getElementById('searchPageInfo');
-    if (info) info.innerText = `Pàgina ${currentSearchPage}`;
+    if (info) info.innerText = `Página ${currentSearchPage}`;
 }
 
 // --- PLAYBACK ---
@@ -1207,14 +1207,14 @@ async function playSong(song, list = [], fromQueue = false) {
 
             // Handle "NotAllowedError" (Autoplay blocked)
             if (error.name === 'NotAllowedError') {
-                showToast("⚠️ Toca 'Play' per iniciar", "warning");
+                showToast("⚠️ Toca 'Play' para iniciar", "warning");
                 // The user interaction requirement was lost during the async fetch.
                 // We leave the player in "paused" state but with src loaded.
                 // The user just needs to hit the main play button now.
                 return;
             }
             console.log('📡 Usando motor secundario...');
-            showToast('Fent servir reproductor secundari', 'info');
+            showToast('Usando reproductor secundario', 'info');
             useNativeAudio = false; // Disable for this session
             loadYouTubeIFrame(song.id);
         }
@@ -1250,7 +1250,7 @@ function toggleQueue(song) {
     if (index !== -1) {
         // Already in queue, remove it
         if (currentTrack && index === currentQueueIndex) {
-            showToast("No pots eliminar la cançó que està sonant", "warning");
+            showToast("No puedes eliminar la canción que está sonando", "warning");
             return;
         }
 
@@ -1424,13 +1424,13 @@ function toggleShuffle() {
             }
         }
     });
-    showToast(isShuffle ? "Mode aleatori activat" : "Mode aleatori desactivat");
+    showToast(isShuffle ? "Modo aleatorio activado" : "Modo aleatorio desactivado");
 }
 
 function toggleRepeat() {
     repeatMode = (repeatMode + 1) % 3;
     const btns = document.querySelectorAll('.repeat-btn, #repeatBtn');
-    const labels = ["No repetir", "Repetir llista", "Repetir-ne una"];
+    const labels = ["No repetir", "Repetir lista", "Repetir una"];
 
     btns.forEach(btn => {
         btn.classList.remove('text-green-500', 'text-white', 'text-gray-400', 'text-[#b3b3b3]');
@@ -1484,13 +1484,13 @@ function createPlaylist() {
     renderPlaylists();
     hideCreatePlaylistModal();
     document.getElementById('newPlaylistName').value = '';
-    showToast(`Llista "${name}" creada`);
+    showToast(`Lista "${name}" creada`);
 }
 
 async function savePlaylists() {
     localStorage.setItem('amaya_playlists', JSON.stringify(playlists));
     if (!currentUserUid) {
-        console.log("ℹ️ Sessió no iniciada. Guardant només localment.");
+        console.log("ℹ️ Sesión no iniciada. Guardando solo localmente.");
         return;
     }
     try {
@@ -1498,9 +1498,9 @@ async function savePlaylists() {
             playlists: playlists,
             lastUpdate: new Date().toISOString()
         });
-        console.log("☁️ Playlists sincronitzades amb el núvol per a l'usuari:", currentUserUid);
+        console.log("☁️ Playlists sincronizadas con la nube para el usuario:", currentUserUid);
     } catch (e) {
-        console.error("Error al sincronitzar amb el núvol:", e);
+        console.error("Error al sincronizar con la nube:", e);
     }
 }
 
@@ -1513,16 +1513,16 @@ async function shareCurrentPlaylist() {
         // Upload to a public 'shared_playlists' collection
         await setDoc(doc(db, "shared_playlists", pl.id), {
             ...pl,
-            ownerName: auth.currentUser ? auth.currentUser.displayName : 'Usuari Amaya',
+            ownerName: auth.currentUser ? auth.currentUser.displayName : 'Usuario Amaya',
             sharedAt: new Date().toISOString()
         });
 
         const shareUrl = `${window.location.origin}${window.location.pathname}?share=${pl.id}`;
         await navigator.clipboard.writeText(shareUrl);
-        showToast("Enllaç de compartició copiat al porta-retalls! 🔗");
+        showToast("¡Enlace de compartición copiado al portapapeles! 🔗");
     } catch (e) {
         console.error("Error en compartir:", e);
-        showToast("Error en compartir la llista", "error");
+        showToast("Error al compartir la lista", "error");
     }
 }
 
@@ -1539,7 +1539,7 @@ async function checkSharedPlaylist() {
             sharedPlaylistData = docSnap.data();
             renderSharedPlaylist(sharedPlaylistData);
         } else {
-            showToast("La llista compartida no existeix", "error");
+            showToast("La lista compartida no existe", "error");
         }
     } catch (e) {
         console.error("Error fetching shared playlist:", e);
@@ -1551,7 +1551,7 @@ function renderSharedPlaylist(pl) {
 
     // UI elements
     document.getElementById('playlistTitle').innerText = pl.name;
-    document.getElementById('playlistInfo').innerText = `Compartida per ${pl.ownerName || 'Amaya User'} • ${pl.songs.length} cançons`;
+    document.getElementById('playlistInfo').innerText = `Compartida por ${pl.ownerName || 'Amaya User'} • ${pl.songs.length} canciones`;
 
     // Handle cover
     const coverImg = document.getElementById('playlistCoverImage');
@@ -1604,7 +1604,7 @@ function importSharedPlaylist() {
 
     // Check if already exists
     if (playlists.find(p => p.id === sharedPlaylistData.id)) {
-        showToast("Aquesta llista ja és a la teva biblioteca");
+        showToast("Esta lista ya está en tu biblioteca");
         return;
     }
 
@@ -1615,7 +1615,7 @@ function importSharedPlaylist() {
 
     // Return to owner view for this new copy
     openPlaylist(newPl.id);
-    showToast(`Llista "${newPl.name}" afegida a la teva biblioteca!`);
+    showToast(`¡Lista "${newPl.name}" añadida a tu biblioteca!`);
 }
 
 function renderPlaylists() {
@@ -1623,7 +1623,7 @@ function renderPlaylists() {
     sidebar.innerHTML = '';
 
     if (playlists.length === 0) {
-        sidebar.innerHTML = '<p class="text-xs text-center text-gray-500 py-4 px-2">Encara no tens cap llista. Crea la primera!</p>';
+        sidebar.innerHTML = '<p class="text-xs text-center text-gray-500 py-4 px-2">Aún no tienes ninguna lista. ¡Crea la primera!</p>';
     }
 
     playlists.forEach(pl => {
@@ -1637,7 +1637,7 @@ function renderPlaylists() {
             <img src="${coverImg}" class="w-12 h-12 rounded object-cover shadow-md">
             <div class="flex-1 min-w-0">
                 <p class="text-white text-sm font-semibold truncate">${pl.name}</p>
-                <p class="text-[#b3b3b3] text-xs">${pl.songs.length} cançons</p>
+                <p class="text-[#b3b3b3] text-xs">${pl.songs.length} canciones</p>
             </div>
         `;
         sidebar.appendChild(sideItem);
@@ -1674,7 +1674,7 @@ function openPlaylist(id) {
     const durationStr = formatDuration(totalSeconds, true);
 
     document.getElementById('playlistTitle').innerText = pl.name;
-    document.getElementById('playlistInfo').innerText = `${pl.songs.length} canç. • Total: ${durationStr}`;
+    document.getElementById('playlistInfo').innerText = `${pl.songs.length} canciones • Total: ${durationStr}`;
 
     const coverImg = document.getElementById('playlistCoverImage');
     const coverIcon = document.getElementById('playlistCoverIcon');
@@ -1691,7 +1691,7 @@ function openPlaylist(id) {
     songsList.innerHTML = '';
 
     if (pl.songs.length === 0) {
-        songsList.innerHTML = '<div class="p-8 text-center text-gray-500">Aquesta llista està buida</div>';
+        songsList.innerHTML = '<div class="p-8 text-center text-gray-500">Esta lista está vacía</div>';
     } else {
         pl.songs.forEach((song, index) => {
             const inQueue = isSongInQueue(song.id);
@@ -1716,7 +1716,7 @@ function openPlaylist(id) {
                 <img src="${song.thumbnail}" class="w-10 h-10 rounded object-cover">
                 <div class="flex-1 min-w-0">
                     <div class="marquee-container">
-                        <h3 class="text-white font-medium marquee-content song-title">${song.title}${isCurrent ? ' <span class="playing-badge">SONANT</span>' : ''}</h3>
+                        <h3 class="text-white font-medium marquee-content song-title">${song.title}${isCurrent ? ' <span class="playing-badge">SONANDO</span>' : ''}</h3>
                     </div>
                     <p class="text-[#b3b3b3] text-sm truncate">${song.channel}</p>
                 </div>
@@ -1724,10 +1724,10 @@ function openPlaylist(id) {
                     <button onclick="event.stopPropagation(); toggleQueue(${JSON.stringify(song).replace(/"/g, '&quot;')})" 
                         class="queue-btn p-2 hover:text-white ${inQueueClass}" 
                         data-song-id="${song.id}"
-                        title="Afegir/Treure de la cua">
+                        title="Añadir/Quitar de la cola">
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/></svg>
                     </button>
-                    <button onclick="event.stopPropagation(); removeSongFromPlaylist('${pl.id}', '${song.id}')" class="text-gray-500 hover:text-red-500 p-2 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity" title="Eliminar de la llista">
+                    <button onclick="event.stopPropagation(); removeSongFromPlaylist('${pl.id}', '${song.id}')" class="text-gray-500 hover:text-red-500 p-2 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity" title="Eliminar de la lista">
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                     </button>
                 </div>
@@ -1746,7 +1746,7 @@ function showAddToPlaylistMenu(event, song) {
     items.innerHTML = '';
 
     if (playlists.length === 0) {
-        items.innerHTML = '<p class="px-4 py-2 text-xs text-gray-500">No tens cap llista</p>';
+        items.innerHTML = '<p class="px-4 py-2 text-xs text-gray-500">No tienes ninguna lista</p>';
     } else {
         playlists.forEach(pl => {
             const btn = document.createElement('button');
@@ -1758,9 +1758,9 @@ function showAddToPlaylistMenu(event, song) {
                     pl.songs.push(targetSong);
                     savePlaylists();
                     renderPlaylists();
-                    showToast(`Afegit a ${pl.name}`);
+                    showToast(`Añadido a ${pl.name}`);
                 } else {
-                    showToast("Ja és a la llista", "error");
+                    showToast("Ya está en la lista", "error");
                 }
                 hideAddToPlaylistMenu();
             };
@@ -1797,7 +1797,7 @@ function removeSongFromPlaylist(plId, songId) {
     savePlaylists();
     renderPlaylists();
     openPlaylist(plId);
-    showToast("Cançó eliminada de la llista");
+    showToast("Canción eliminada de la lista");
 }
 
 function triggerPlaylistCoverUpload() {
@@ -1850,7 +1850,7 @@ function savePlaylistEdits() {
     renderPlaylists();
     openPlaylist(activePlaylistId);
     hideEditPlaylistModal();
-    showToast("Llista actualitzada");
+    showToast("Lista actualizada");
 }
 
 function showDeletePlaylistConfirm() {
@@ -1868,7 +1868,7 @@ function deleteCurrentPlaylist() {
     renderPlaylists();
     hideDeletePlaylistConfirm();
     showHome();
-    showToast("Llista eliminada");
+    showToast("Lista eliminada");
 }
 
 function playCurrentPlaylist() {
@@ -1888,7 +1888,7 @@ function showQueue() {
     content.innerHTML = '';
 
     if (queue.length === 0) {
-        content.innerHTML = '<p class="text-center text-gray-500 py-8">La cua està buida</p>';
+        content.innerHTML = '<p class="text-center text-gray-500 py-8">La cola está vacía</p>';
     } else {
         queue.forEach((song, index) => {
             const row = document.createElement('div');
@@ -1912,7 +1912,7 @@ function showQueue() {
                 </div>
                 <button onclick="event.stopPropagation(); removeFromQueue(${index})" 
                     class="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                    title="Eliminar de la cua">
+                    title="Eliminar de la cola">
                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                     </svg>
@@ -1929,7 +1929,7 @@ function showQueue() {
 
 function removeFromQueue(index) {
     if (index === currentQueueIndex) {
-        showToast("No pots eliminar la cançó que està sonant", "warning");
+        showToast("No puedes eliminar la canción que está sonando", "warning");
         return;
     }
 
@@ -1956,7 +1956,7 @@ function clearQueue() {
     updateQueueCount();
     updateQueueIcons();
     hideQueue();
-    showToast("Cua buida");
+    showToast("Cola vacía");
 }
 
 
@@ -2015,8 +2015,8 @@ function renderHomePlaylists() {
     if (playlists.length === 0) {
         list.innerHTML = `
             <div class="p-12 text-center bg-white/5 rounded-2xl border border-dashed border-white/10">
-                <p class="text-gray-400 mb-4">Encara no tens cap llista</p>
-                <button onclick="showCreatePlaylistModal()" class="text-green-500 font-bold hover:underline">Comença'n a crear una aquí</button>
+                <p class="text-gray-400 mb-4">Aún no tienes ninguna lista</p>
+                <button onclick="showCreatePlaylistModal()" class="text-green-500 font-bold hover:underline">Empieza a crear una aquí</button>
             </div>
         `;
         return;
@@ -2046,9 +2046,9 @@ function renderHomePlaylists() {
                     </div>` : ''}
                 </div>
                 <div class="flex-1 min-w-0">
-                    <h3 class="${isPlaying ? 'text-green-500' : 'text-white'} font-bold text-lg truncate">${pl.name}${isPlaying ? ' <span class="playing-badge">SONANT</span>' : ''}</h3>
+                    <h3 class="${isPlaying ? 'text-green-500' : 'text-white'} font-bold text-lg truncate">${pl.name}${isPlaying ? ' <span class="playing-badge">SONANDO</span>' : ''}</h3>
                     <div class="flex items-center gap-2 text-gray-400 text-sm truncate">
-                        <span>${pl.songs.length} canç.</span>
+                        <span>${pl.songs.length} canciones</span>
                         <span class="opacity-30">•</span>
                         <span>Total: ${durationStr}</span>
                     </div>
@@ -2108,7 +2108,7 @@ function playPlaylist(event, plId) {
         renderHomePlaylists();
         playSong(pl.songs[0], pl.songs);
     } else {
-        showToast("Aquesta llista no té cançons", "error");
+        showToast("Esta lista no tiene canciones", "error");
     }
 }
 
@@ -2288,7 +2288,7 @@ function showUserSwitcher() {
                 ${user.avatar ? `<img src="${user.avatar}" class="w-full h-full object-cover rounded-lg">` : initial}
             </div >
             <p class="text-white font-bold md:text-xl">${user.name}</p>
-            ${user.id === currentUser.id ? '<p class="text-green-500 text-[10px] uppercase font-black mt-2">Actiu</p>' : ''}
+            ${user.id === currentUser.id ? '<p class="text-green-500 text-[10px] uppercase font-black mt-2">Activo</p>' : ''}
         `;
         list.appendChild(card);
     });
@@ -2325,7 +2325,7 @@ function createNewUser() {
     nameInput.value = '';
     hideAddUserModal();
     showUserSwitcher(); // Refresh list
-    showToast(`Usuari "${name}" creat`);
+    showToast(`Usuario "${name}" creado`);
 }
 
 function switchUser(userId) {
@@ -2339,7 +2339,7 @@ function switchUser(userId) {
     renderPlaylists();
     showHome();
     hideUserSwitcher();
-    showToast(`Canviat a ${currentUser.name}`);
+    showToast(`Cambiado a ${currentUser.name}`);
 }
 
 function updateUserUI() {
@@ -2373,7 +2373,7 @@ function exportCurrentPlaylist() {
     linkElement.setAttribute('download', exportFileDefaultName);
     linkElement.click();
 
-    showToast("Llista exportada correctament");
+    showToast("Lista exportada correctamente");
 }
 
 
@@ -2393,7 +2393,7 @@ function handlePlaylistImport(event) {
 
             // Validate basic structure
             if (!importedPl.name || !Array.isArray(importedPl.songs)) {
-                throw new Error("Format d'arxiu invàlid");
+                throw new Error("Formato de archivo inválido");
             }
 
             // Assign a new ID to avoid collisions
@@ -2402,7 +2402,7 @@ function handlePlaylistImport(event) {
             playlists.push(importedPl);
             savePlaylists();
             renderPlaylists();
-            showToast(`Llista "${importedPl.name}" importada`);
+            showToast(`Lista "${importedPl.name}" importada`);
 
         } catch (error) {
             showToast("Error en importar: " + error.message, "error");

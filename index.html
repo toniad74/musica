@@ -1,4 +1,4 @@
-<html lang="ca">
+<html lang="es">
 
 <head>
     <script>
@@ -71,7 +71,7 @@
             <!-- User Profile Section -->
             <div id="userSection" class="px-4 mb-6">
                 <div id="loggedOutUI" class="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
-                    <p class="text-xs text-gray-400 mb-3">Inicia sessió per guardar les teves llistes al núvol</p>
+                    <p class="text-xs text-gray-400 mb-3">Inicia sesión para guardar tus listas en la nube</p>
                     <button onclick="loginWithGoogle()"
                         class="w-full bg-white text-black text-sm font-bold py-2 rounded-full hover:scale-105 transition-transform flex items-center justify-center gap-2">
                         <svg class="w-4 h-4" viewBox="0 0 24 24">
@@ -87,8 +87,8 @@
                     <div class="flex-1 min-w-0">
                         <p id="userName" class="text-white text-sm font-bold truncate"></p>
                         <button onclick="logout()"
-                            class="text-[10px] text-gray-400 hover:text-red-400 uppercase font-bold tracking-wider">Tancar
-                            sessió</button>
+                            class="text-[10px] text-gray-400 hover:text-red-400 uppercase font-bold tracking-wider">Cerrar
+                            sesión</button>
                     </div>
                 </div>
             </div>
@@ -100,7 +100,7 @@
                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M12 3L4 9v12h5v-7h6v7h5V9l-8-6z" />
                     </svg>
-                    <span class="font-semibold">Llistes</span>
+                    <span class="font-semibold">Listas</span>
                 </button>
                 <button onclick="switchTab('search')"
                     class="flex items-center gap-4 text-[#b3b3b3] hover:text-white px-4 py-3 rounded-lg hover:bg-[#1a1a1a] w-full transition-colors">
@@ -108,7 +108,7 @@
                         <path
                             d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 001.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 00-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 005.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
                     </svg>
-                    <span class="font-semibold">Cerca</span>
+                    <span class="font-semibold">Buscar</span>
                 </button>
             </nav>
 
@@ -120,7 +120,7 @@
                             <path
                                 d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z" />
                         </svg>
-                        <span class="font-semibold">La teva Biblioteca</span>
+                        <span class="font-semibold">Tu Biblioteca</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <button onclick="triggerPlaylistImport()"
@@ -132,7 +132,7 @@
                             </svg>
                         </button>
                         <button onclick="showCreatePlaylistModal()"
-                            class="text-green-500 hover:text-green-400 p-2 transition-colors" title="Crear llista">
+                            class="text-green-500 hover:text-green-400 p-2 transition-colors" title="Crear lista">
                             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
                             </svg>
@@ -167,12 +167,12 @@
                             </svg>
                         </div>
                         <div class="leading-relaxed">
-                            <p class="font-bold mb-1">💡 Consell de compatibilitat</p>
-                            <p>Has obert l'app directament des de l'arxiu. Algunes cançons poden bloquejar-se per
-                                seguretat del navegador en no tenir un domini "servidor".</p>
-                            <p class="mt-2 text-xs opacity-80">Si tens problemes, utilitza una extensió de "Local
+                            <p class="font-bold mb-1">💡 Consejo de compatibilidad</p>
+                            <p>Has abierto la app directamente desde el archivo. Algunas canciones pueden bloquearse por
+                                seguridad del navegador al no tener un dominio "servidor".</p>
+                            <p class="mt-2 text-xs opacity-80">Si tienes problemas, utiliza una extensión de "Local
                                 Server"
-                                o puja els arxius a GitHub Pages/Vercel.</p>
+                                o sube los archivos a GitHub Pages/Vercel.</p>
                         </div>
                     </div>
                 </div>
@@ -184,38 +184,39 @@
                     <div class="flex justify-end mb-3">
                         <button id="apiKeyToggleButton" onclick="toggleApiKeySection()" aria-expanded="true"
                             class="text-sm px-4 py-2 rounded-full border border-white/20 text-[#b3b3b3] hover:text-white hover:border-white transition-colors">
-                            Amagar clau API
+                            Ocultar clave API
                         </button>
                     </div>
                     <div id="apiKeySection">
                         <div id="apiWarning" class="bg-yellow-600/20 border border-yellow-500/50 rounded-lg p-4 mb-6">
                             <p class="text-yellow-300 text-sm">
-                                ⚠️ <strong>Important:</strong> Necessites una clau API de YouTube Data API v3.
-                                <button onclick="showApiInstructions()" class="underline ml-2 hover:text-yellow-200">Com
-                                    obtenir-la?</button>
+                                ⚠️ <strong>Importante:</strong> Necesitas una clave API de YouTube Data API v3.
+                                <button onclick="showApiInstructions()"
+                                    class="underline ml-2 hover:text-yellow-200">¿Cómo
+                                    obtenerla?</button>
                             </p>
                         </div>
                         <div class="bg-[#282828] rounded-lg p-6">
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-xs text-gray-400 mb-1 ml-4">CANAL 1 (Principal)</label>
-                                    <input type="password" id="apiKeyInput1" placeholder="Enganxa la primera clau aquí"
+                                    <input type="password" id="apiKeyInput1" placeholder="Pega la primera clave aquí"
                                         class="w-full bg-[#3e3e3e] border-none text-white px-4 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500">
                                 </div>
                                 <div>
                                     <label class="block text-xs text-gray-400 mb-1 ml-4">CANAL 2 (Reserva)</label>
-                                    <input type="password" id="apiKeyInput2" placeholder="Enganxa la segona clau aquí"
+                                    <input type="password" id="apiKeyInput2" placeholder="Pega la segunda clave aquí"
                                         class="w-full bg-[#3e3e3e] border-none text-white px-4 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500">
                                 </div>
                                 <div>
                                     <label class="block text-xs text-gray-400 mb-1 ml-4">CANAL 3 (Reserva)</label>
-                                    <input type="password" id="apiKeyInput3" placeholder="Enganxa la tercera clau aquí"
+                                    <input type="password" id="apiKeyInput3" placeholder="Pega la tercera clave aquí"
                                         class="w-full bg-[#3e3e3e] border-none text-white px-4 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500">
                                 </div>
                                 <div class="pt-2 text-center">
                                     <button onclick="saveApiKey()"
                                         class="w-full sm:w-auto bg-green-500 hover:bg-green-400 px-12 py-3 rounded-full font-bold transition-all text-black">
-                                        Desar totes les claus
+                                        Guardar todas las claves
                                     </button>
                                 </div>
                             </div>
@@ -228,12 +229,12 @@
                     <div class="flex flex-col sm:flex-row gap-4">
                         <div class="flex-1 relative group">
                             <input type="text" id="searchInput"
-                                placeholder="Què vols escoltar? (ex: 'Artista Cançó àudio')"
+                                placeholder="¿Qué quieres escuchar? (ej: 'Artista Canción audio')"
                                 class="w-full bg-[#242424] border-none text-white px-5 py-4 pr-12 rounded-full focus:outline-none focus:ring-2 focus:ring-white text-lg"
                                 onkeypress="if(event.key === 'Enter') searchMusic()" oninput="toggleClearButton()">
                             <button id="clearSearchBtn" onclick="clearSearch()"
                                 class="hidden absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-2 transition-colors"
-                                title="Esborrar cerca">
+                                title="Borrar búsqueda">
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M6 18L18 6M6 6l12 12" />
@@ -246,7 +247,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                             </svg>
-                            Cercar
+                            Buscar
                         </button>
                     </div>
                 </div>
@@ -255,7 +256,7 @@
                 <!-- Loading Spinner -->
                 <div id="loading" class="hidden text-center py-8">
                     <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
-                    <p class="mt-2 text-gray-400">Cercant cançons...</p>
+                    <p class="mt-2 text-gray-400">Buscando canciones...</p>
                 </div>
 
                 <!-- Error Message -->
@@ -266,17 +267,17 @@
                 <!-- Tabs Navigation -->
                 <div class="tabs-container mb-8">
                     <button id="tab-playlists" onclick="switchTab('playlists')" class="tab-btn">
-                        Llistes
+                        Listas
                     </button>
                     <button id="tab-search" onclick="switchTab('search')" class="tab-btn active">
-                        Cerca
+                        Buscar
                     </button>
                 </div>
 
                 <!-- Home Section (Playlists List) -->
                 <div id="homeSection">
                     <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-2xl font-bold">La teva Biblioteca</h2>
+                        <h2 class="text-2xl font-bold">Tu Biblioteca</h2>
                         <div class="flex items-center gap-2">
                             <button onclick="showCreatePlaylistModal()"
                                 class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm font-bold transition-all">
@@ -318,15 +319,15 @@
                         </div>
                         <div class="flex-1">
                             <div class="flex items-center justify-between gap-3">
-                                <p class="text-sm font-medium uppercase md:hidden">Contingut de la Llista</p>
-                                <p class="text-sm font-medium uppercase hidden md:block">Llista</p>
+                                <p class="text-sm font-medium uppercase md:hidden">Contenido de la Lista</p>
+                                <p class="text-sm font-medium uppercase hidden md:block">Lista</p>
                                 <button onclick="showHome()"
                                     class="inline-flex items-center gap-2 text-[#b3b3b3] hover:text-white bg-[#1a1a1a] hover:bg-[#2a2a2a] px-3 py-2 rounded-full"
-                                    title="Tornar">
+                                    title="Volver">
                                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                         <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
                                     </svg>
-                                    <span class="text-sm font-semibold">Tornar</span>
+                                    <span class="text-sm font-semibold">Volver</span>
                                 </button>
                             </div>
                             <h1 id="playlistTitle" class="text-xl md:text-5xl font-black mt-2 mb-1 block"></h1>
@@ -338,28 +339,28 @@
                     <div class="flex items-center flex-wrap gap-6 mb-6">
                         <button onclick="playCurrentPlaylist()"
                             class="bg-green-500 hover:bg-green-400 hover:scale-105 text-black rounded-full p-4 transition-all shadow-xl"
-                            title="Reproduir llista">
+                            title="Reproducir lista">
                             <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
                                 <path d="M8 5v14l11-7z" />
                             </svg>
                         </button>
                         <div id="playlistOwnerActions" class="flex items-center gap-6">
                             <button onclick="showEditPlaylistModal()" class="text-[#b3b3b3] hover:text-white"
-                                title="Editar llista">
+                                title="Editar lista">
                                 <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
                                     <path
                                         d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
                                 </svg>
                             </button>
                             <button onclick="showDeletePlaylistConfirm()" class="text-[#b3b3b3] hover:text-white"
-                                title="Eliminar llista">
+                                title="Eliminar lista">
                                 <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
                                     <path
                                         d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
                                 </svg>
                             </button>
                             <button onclick="shareCurrentPlaylist()" class="text-[#b3b3b3] hover:text-white"
-                                title="Compartir llista (núvol)">
+                                title="Compartir lista (nube)">
                                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
@@ -372,7 +373,7 @@
                                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                     <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
                                 </svg>
-                                Afegir a la meva biblioteca
+                                Añadir a mi biblioteca
                             </button>
                         </div>
                     </div>
@@ -381,7 +382,7 @@
 
                 <!-- Results Section -->
                 <div id="resultsSection" class="hidden">
-                    <h2 class="text-2xl font-bold mb-6">Resultats</h2>
+                    <h2 class="text-2xl font-bold mb-6">Resultados</h2>
                     <div class="bg-[#181818] rounded-lg overflow-hidden">
                         <div id="resultsGrid"></div>
                         <!-- Search Pagination -->
@@ -392,11 +393,11 @@
                                 disabled>
                                 Anterior
                             </button>
-                            <div class="text-xs text-gray-400 font-medium" id="searchPageInfo">Pàgina 1</div>
+                            <div class="text-xs text-gray-400 font-medium" id="searchPageInfo">Página 1</div>
                             <button id="nextPageBtn" onclick="searchNextPage()"
                                 class="px-4 py-2 rounded-full bg-[#282828] hover:bg-[#3e3e3e] text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
                                 disabled>
-                                Següent
+                                Siguiente
                             </button>
                         </div>
                     </div>
@@ -434,7 +435,7 @@
                 </div>
             </div>
             <button id="addToPlaylistBtn" onclick="showAddToPlaylistMenu(event)"
-                class="text-[#b3b3b3] hover:text-white ml-2 hidden sm:block" title="Afegir a la llista">
+                class="text-[#b3b3b3] hover:text-white ml-2 hidden sm:block" title="Añadir a la lista">
                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
                 </svg>
@@ -445,7 +446,7 @@
         <div class="flex flex-col items-center justify-center w-1/3 max-w-2xl px-4">
             <div class="flex items-center gap-4 md:gap-6 mb-2">
                 <button id="shuffleBtn" onclick="toggleShuffle()"
-                    class="text-[#b3b3b3] hover:text-white transition-colors" title="Aleatori">
+                    class="text-[#b3b3b3] hover:text-white transition-colors" title="Aleatorio">
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                         <path
                             d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z" />
@@ -496,7 +497,7 @@
         <div class="flex items-center justify-end gap-2 w-1/3 min-w-0">
             <button id="showQueueBtn" onclick="showQueue()"
                 class="text-[#b3b3b3] hover:text-white px-2 py-1 rounded-full text-xs bg-green-500 hover:bg-green-400 transition-colors"
-                title="Veure cua">
+                title="Ver cola">
                 <span id="queueCount" class="text-black font-bold">0</span>
             </button>
             <button id="muteBtn" class="text-[#b3b3b3] hover:text-white" onclick="toggleMute()">
@@ -522,13 +523,13 @@
     <!-- Modals -->
     <div id="createPlaylistModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
         <div class="bg-[#282828] rounded-lg p-6 w-full max-w-md mx-auto">
-            <h3 class="text-2xl font-bold mb-6 text-center">Crear llista</h3>
-            <input type="text" id="newPlaylistName" placeholder="Nom"
+            <h3 class="text-2xl font-bold mb-6 text-center">Crear lista</h3>
+            <input type="text" id="newPlaylistName" placeholder="Nombre"
                 class="w-full bg-[#3e3e3e] text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 mb-6"
                 onkeypress="if(event.key === 'Enter') createPlaylist()">
             <div class="flex justify-end gap-3">
                 <button onclick="hideCreatePlaylistModal()"
-                    class="px-6 py-3 rounded-full font-semibold hover:bg-[#3e3e3e] transition-colors">Cancel·lar</button>
+                    class="px-6 py-3 rounded-full font-semibold hover:bg-[#3e3e3e] transition-colors">Cancelar</button>
                 <button onclick="createPlaylist()"
                     class="bg-green-500 hover:bg-green-400 px-8 py-3 rounded-full font-bold text-black transition-colors">Crear</button>
             </div>
@@ -537,21 +538,21 @@
 
     <div id="addToPlaylistMenu"
         class="hidden fixed bg-[#282828] rounded-lg shadow-2xl py-2 z-50 min-w-[200px] context-menu">
-        <p class="px-4 py-2 text-sm text-gray-400 border-b border-[#3e3e3e]">Afegir a la llista</p>
+        <p class="px-4 py-2 text-sm text-gray-400 border-b border-[#3e3e3e]">Añadir a la lista</p>
         <div id="playlistMenuItems"></div>
         <button onclick="showCreatePlaylistModal(); hideAddToPlaylistMenu();"
             class="w-full text-left px-4 py-3 hover:bg-[#3e3e3e] flex items-center gap-3">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
             </svg>
-            Nova llista
+            Nueva lista
         </button>
     </div>
 
     <div id="editPlaylistModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
         <div class="bg-[#282828] rounded-2xl p-6 w-full max-w-lg space-y-4">
             <div class="flex items-center justify-between">
-                <h3 class="text-2xl font-bold">Editar llista</h3>
+                <h3 class="text-2xl font-bold">Editar lista</h3>
                 <button onclick="hideEditPlaylistModal()" class="text-gray-400 hover:text-white">
                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                         <path
@@ -559,15 +560,15 @@
                     </svg>
                 </button>
             </div>
-            <label class="block text-sm font-semibold text-gray-300">Nom</label>
+            <label class="block text-sm font-semibold text-gray-300">Nombre</label>
             <input type="text" id="editPlaylistName"
                 class="w-full bg-[#3e3e3e] text-white px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500">
-            <label class="block text-sm font-semibold text-gray-300">Descripció</label>
+            <label class="block text-sm font-semibold text-gray-300">Descripción</label>
             <textarea id="editPlaylistDescription" rows="3"
                 class="w-full bg-[#3e3e3e] text-white px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"></textarea>
             <div class="flex justify-end gap-3 pt-4">
                 <button onclick="hideEditPlaylistModal()"
-                    class="px-6 py-3 rounded-full font-semibold hover:bg-[#3a3a3a] transition-colors">Cancel·lar</button>
+                    class="px-6 py-3 rounded-full font-semibold hover:bg-[#3a3a3a] transition-colors">Cancelar</button>
                 <button onclick="savePlaylistEdits()"
                     class="px-6 py-3 rounded-full font-semibold bg-green-500 text-black hover:bg-green-400 transition-colors">Guardar</button>
             </div>
@@ -576,10 +577,10 @@
 
     <div id="deletePlaylistModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
         <div class="bg-[#282828] rounded-lg p-6 w-full max-w-sm">
-            <h3 class="text-xl font-bold mb-4">Eliminar llista?</h3>
+            <h3 class="text-xl font-bold mb-4">¿Eliminar lista?</h3>
             <div class="flex justify-end gap-3">
                 <button onclick="hideDeletePlaylistConfirm()"
-                    class="px-6 py-3 rounded-full font-semibold hover:bg-[#3e3e3e]">Cancel·lar</button>
+                    class="px-6 py-3 rounded-full font-semibold hover:bg-[#3e3e3e]">Cancelar</button>
                 <button onclick="deleteCurrentPlaylist()"
                     class="bg-red-600 hover:bg-red-500 px-8 py-3 rounded-full font-bold text-white">Eliminar</button>
             </div>
@@ -645,7 +646,7 @@
                     viewBox="0 0 24 24">
                     <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
                 </svg></button>
-            <span class="text-xs text-gray-400 uppercase tracking-wider">Reproduint</span>
+            <span class="text-xs text-gray-400 uppercase tracking-wider">Reproduciendo</span>
             <div class="flex items-center gap-2">
             </div>
         </div>
@@ -710,14 +711,14 @@
                     class="w-full flex items-center gap-4 p-4 hover:bg-[#3e3e3e] rounded-lg">
                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                    </svg><span>Afegir a la llista</span>
+                    </svg><span>Añadir a la lista</span>
                 </button>
                 <button onclick="hideMobileMenu()"
                     class="w-full flex items-center gap-4 p-4 hover:bg-[#3e3e3e] rounded-lg text-gray-400">
                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                         <path
                             d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
-                    </svg><span>Tancar</span>
+                    </svg><span>Cerrar</span>
                 </button>
             </div>
         </div>
@@ -727,7 +728,7 @@
         <div class="bg-[#181818] w-full max-w-md h-full flex flex-col shadow-2xl">
             <div class="p-4 border-b border-[#282828]">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xl font-bold text-white">Cua</h3>
+                    <h3 class="text-xl font-bold text-white">Cola</h3>
                     <button onclick="hideQueue()" class="text-gray-400 hover:text-white p-2">
                         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                             <path
@@ -737,7 +738,7 @@
                 </div>
                 <button onclick="clearQueue()"
                     class="w-full text-red-400 hover:text-red-300 py-2 px-4 rounded-lg hover:bg-red-900/20 font-bold">
-                    Buidar cua
+                    Vaciar cola
                 </button>
             </div>
             <div id="queueContent" class="flex-1 overflow-y-auto p-4 pb-32 md:pb-4"></div>
@@ -747,15 +748,15 @@
     <!-- Instructions Modal -->
     <div id="instructionsModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
         <div class="bg-[#282828] rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h3 class="text-2xl font-bold mb-6 text-green-400">📖 Com obtenir la teva clau API</h3>
+            <h3 class="text-2xl font-bold mb-6 text-green-400">📖 Cómo obtener tu clave API</h3>
             <ol class="list-decimal list-inside space-y-3 text-gray-300">
-                <li>Ves a Google Cloud Console</li>
-                <li>Crea un projecte</li>
+                <li>Ve a Google Cloud Console</li>
+                <li>Crea un proyecto</li>
                 <li>Activa la YouTube Data API v3</li>
-                <li>Crea credencials (clau API de Google)</li>
+                <li>Crea credenciales (clave API de Google)</li>
             </ol>
             <button onclick="hideApiInstructions()"
-                class="mt-6 bg-green-500 hover:bg-green-400 px-8 py-3 rounded-full font-bold text-black w-full">Entesos</button>
+                class="mt-6 bg-green-500 hover:bg-green-400 px-8 py-3 rounded-full font-bold text-black w-full">Entendido</button>
         </div>
     </div>
 
