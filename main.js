@@ -42,7 +42,7 @@ let isUserPaused = false;
 // Native audio player
 let nativeAudio = null;
 let useNativeAudio = true; // Prefer native audio over YouTube IFrame
-let isMediaPlaying = false; /*
+let isMediaPlaying = false;
 
 // --- AUTHENTICATION ---
 function loginWithGoogle() {
@@ -113,7 +113,7 @@ async function loadUserPlaylists(uid) {
     }
 }
 
-*/ // Invidious instances (fallback if one fails)
+// Invidious instances (fallback if one fails)
 // Prioritize instances known for speed and M4A support
 const INVIDIOUS_INSTANCES = [
     'inv.tux.pizza',             // Reliable
@@ -531,6 +531,42 @@ function setupNativeAudioHandlers() {
     nativeAudio.addEventListener('canplay', () => console.log('✅ Audio listo para reproducir'));
 
     console.log('✅ Handlers de audio nativo configurados');
+}
+
+function playNativeAudio(url) {
+    if (!nativeAudio) return;
+
+    // Update Media Session
+    if (navigator.mediaSession && currentTrack) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: currentTrack.title,
+            artist: currentTrack.channel,
+            album: 'Amaya Musica',
+            artwork: [
+                { src: currentTrack.thumbnail, sizes: '300x300', type: 'image/jpeg' }
+            ]
+        });
+    }
+
+    nativeAudio.src = url;
+    nativeAudio.play().then(() => {
+        console.log("✅ Native playback started");
+        isUserPaused = false;
+        useNativeAudio = true;
+        updatePlayPauseIcons(true);
+        if (currentTrack && currentTrack.thumbnail) {
+            updateAmbientBackground(currentTrack.thumbnail);
+        }
+    }).catch(error => {
+        console.error("❌ Native playback failed:", error);
+        if (error.name === 'NotAllowedError') {
+            showToast("⚠️ Toca 'Play' para iniciar", "warning");
+        } else {
+            showToast("Error de audio. Reintentando con YouTube...", "info");
+            useNativeAudio = false;
+            if (currentTrack) loadYouTubeIFrame(currentTrack.id);
+        }
+    });
 }
 
 // --- MEDIA SESSION SETUP ---
@@ -2791,7 +2827,13 @@ Object.assign(window, {
     updateMarquees,
     updateMarquee,
     loginWithGoogle,
-    logout
+    logout,
+    onYouTubeIframeAPIReady,
+    onPlayerReady,
+    onPlayerStateChange,
+    onPlayerError,
+    playNativeAudio,
+    setupAuthListener
 });
 
 console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE - V4");
