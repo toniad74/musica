@@ -625,8 +625,8 @@ async function getAudioUrl(videoId) {
             try {
                 const result = await fetchFromPiped(cachedInstance, videoId, 3000);
                 if (result && result.url) {
-                    currentSegments = result.segments || [];
-                    console.log(`🔍 SponsorBlock: ${currentSegments.length} segmentos encontrados`);
+                    // Start SponsorBlock search in parallel/background
+                    fetchSponsorBlockSegments(videoId);
                     return result.url;
                 }
             } catch (e) {
@@ -651,8 +651,10 @@ async function getAudioUrl(videoId) {
                 if (result && result.url) {
                     console.log(`✅ Éxito en: ${instance}`);
                     localStorage.setItem('amaya_fastest_server', instance);
-                    currentSegments = result.segments || [];
-                    console.log(`🔍 SponsorBlock: ${currentSegments.length} segmentos encontrados`);
+
+                    // Fetch SponsorBlock independently
+                    fetchSponsorBlockSegments(videoId);
+
                     return result.url;
                 }
             } catch (e) {
@@ -664,7 +666,8 @@ async function getAudioUrl(videoId) {
         console.log("⚠️ Piped falló. Intentando Invidious (Fallback)...");
         showToast("Probando servidores de seguridad...");
 
-        currentSegments = []; // Clear segments for Invidious fallback (no support currently)
+        // Even with Invidious, we try to fetch segments
+        fetchSponsorBlockSegments(videoId);
 
         for (let instance of INVIDIOUS_INSTANCES) {
             try {
@@ -743,15 +746,72 @@ async function fetchFromPiped(apiBase, videoId, timeoutMs) {
             // Save winner for next time to make startup instant
             localStorage.setItem('amaya_fastest_server', apiBase);
 
-            // Return object with URL and segments
+            // Return object with URL
             return {
-                url: audioStreams[0].url,
-                segments: segments
+                url: audioStreams[0].url
+                // segments: segments // DEPRECATED: We fetch independently now
             };
         }
         throw new Error("No valid streams");
     } catch (e) {
         throw e;
+    }
+}
+
+// --- SPONSORBLOCK DIRECT API ---
+async function fetchSponsorBlockSegments(videoId) {
+    currentSegments = []; // Reset first
+
+    // Categories to skip (Aggressive Mode)
+    // sponsor: Paid promotion
+    // intro: Animation/intermission before video
+    // outro: End credits/intermission
+    // interaction: "Like and subscribe"
+    // selfpromo: Unpaid promotion
+    // music_offtopic: Non-music sections in music videos
+    // preview: Recaps
+    // filler: Filler content
+    const categories = ['sponsor', 'intro', 'outro', 'interaction', 'selfpromo', 'music_offtopic', 'preview', 'filler'];
+
+    try {
+        console.log(`🛡️ Consultando SponsorBlock API para: ${videoId}`);
+        // categories parameter needs to be repeated: ?category=sponsor&category=intro...
+        const categoryParams = categories.map(c => `category=${c}`).join('&');
+        const url = `https://sponsor.ajay.app/api/skipSegments?videoID=${videoId}&${categoryParams}`;
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout is enough
+
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (response.status === 404) {
+            console.log("ℹ️ No hay segmentos SponsorBlock para este video.");
+            return;
+        }
+
+        if (!response.ok) throw new Error("API returned " + response.status);
+
+        const data = await response.json();
+
+        // Transform standard API response to our simpler format if needed, 
+        // but the API returns [{category, segment: [start, end], UUID}, ...]
+        // Piped returned { category, start, end }
+
+        currentSegments = data.map(item => ({
+            category: item.category,
+            start: item.segment[0],
+            end: item.segment[1]
+        }));
+
+        console.log(`✅ ${currentSegments.length} segmentos de publicidad detectados y listos para saltar.`);
+        if (currentSegments.length > 0) {
+            showToast(`🛡️ Bloqueo de anuncios activado (${currentSegments.length} cortes)`, 'success');
+        }
+
+    } catch (e) {
+        // Silent fail is fine, we just won't skip
+        console.warn("SponsorBlock API fetch failed (non-critical):", e);
     }
 }
 
@@ -1505,6 +1565,8 @@ function loadYouTubeIFrame(videoId) {
     if (isVideoReady && player && player.loadVideoById) {
         player.loadVideoById(videoId);
         player.playVideo();
+        // Also helper to check sponsorblock even for IFrame
+        fetchSponsorBlockSegments(videoId);
     } else {
         console.log("Player not ready, retrying in 500ms...");
         setTimeout(() => loadYouTubeIFrame(videoId), 500);
@@ -2359,16 +2421,13 @@ let progressUpdaterInterval; // Renamed from progressInterval to avoid conflict 
 function checkSkipping(currentTime) {
     if (!currentSegments || currentSegments.length === 0) return;
 
-    // Categories to skip: sponsor, intro, outro, selfpromo, interaction
-    // We strictly want to skip "advertising" at the start, but SponsorBlock defines specific categories.
-    // 'sponsor' is keeping the lights on, usually integrated.
-    // 'intro' is non-music intro.
-    // 'music_offtopic' is non-music parts.
-    const skipCategories = ['sponsor', 'intro', 'selfpromo', 'interaction', 'music_offtopic'];
+    // Categories to skip: sponsor, intro, outro, selfpromo, interaction, music_offtopic, preview, filler
+    const skipCategories = ['sponsor', 'intro', 'outro', 'selfpromo', 'interaction', 'music_offtopic', 'preview', 'filler'];
 
     for (const segment of currentSegments) {
         if (skipCategories.includes(segment.category)) {
-            if (currentTime >= segment.start && currentTime < segment.end) {
+            // Add a small buffer (0.5s) to start to avoid skipping if we just seeked there
+            if (currentTime >= segment.start + 0.2 && currentTime < segment.end) {
                 console.log(`⏭️ Saltando segmento (${segment.category}): ${segment.start} -> ${segment.end}`);
                 showToast(`Saltando ${segment.category}...`, 'info');
 
