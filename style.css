@@ -190,9 +190,10 @@ button.in-queue svg {
 }
 
 .tab-btn.active {
-    background: white;
-    color: black;
-    box-shadow: 0 8px 20px rgba(255, 255, 255, 0.15);
+    background: rgba(30, 215, 96, 0.1);
+    color: var(--accent-color);
+    border-color: rgba(30, 215, 96, 0.3);
+    box-shadow: 0 8px 20px rgba(30, 215, 96, 0.15);
     transform: translateY(-1px);
 }
 
