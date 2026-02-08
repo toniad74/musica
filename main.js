@@ -47,15 +47,14 @@ let isMediaPlaying = false;
 // Invidious instances (fallback if one fails)
 // Prioritize instances known for speed and M4A support
 const INVIDIOUS_INSTANCES = [
-    'invidious.drgns.space',      // Usually fast
-    'invidious.perennialte.ch',   // Reliable
-    'inv.tux.pizza',
-    'invidious.privacydev.net',
-    'yt.artemislena.eu',
-    'invidious.fdn.fr'
+    'inv.tux.pizza',             // Reliable
+    'invidious.drgns.space',     // Fast
+    'invidious.privacydev.net',  // Stable
+    'invidious.fdn.fr',          // Good fallback
+    'yewtu.be',                  // High traffic but reliable
+    'vid.puffyan.us',            // US based
+    'invidious.perennialte.ch'
 ];
-
-
 
 // Piped instances (Secondary fallback)
 const PIPED_INSTANCES = [
@@ -63,8 +62,10 @@ const PIPED_INSTANCES = [
     'https://api.piped.privacydev.net',  // Hero 2 (Stable)
     'https://pipedapi.drgns.space',
     'https://api.piped.projectsegfau.lt',
-    'https://pipedapi.tokhmi.xyz',       // New addition
-    'https://piped-api.lunar.icu'        // New addition
+    'https://pipedapi.tokhmi.xyz',
+    'https://piped-api.lunar.icu',
+    'https://api.piped.kotatsu.org',     // New
+    'https://piped.smnz.de/api'          // New
 ];
 
 // --- INITIALIZATION ---
