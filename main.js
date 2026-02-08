@@ -301,1004 +301,970 @@ function onPlayerStateChange(event) {
         playPauseIconsUpdate(path, true);
 
         if (navigator.mediaSession) {
-            navigator.mediaSession.playbackState = 'playing';
-            updateMediaSessionPosition();
-        }
+            // Player handlers removed (Duplicate / Disabled)
 
-        startSilentAudio();
-        startProgressUpdater();
-        refreshUIHighlights();
-    } else {
-        const path = "M8 5v14l11-7z"; // Play icon
+            function refreshUIHighlights() {
+                renderHomePlaylists();
 
-        if (event.data === YT.PlayerState.PAUSED) {
-            // --- PROTECTION AGAINST UNWANTED BACKGROUND PAUSES ---
-            if (!isUserPaused && !isCurrentlyUsingNative) {
-                console.log("Unwanted YT pause detected! Force resuming...");
-                player.playVideo();
-                return; // Exit early, don't update UI to paused state
-            }
-            isMediaPlaying = false;
-            playPauseIconsUpdate(path, false);
-            if (navigator.mediaSession) {
-                navigator.mediaSession.playbackState = 'paused';
-            }
-            stopSilentAudio();
-            refreshUIHighlights();
-        } else if (event.data === YT.PlayerState.ENDED) {
-            isMediaPlaying = false;
-            playPauseIconsUpdate(path, false);
-            refreshUIHighlights();
-            if (!isCurrentlyUsingNative) handleTrackEnded();
-        } else {
-            playPauseIconsUpdate(path, false);
-            document.getElementById('equalizer').classList.add('hidden');
-        }
-    }
-}
-
-function refreshUIHighlights() {
-    renderHomePlaylists();
-
-    // Refresh highlight in the currently open playlist/search view
-    if (currentTrack) {
-        highlightCurrentTrack(currentTrack.id);
-    }
-
-    // Refresh queue modal if it's open
-    const queueModal = document.getElementById('queueModal');
-    if (queueModal && !queueModal.classList.contains('hidden')) {
-        showQueue();
-    }
-}
-
-// Helper for YT specific icon updates to keep onPlayerStateChange clean
-function playPauseIconsUpdate(path, isPlaying) {
-    updatePlayPauseIcons(isPlaying);
-}
-
-// --- NATIVE AUDIO SETUP ---
-function setupNativeAudioHandlers() {
-    if (!nativeAudio) return;
-
-    nativeAudio.addEventListener('play', () => {
-        console.log('🎵 Audio nativo: reproduciendo');
-        isUserPaused = false;
-
-        // Ensure YT player is paused if we are using native
-        if (player && typeof player.pauseVideo === 'function') {
-            player.pauseVideo();
-        }
-
-        updatePlayPauseIcons(true);
-        // startSilentAudio(); // REMOVED: Conflicts with Media Session controls
-        startProgressUpdater();
-        startServiceWorkerKeepAlive(); // Keep SW active
-        if (navigator.mediaSession) {
-            navigator.mediaSession.playbackState = 'playing';
-            updateMediaSessionPosition();
-        }
-    });
-
-    nativeAudio.addEventListener('pause', () => {
-        console.log('⏸️ Audio nativo: pausado');
-        updatePlayPauseIcons(false);
-
-        // MOBILE FIX: If paused but user didn't intend to pause, resume immediately
-        // CRITICAL: Don't auto-resume if the audio actually ended to allow track transition
-        if (!isUserPaused && !nativeAudio.ended) {
-            console.warn('⚠️ Pausa no autorizada detectada. Forzando reanudación...');
-            setTimeout(() => {
-                if (nativeAudio && nativeAudio.paused && !isUserPaused && !nativeAudio.ended) {
-                    nativeAudio.play().catch(e => console.error('Error al reanudar:', e));
+                // Refresh highlight in the currently open playlist/search view
+                if (currentTrack) {
+                    highlightCurrentTrack(currentTrack.id);
                 }
-            }, 100); // Small delay to let the system settle
-        } else if (navigator.mediaSession) {
-            navigator.mediaSession.playbackState = 'paused';
-            stopSilentAudio();
-            stopServiceWorkerKeepAlive(); // Stop SW keepalive when user pauses
-        }
-    });
 
-    nativeAudio.addEventListener('ended', () => {
-        console.log('✅ Audio nativo: terminado');
-        handleTrackEnded();
-    });
-
-    nativeAudio.addEventListener('timeupdate', updateProgressBar);
-
-    nativeAudio.addEventListener('error', (e) => {
-        const err = e.target.error;
-        console.error('❌ Error en audio nativo:', err);
-
-        // Detailed error logging for debugging
-        let errorMsg = 'Error desconocido';
-        if (err) {
-            switch (err.code) {
-                case err.MEDIA_ERR_ABORTED: errorMsg = 'Abortado por el usuario'; break;
-                case err.MEDIA_ERR_NETWORK: errorMsg = 'Error de red (posible bloqueo 403)'; break;
-                case err.MEDIA_ERR_DECODE: errorMsg = 'Error de decodificación (formato no soportado)'; break;
-                case err.MEDIA_ERR_SRC_NOT_SUPPORTED: errorMsg = 'Formato no soportado / 403 Forbidden'; break;
-                default: errorMsg = `Código: ${err.code} `;
+                // Refresh queue modal if it's open
+                const queueModal = document.getElementById('queueModal');
+                if (queueModal && !queueModal.classList.contains('hidden')) {
+                    showQueue();
+                }
             }
-        }
-        showToast(`Error de audio: ${errorMsg} `, 'error');
 
-        // Clear cached server as it might be the cause
-        localStorage.removeItem('amaya_fastest_server');
+            // Helper for YT specific icon updates to keep onPlayerStateChange clean
+            function playPauseIconsUpdate(path, isPlaying) {
+                updatePlayPauseIcons(isPlaying);
+            }
 
-        if (currentTrack) {
-            console.warn('❌ Clean audio failed. Skipping song instead of using IFrame (Nuclear Option).');
-            showToast('Audio limpio no disponible. Saltando canción...', 'error');
-            // NO desactivamos useNativeAudio globalmente para que la siguiente canción vuelva a intentar modo sin anuncios
-            setTimeout(() => playNext(), 1500);
-        }
-    });
+            // --- NATIVE AUDIO SETUP ---
+            function setupNativeAudioHandlers() {
+                if (!nativeAudio) return;
 
-    nativeAudio.addEventListener('loadstart', () => console.log('⏳ Cargando audio...'));
-    nativeAudio.addEventListener('canplay', () => console.log('✅ Audio listo para reproducir'));
+                nativeAudio.addEventListener('play', () => {
+                    console.log('🎵 Audio nativo: reproduciendo');
+                    isUserPaused = false;
 
-    console.log('✅ Handlers de audio nativo configurados');
-}
+                    // Ensure YT player is paused if we are using native
+                    if (player && typeof player.pauseVideo === 'function') {
+                        player.pauseVideo();
+                    }
 
-function playNativeAudio(url) {
-    if (!nativeAudio) return;
+                    updatePlayPauseIcons(true);
+                    // startSilentAudio(); // REMOVED: Conflicts with Media Session controls
+                    startProgressUpdater();
+                    startServiceWorkerKeepAlive(); // Keep SW active
+                    if (navigator.mediaSession) {
+                        navigator.mediaSession.playbackState = 'playing';
+                        updateMediaSessionPosition();
+                    }
+                });
 
-    // Update Media Session
-    if (navigator.mediaSession && currentTrack) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-            title: currentTrack.title,
-            artist: currentTrack.channel,
-            album: 'Amaya Musica',
-            artwork: [
-                { src: currentTrack.thumbnail, sizes: '300x300', type: 'image/jpeg' }
-            ]
-        });
-    }
+                nativeAudio.addEventListener('pause', () => {
+                    console.log('⏸️ Audio nativo: pausado');
+                    updatePlayPauseIcons(false);
 
-    nativeAudio.src = url;
-    nativeAudio.play().then(() => {
-        console.log("✅ Native playback started");
-        isUserPaused = false;
-        isCurrentlyUsingNative = true;
-        updatePlayPauseIcons(true);
-        if (currentTrack && currentTrack.thumbnail) {
-            updateAmbientBackground(currentTrack.thumbnail);
-        }
-    }).catch(error => {
-        console.error("❌ Native playback failed:", error);
-        if (error.name === 'NotAllowedError') {
-            showToast("⚠️ Toca 'Play' para iniciar", "warning");
-        } else {
-            if (currentTrack) {
-                // If native audio fails, DO NOT immediately fallback to IFrame (which has ads).
-                // Retry with a different server/source.
-                console.warn("⚠️ Native Audio Error - Retrying with different source...");
+                    // MOBILE FIX: If paused but user didn't intend to pause, resume immediately
+                    // CRITICAL: Don't auto-resume if the audio actually ended to allow track transition
+                    if (!isUserPaused && !nativeAudio.ended) {
+                        console.warn('⚠️ Pausa no autorizada detectada. Forzando reanudación...');
+                        setTimeout(() => {
+                            if (nativeAudio && nativeAudio.paused && !isUserPaused && !nativeAudio.ended) {
+                                nativeAudio.play().catch(e => console.error('Error al reanudar:', e));
+                            }
+                        }, 100); // Small delay to let the system settle
+                    } else if (navigator.mediaSession) {
+                        navigator.mediaSession.playbackState = 'paused';
+                        stopSilentAudio();
+                        stopServiceWorkerKeepAlive(); // Stop SW keepalive when user pauses
+                    }
+                });
 
-                // Avoid infinite loop loops
-                if (!currentTrack.retryCount) currentTrack.retryCount = 0;
+                nativeAudio.addEventListener('ended', () => {
+                    console.log('✅ Audio nativo: terminado');
+                    handleTrackEnded();
+                });
 
-                if (currentTrack.retryCount < 4) { // Increased to 4 retries
-                    currentTrack.retryCount++;
-                    showToast(`Buscando otra fuente(${currentTrack.retryCount} / 4)...`);
+                nativeAudio.addEventListener('timeupdate', updateProgressBar);
 
-                    // Force a fresh fetch (ignoring cache if needed)
+                nativeAudio.addEventListener('error', (e) => {
+                    const err = e.target.error;
+                    console.error('❌ Error en audio nativo:', err);
+
+                    // Detailed error logging for debugging
+                    let errorMsg = 'Error desconocido';
+                    if (err) {
+                        switch (err.code) {
+                            case err.MEDIA_ERR_ABORTED: errorMsg = 'Abortado por el usuario'; break;
+                            case err.MEDIA_ERR_NETWORK: errorMsg = 'Error de red (posible bloqueo 403)'; break;
+                            case err.MEDIA_ERR_DECODE: errorMsg = 'Error de decodificación (formato no soportado)'; break;
+                            case err.MEDIA_ERR_SRC_NOT_SUPPORTED: errorMsg = 'Formato no soportado / 403 Forbidden'; break;
+                            default: errorMsg = `Código: ${err.code} `;
+                        }
+                    }
+                    showToast(`Error de audio: ${errorMsg} `, 'error');
+
+                    // Clear cached server as it might be the cause
                     localStorage.removeItem('amaya_fastest_server');
 
-                    setTimeout(() => {
-                        playSong(currentTrack, queue, true);
-                    }, 1000);
-                } else {
-                    // STRICT MODE: Skip instead of IFrame
-                    showToast("No se encontró audio sin anuncios. Pasando a la siguiente.", "error");
-                    setTimeout(() => playNext(), 1500);
+                    if (currentTrack) {
+                        console.warn('❌ Clean audio failed. Skipping song instead of using IFrame (Nuclear Option).');
+                        showToast('Audio limpio no disponible. Saltando canción...', 'error');
+                        // NO desactivamos useNativeAudio globalmente para que la siguiente canción vuelva a intentar modo sin anuncios
+                        setTimeout(() => playNext(), 1500);
+                    }
+                });
+
+                nativeAudio.addEventListener('loadstart', () => console.log('⏳ Cargando audio...'));
+                nativeAudio.addEventListener('canplay', () => console.log('✅ Audio listo para reproducir'));
+
+                console.log('✅ Handlers de audio nativo configurados');
+            }
+
+            function playNativeAudio(url) {
+                if (!nativeAudio) return;
+
+                // Update Media Session
+                if (navigator.mediaSession && currentTrack) {
+                    navigator.mediaSession.metadata = new MediaMetadata({
+                        title: currentTrack.title,
+                        artist: currentTrack.channel,
+                        album: 'Amaya Musica',
+                        artwork: [
+                            { src: currentTrack.thumbnail, sizes: '300x300', type: 'image/jpeg' }
+                        ]
+                    });
                 }
+
+                nativeAudio.src = url;
+                nativeAudio.play().then(() => {
+                    console.log("✅ Native playback started");
+                    isUserPaused = false;
+                    isCurrentlyUsingNative = true;
+                    updatePlayPauseIcons(true);
+                    if (currentTrack && currentTrack.thumbnail) {
+                        updateAmbientBackground(currentTrack.thumbnail);
+                    }
+                }).catch(error => {
+                    console.error("❌ Native playback failed:", error);
+                    if (error.name === 'NotAllowedError') {
+                        showToast("⚠️ Toca 'Play' para iniciar", "warning");
+                    } else {
+                        if (currentTrack) {
+                            // If native audio fails, DO NOT immediately fallback to IFrame (which has ads).
+                            // Retry with a different server/source.
+                            console.warn("⚠️ Native Audio Error - Retrying with different source...");
+
+                            // Avoid infinite loop loops
+                            if (!currentTrack.retryCount) currentTrack.retryCount = 0;
+
+                            if (currentTrack.retryCount < 4) { // Increased to 4 retries
+                                currentTrack.retryCount++;
+                                showToast(`Buscando otra fuente(${currentTrack.retryCount} / 4)...`);
+
+                                // Force a fresh fetch (ignoring cache if needed)
+                                localStorage.removeItem('amaya_fastest_server');
+
+                                setTimeout(() => {
+                                    playSong(currentTrack, queue, true);
+                                }, 1000);
+                            } else {
+                                // STRICT MODE: Skip instead of IFrame
+                                showToast("No se encontró audio sin anuncios. Pasando a la siguiente.", "error");
+                                setTimeout(() => playNext(), 1500);
+                            }
+                        }
+                    }
+                });
             }
-        }
-    });
-}
 
-// --- MEDIA SESSION SETUP ---
-function setupMediaSessionHandlers() {
-    if (!('mediaSession' in navigator)) return;
+            // --- MEDIA SESSION SETUP ---
+            function setupMediaSessionHandlers() {
+                if (!('mediaSession' in navigator)) return;
 
-    // Use a robust approach to set action handlers
-    const safeSetHandler = (action, handler) => {
-        try {
-            navigator.mediaSession.setActionHandler(action, handler);
-        } catch (error) {
-            console.log(`Media Session action "${action}" is not supported.`);
-        }
-    };
+                // Use a robust approach to set action handlers
+                const safeSetHandler = (action, handler) => {
+                    try {
+                        navigator.mediaSession.setActionHandler(action, handler);
+                    } catch (error) {
+                        console.log(`Media Session action "${action}" is not supported.`);
+                    }
+                };
 
-    safeSetHandler('play', () => {
-        console.log("MediaSession: Play");
-        isUserPaused = false;
-        navigator.mediaSession.playbackState = 'playing';
-        if (isCurrentlyUsingNative && nativeAudio) {
-            nativeAudio.play().catch(e => console.error("MS Play error:", e));
-        } else if (player) {
-            player.playVideo();
-        }
-    });
+                safeSetHandler('play', () => {
+                    console.log("MediaSession: Play");
+                    isUserPaused = false;
+                    navigator.mediaSession.playbackState = 'playing';
+                    if (isCurrentlyUsingNative && nativeAudio) {
+                        nativeAudio.play().catch(e => console.error("MS Play error:", e));
+                    } else if (player) {
+                        player.playVideo();
+                    }
+                });
 
-    safeSetHandler('pause', () => {
-        console.log("MediaSession: Pause");
-        isUserPaused = true;
-        navigator.mediaSession.playbackState = 'paused';
-        if (isCurrentlyUsingNative && nativeAudio) {
-            nativeAudio.pause();
-        } else if (player) {
-            player.pauseVideo();
-        }
-    });
+                safeSetHandler('pause', () => {
+                    console.log("MediaSession: Pause");
+                    isUserPaused = true;
+                    navigator.mediaSession.playbackState = 'paused';
+                    if (isCurrentlyUsingNative && nativeAudio) {
+                        nativeAudio.pause();
+                    } else if (player) {
+                        player.pauseVideo();
+                    }
+                });
 
-    safeSetHandler('stop', () => {
-        console.log("MediaSession: Stop");
-        isUserPaused = true;
-        navigator.mediaSession.playbackState = 'none';
-        if (isCurrentlyUsingNative && nativeAudio) {
-            nativeAudio.pause();
-            nativeAudio.currentTime = 0;
-        } else if (player) {
-            player.stopVideo();
-        }
-    });
+                safeSetHandler('stop', () => {
+                    console.log("MediaSession: Stop");
+                    isUserPaused = true;
+                    navigator.mediaSession.playbackState = 'none';
+                    if (isCurrentlyUsingNative && nativeAudio) {
+                        nativeAudio.pause();
+                        nativeAudio.currentTime = 0;
+                    } else if (player) {
+                        player.stopVideo();
+                    }
+                });
 
-    safeSetHandler('previoustrack', () => {
-        console.log("MediaSession: Previous Track");
-        playPrevious();
-    });
+                safeSetHandler('previoustrack', () => {
+                    console.log("MediaSession: Previous Track");
+                    playPrevious();
+                });
 
-    safeSetHandler('nexttrack', () => {
-        console.log("MediaSession: Next Track");
-        playNext();
-    });
+                safeSetHandler('nexttrack', () => {
+                    console.log("MediaSession: Next Track");
+                    playNext();
+                });
 
-    safeSetHandler('seekto', (details) => {
-        console.log("MediaSession: Seek To", details.seekTime);
-        if (details.seekTime !== undefined) {
-            if (isCurrentlyUsingNative && nativeAudio) {
-                nativeAudio.currentTime = details.seekTime;
-            } else if (player && player.seekTo) {
-                player.seekTo(details.seekTime);
+                safeSetHandler('seekto', (details) => {
+                    console.log("MediaSession: Seek To", details.seekTime);
+                    if (details.seekTime !== undefined) {
+                        if (isCurrentlyUsingNative && nativeAudio) {
+                            nativeAudio.currentTime = details.seekTime;
+                        } else if (player && player.seekTo) {
+                            player.seekTo(details.seekTime);
+                        }
+                        updateMediaSessionPosition();
+                    }
+                });
+
+                safeSetHandler('seekbackward', (details) => {
+                    console.log("MediaSession: Seek Backward");
+                    const skipTime = details.seekOffset || 10;
+                    if (isCurrentlyUsingNative && nativeAudio) {
+                        nativeAudio.currentTime = Math.max(nativeAudio.currentTime - skipTime, 0);
+                    } else if (player) {
+                        player.seekTo(Math.max(player.getCurrentTime() - skipTime, 0));
+                    }
+                    updateMediaSessionPosition();
+                });
+
+                safeSetHandler('seekforward', (details) => {
+                    console.log("MediaSession: Seek Forward");
+                    const skipTime = details.seekOffset || 10;
+                    if (isCurrentlyUsingNative && nativeAudio) {
+                        nativeAudio.currentTime = Math.min(nativeAudio.currentTime + skipTime, nativeAudio.duration || 0);
+                    } else if (player) {
+                        player.seekTo(Math.min(player.getCurrentTime() + skipTime, player.getDuration() || 0));
+                    }
+                    updateMediaSessionPosition();
+                });
+
+                console.log('✅ Media Session handlers configurados (Robust Mode)');
             }
-            updateMediaSessionPosition();
-        }
-    });
 
-    safeSetHandler('seekbackward', (details) => {
-        console.log("MediaSession: Seek Backward");
-        const skipTime = details.seekOffset || 10;
-        if (isCurrentlyUsingNative && nativeAudio) {
-            nativeAudio.currentTime = Math.max(nativeAudio.currentTime - skipTime, 0);
-        } else if (player) {
-            player.seekTo(Math.max(player.getCurrentTime() - skipTime, 0));
-        }
-        updateMediaSessionPosition();
-    });
+            function updatePlayPauseIcons(isPlaying) {
+                isMediaPlaying = isPlaying;
+                const path = isPlaying ? "M6 4h4v16H6zm8 0h4v16h-4z" : "M8 5v14l11-7z";
+                const playPauseIcon = document.getElementById('playPauseIcon');
+                const mobilePlayPauseIcon = document.getElementById('mobilePlayPauseIcon');
+                const mobileMainPlayIcon = document.getElementById('mobileMainPlayIcon');
 
-    safeSetHandler('seekforward', (details) => {
-        console.log("MediaSession: Seek Forward");
-        const skipTime = details.seekOffset || 10;
-        if (isCurrentlyUsingNative && nativeAudio) {
-            nativeAudio.currentTime = Math.min(nativeAudio.currentTime + skipTime, nativeAudio.duration || 0);
-        } else if (player) {
-            player.seekTo(Math.min(player.getCurrentTime() + skipTime, player.getDuration() || 0));
-        }
-        updateMediaSessionPosition();
-    });
+                if (playPauseIcon) playPauseIcon.setAttribute('d', path);
+                if (mobilePlayPauseIcon) mobilePlayPauseIcon.innerHTML = `< path d = "${path}" /> `;
+                if (mobileMainPlayIcon) mobileMainPlayIcon.innerHTML = `< path d = "${path}" /> `;
 
-    console.log('✅ Media Session handlers configurados (Robust Mode)');
-}
+                const equalizer = document.getElementById('equalizer');
+                const equalizerBars = document.querySelector('.equalizer-bars');
+                if (equalizer && equalizerBars) {
+                    if (isPlaying) {
+                        equalizer.classList.remove('hidden');
+                        equalizerBars.classList.remove('paused');
+                    } else {
+                        equalizerBars.classList.add('paused');
+                    }
+                }
 
-function updatePlayPauseIcons(isPlaying) {
-    isMediaPlaying = isPlaying;
-    const path = isPlaying ? "M6 4h4v16H6zm8 0h4v16h-4z" : "M8 5v14l11-7z";
-    const playPauseIcon = document.getElementById('playPauseIcon');
-    const mobilePlayPauseIcon = document.getElementById('mobilePlayPauseIcon');
-    const mobileMainPlayIcon = document.getElementById('mobileMainPlayIcon');
+                // Refresh UI highlights
+                refreshUIHighlights();
+            }
 
-    if (playPauseIcon) playPauseIcon.setAttribute('d', path);
-    if (mobilePlayPauseIcon) mobilePlayPauseIcon.innerHTML = `< path d = "${path}" /> `;
-    if (mobileMainPlayIcon) mobileMainPlayIcon.innerHTML = `< path d = "${path}" /> `;
+            // --- INVIDIOUS & PIPED INTEGRATION ---
+            // --- INVIDIOUS & PIPED INTEGRATION (ROBUST SEQUENTIAL) ---
+            async function getAudioUrl(videoId) {
+                try {
+                    console.log(`🔍 Obteniendo URL de audio para: ${videoId} `);
+                    showToast("Buscando audio...");
 
-    const equalizer = document.getElementById('equalizer');
-    const equalizerBars = document.querySelector('.equalizer-bars');
-    if (equalizer && equalizerBars) {
-        if (isPlaying) {
-            equalizer.classList.remove('hidden');
-            equalizerBars.classList.remove('paused');
-        } else {
-            equalizerBars.classList.add('paused');
-        }
-    }
+                    // 1. Try Cached Instance First
+                    const cachedInstance = localStorage.getItem('amaya_fastest_server');
+                    if (cachedInstance) {
+                        console.log(`⚡ Usando servidor rápido guardado: ${cachedInstance} `);
+                        try {
+                            const result = await fetchFromPiped(cachedInstance, videoId, 3000);
+                            if (result && result.url) {
+                                // Start SponsorBlock search in parallel/background
+                                fetchSponsorBlockSegments(videoId);
+                                return result.url;
+                            }
+                        } catch (e) {
+                            console.warn("Servidor guardado falló, probando otros...");
+                            localStorage.removeItem('amaya_fastest_server');
+                        }
+                    }
 
-    // Refresh UI highlights
-    refreshUIHighlights();
-}
+                    // 2. Sequential Exhaustive Search
+                    // Shuffle to load balance, but keep it deterministic per session to avoid re-trying same failed ones too often
+                    const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
 
-// --- INVIDIOUS & PIPED INTEGRATION ---
-// --- INVIDIOUS & PIPED INTEGRATION (ROBUST SEQUENTIAL) ---
-async function getAudioUrl(videoId) {
-    try {
-        console.log(`🔍 Obteniendo URL de audio para: ${videoId} `);
-        showToast("Buscando audio...");
+                    let attempt = 0;
+                    for (const instance of candidates) {
+                        attempt++;
+                        try {
+                            const shortName = instance.replace('https://', '').split('.')[0];
+                            if (attempt % 3 === 0) showToast(`Probando fuente ${attempt}/${candidates.length}...`);
 
-        // 1. Try Cached Instance First
-        const cachedInstance = localStorage.getItem('amaya_fastest_server');
-        if (cachedInstance) {
-            console.log(`⚡ Usando servidor rápido guardado: ${cachedInstance} `);
-            try {
-                const result = await fetchFromPiped(cachedInstance, videoId, 3000);
-                if (result && result.url) {
-                    // Start SponsorBlock search in parallel/background
+                            console.log(`Trying Piped: ${instance}`);
+                            const result = await fetchFromPiped(instance, videoId, 5000); // Increased to 5s to be more patient
+                            if (result && result.url) {
+                                console.log(`✅ Éxito en: ${instance}`);
+                                localStorage.setItem('amaya_fastest_server', instance);
+
+                                // Fetch SponsorBlock independently
+                                fetchSponsorBlockSegments(videoId);
+
+                                return result.url;
+                            }
+                        } catch (e) {
+                            // Continúa al siguiente
+                        }
+                    }
+
+                    // STAGE 2: Try Invidious Instances (Fallback)
+                    console.log("⚠️ Piped falló. Intentando Invidious (Fallback)...");
+                    showToast("Probando servidores de seguridad...");
+
+                    // Even with Invidious, we try to fetch segments
                     fetchSponsorBlockSegments(videoId);
-                    return result.url;
+
+                    for (let instance of INVIDIOUS_INSTANCES) {
+                        try {
+                            const url = `${instance}/api/v1/videos/${videoId}`;
+
+                            const controller = new AbortController();
+                            // Normalized URL handling (some instances in list might miss https://)
+                            const fetchUrl = url.startsWith('http') ? url : `https://${url}`;
+
+                            const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+                            const response = await fetch(fetchUrl, { method: 'GET', signal: controller.signal });
+                            clearTimeout(timeoutId);
+                            if (!response.ok) continue;
+
+                            const data = await response.json();
+                            if (!data.adaptiveFormats || data.adaptiveFormats.length === 0) continue;
+
+                            const audioFormats = data.adaptiveFormats.filter(f => f.type && f.type.includes('audio'))
+                                .sort((a, b) => {
+                                    const getScore = (format) => {
+                                        let score = 0;
+                                        // Prioritize WebM/Opus (more reliable on Piped/Invidious) AND MP4
+                                        if (format.type && (format.type.includes('webm') || format.type.includes('opus'))) score += 1200;
+                                        if (format.type && (format.type.includes('mp4') || format.type.includes('m4a'))) score += 1000;
+                                        if (format.bitrate) score += parseInt(format.bitrate) / 1000;
+                                        return score;
+                                    };
+                                    return getScore(b) - getScore(a);
+                                });
+
+                            if (audioFormats.length > 0) {
+                                console.log(`✅ Audio Invidious: ${instance}`);
+                                return audioFormats[0].url;
+                            }
+                        } catch (error) { continue; }
+                    }
+
+                    throw new Error('No se pudo obtener audio de ninguna fuente.');
+                } catch (finalError) {
+                    console.error("Audio fetch failed:", finalError);
+                    throw finalError;
                 }
-            } catch (e) {
-                console.warn("Servidor guardado falló, probando otros...");
-                localStorage.removeItem('amaya_fastest_server');
             }
-        }
 
-        // 2. Sequential Exhaustive Search
-        // Shuffle to load balance, but keep it deterministic per session to avoid re-trying same failed ones too often
-        const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
 
-        let attempt = 0;
-        for (const instance of candidates) {
-            attempt++;
-            try {
-                const shortName = instance.replace('https://', '').split('.')[0];
-                if (attempt % 3 === 0) showToast(`Probando fuente ${attempt}/${candidates.length}...`);
 
-                console.log(`Trying Piped: ${instance}`);
-                const result = await fetchFromPiped(instance, videoId, 5000); // Increased to 5s to be more patient
-                if (result && result.url) {
-                    console.log(`✅ Éxito en: ${instance}`);
-                    localStorage.setItem('amaya_fastest_server', instance);
-
-                    // Fetch SponsorBlock independently
-                    fetchSponsorBlockSegments(videoId);
-
-                    return result.url;
-                }
-            } catch (e) {
-                // Continúa al siguiente
-            }
-        }
-
-        // STAGE 2: Try Invidious Instances (Fallback)
-        console.log("⚠️ Piped falló. Intentando Invidious (Fallback)...");
-        showToast("Probando servidores de seguridad...");
-
-        // Even with Invidious, we try to fetch segments
-        fetchSponsorBlockSegments(videoId);
-
-        for (let instance of INVIDIOUS_INSTANCES) {
-            try {
-                const url = `${instance}/api/v1/videos/${videoId}`;
-
+            // Helper for Racing
+            async function fetchFromPiped(apiBase, videoId, timeoutMs) {
+                const url = `${apiBase}/streams/${videoId}`;
                 const controller = new AbortController();
-                // Normalized URL handling (some instances in list might miss https://)
-                const fetchUrl = url.startsWith('http') ? url : `https://${url}`;
+                const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-                const timeoutId = setTimeout(() => controller.abort(), 4000);
+                try {
+                    const response = await fetch(url, { method: 'GET', signal: controller.signal });
+                    clearTimeout(timeoutId);
 
-                const response = await fetch(fetchUrl, { method: 'GET', signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (!response.ok) continue;
+                    if (!response.ok) throw new Error(`Status ${response.status}`);
 
-                const data = await response.json();
-                if (!data.adaptiveFormats || data.adaptiveFormats.length === 0) continue;
+                    const data = await response.json();
+                    if (!data.audioStreams || data.audioStreams.length === 0) throw new Error("No streams");
 
-                const audioFormats = data.adaptiveFormats.filter(f => f.type && f.type.includes('audio'))
-                    .sort((a, b) => {
-                        const getScore = (format) => {
+                    // Extract SponsorBlock segments
+                    const segments = data.sponsorblock || [];
+
+                    // Prefer WebM/Opus AND MP4/M4A
+                    const audioStreams = data.audioStreams.sort((a, b) => {
+                        const getScore = (stream) => {
                             let score = 0;
-                            // Prioritize WebM/Opus (more reliable on Piped/Invidious) AND MP4
-                            if (format.type && (format.type.includes('webm') || format.type.includes('opus'))) score += 1200;
-                            if (format.type && (format.type.includes('mp4') || format.type.includes('m4a'))) score += 1000;
-                            if (format.bitrate) score += parseInt(format.bitrate) / 1000;
+                            // WebM/Opus is often unthrottled and more available
+                            if (stream.mimeType && (stream.mimeType.includes('webm') || stream.mimeType.includes('opus'))) score += 1200;
+                            if (stream.mimeType && stream.mimeType.includes('mp4')) score += 1000;
+                            if (stream.bitrate) score += stream.bitrate / 1000;
                             return score;
                         };
                         return getScore(b) - getScore(a);
                     });
 
-                if (audioFormats.length > 0) {
-                    console.log(`✅ Audio Invidious: ${instance}`);
-                    return audioFormats[0].url;
-                }
-            } catch (error) { continue; }
-        }
+                    if (audioStreams.length > 0) {
+                        console.log(`✅ Piped winner: ${apiBase}`);
+                        showToast(`Conectado a ${apiBase.replace('https://', '').split('.')[0]}`);
 
-        throw new Error('No se pudo obtener audio de ninguna fuente.');
-    } catch (finalError) {
-        console.error("Audio fetch failed:", finalError);
-        throw finalError;
-    }
-}
+                        // Save winner for next time to make startup instant
+                        localStorage.setItem('amaya_fastest_server', apiBase);
 
-
-
-// Helper for Racing
-async function fetchFromPiped(apiBase, videoId, timeoutMs) {
-    const url = `${apiBase}/streams/${videoId}`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-        const response = await fetch(url, { method: 'GET', signal: controller.signal });
-        clearTimeout(timeoutId);
-
-        if (!response.ok) throw new Error(`Status ${response.status}`);
-
-        const data = await response.json();
-        if (!data.audioStreams || data.audioStreams.length === 0) throw new Error("No streams");
-
-        // Extract SponsorBlock segments
-        const segments = data.sponsorblock || [];
-
-        // Prefer WebM/Opus AND MP4/M4A
-        const audioStreams = data.audioStreams.sort((a, b) => {
-            const getScore = (stream) => {
-                let score = 0;
-                // WebM/Opus is often unthrottled and more available
-                if (stream.mimeType && (stream.mimeType.includes('webm') || stream.mimeType.includes('opus'))) score += 1200;
-                if (stream.mimeType && stream.mimeType.includes('mp4')) score += 1000;
-                if (stream.bitrate) score += stream.bitrate / 1000;
-                return score;
-            };
-            return getScore(b) - getScore(a);
-        });
-
-        if (audioStreams.length > 0) {
-            console.log(`✅ Piped winner: ${apiBase}`);
-            showToast(`Conectado a ${apiBase.replace('https://', '').split('.')[0]}`);
-
-            // Save winner for next time to make startup instant
-            localStorage.setItem('amaya_fastest_server', apiBase);
-
-            // Return object with URL
-            return {
-                url: audioStreams[0].url
-                // segments: segments // DEPRECATED: We fetch independently now
-            };
-        }
-        throw new Error("No valid streams");
-    } catch (e) {
-        throw e;
-    }
-}
-
-// --- SPONSORBLOCK DIRECT API ---
-async function fetchSponsorBlockSegments(videoId) {
-    currentSegments = []; // Reset first
-
-    // Categories to skip (Aggressive Mode)
-    // sponsor: Paid promotion
-    // intro: Animation/intermission before video
-    // outro: End credits/intermission
-    // interaction: "Like and subscribe"
-    // selfpromo: Unpaid promotion
-    // music_offtopic: Non-music sections in music videos
-    // preview: Recaps
-    // filler: Filler content
-    const categories = ['sponsor', 'intro', 'outro', 'interaction', 'selfpromo', 'music_offtopic', 'preview', 'filler'];
-
-    try {
-        console.log(`🛡️ Consultando SponsorBlock API para: ${videoId}`);
-        // categories parameter needs to be repeated: ?category=sponsor&category=intro...
-        const categoryParams = categories.map(c => `category=${c}`).join('&');
-        const url = `https://sponsor.ajay.app/api/skipSegments?videoID=${videoId}&${categoryParams}`;
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout is enough
-
-        const response = await fetch(url, { signal: controller.signal });
-        clearTimeout(timeoutId);
-
-        if (response.status === 404) {
-            console.log("ℹ️ No hay segmentos SponsorBlock para este video.");
-            return;
-        }
-
-        if (!response.ok) throw new Error("API returned " + response.status);
-
-        const data = await response.json();
-
-        // Transform standard API response to our simpler format if needed, 
-        // but the API returns [{category, segment: [start, end], UUID}, ...]
-        // Piped returned { category, start, end }
-
-        currentSegments = data.map(item => ({
-            category: item.category,
-            start: item.segment[0],
-            end: item.segment[1]
-        }));
-
-        console.log(`✅ ${currentSegments.length} segmentos de publicidad detectados y listos para saltar.`);
-        if (currentSegments.length > 0) {
-            showToast(`🛡️ Bloqueo de anuncios activado (${currentSegments.length} cortes)`, 'success');
-        }
-
-    } catch (e) {
-        // Silent fail is fine, we just won't skip
-        console.warn("SponsorBlock API fetch failed (non-critical):", e);
-    }
-}
-
-// --- BACKGROUND PLAYBACK & OPIMIZATION ---
-
-let wakeLock = null;
-let wakeLockRequested = false;
-
-async function requestWakeLock() {
-    if (!('wakeLock' in navigator)) return;
-
-    try {
-        wakeLock = await navigator.wakeLock.request('screen');
-        wakeLockRequested = true;
-        console.log("🔒 Wake Lock activado");
-
-        // Re-request if released by system
-        wakeLock.addEventListener('release', () => {
-            console.warn('⚠️ Wake Lock liberado por el sistema');
-            if (wakeLockRequested && !isUserPaused) {
-                setTimeout(() => requestWakeLock(), 1000);
-            }
-        });
-    } catch (err) {
-        console.error(`Wake Lock error: ${err.name}, ${err.message}`);
-    }
-}
-
-function releaseWakeLock() {
-    wakeLockRequested = false;
-    if (wakeLock) {
-        wakeLock.release().then(() => {
-            wakeLock = null;
-            console.log("🔓 Wake Lock liberado");
-        });
-    }
-}
-
-// Re-request wake lock on visibility change (it can be released by the OS)
-document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState === 'visible') {
-        await requestWakeLock();
-    } else {
-        // App went to background
-        // Ensure audio context is passing time to keep the thread alive
-        if (audioCtx && audioCtx.state === 'suspended') {
-            audioCtx.resume();
-        }
-    }
-});
-
-let audioCtx = null;
-let oscillator = null;
-let gainNode = null;
-
-function initAudioContext() {
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
-}
-
-function keepAudioAlive() {
-    try {
-        initAudioContext();
-
-        // Stop existing oscillator to avoid stacking
-        if (oscillator) {
-            try { oscillator.stop(); } catch (e) { }
-            oscillator.disconnect();
-        }
-
-        // Create a "pulsing" oscillator
-        // Changing parameters forces the audio engine to stay active calculating mixing
-        oscillator = audioCtx.createOscillator();
-        gainNode = audioCtx.createGain();
-
-        oscillator.type = 'sine';
-        oscillator.frequency.value = 60; // Low frequency
-
-        // Very low volume, effectively silent but mathematically present
-        gainNode.gain.value = 0.001;
-
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-
-        oscillator.start();
-
-        // "Pulse" the frequency every few seconds to prevent optimization
-        // (Some engines sleep if the graph is static)
-        setInterval(() => {
-            if (audioCtx && audioCtx.state === 'running' && oscillator) {
-                const newFreq = oscillator.frequency.value === 60 ? 65 : 60;
-                oscillator.frequency.setValueAtTime(newFreq, audioCtx.currentTime);
-            }
-        }, 5000);
-
-        console.log("Enhanced Web Audio Heartbeat active");
-    } catch (e) {
-        console.error("Web Audio Heartbeat failed:", e);
-    }
-}
-
-function startSilentAudio() {
-    const audio = document.getElementById('silentAudio');
-    if (audio) {
-        audio.volume = 0.01; // Not zero, to prevent "mute" optimization
-        // Manual loop: better than loop attribute for some browsers
-        audio.onended = () => {
-            audio.currentTime = 0;
-            audio.play().catch(() => { });
-        };
-        audio.play().catch(e => console.log("Silent audio failed to start:", e));
-    }
-
-    keepAudioAlive();
-    requestWakeLock();
-}
-
-function stopSilentAudio() {
-    // We actually DON'T want to unwantedly stop the heartbeat if we want background resilience,
-    // but we can lower the priority if paused. 
-    // For now, we'll clear resources to be good citizens when explicitly paused.
-
-    const audio = document.getElementById('silentAudio');
-    if (audio) {
-        audio.pause();
-    }
-
-    if (oscillator) {
-        try { oscillator.stop(); } catch (e) { }
-        oscillator = null;
-    }
-
-    releaseWakeLock();
-}
-
-// --- PICTURE IN PICTURE ---
-async function togglePictureInPicture() {
-    try {
-        if (document.pictureInPictureElement) {
-            await document.exitPictureInPicture();
-        } else {
-            // NOTE: YouTube IFrame API doesn't expose the video element directly for PiP 
-            // easily unless we hack it or use the Media Session API actions.
-            // HOWEVER, we can try to use the MediaSession 'enterpictureinpicture' action if supported,
-            // OR simply suggest the user use the native controls if we can't force it.
-
-            // BUT, strictly speaking, `document.pictureInPictureElement` works on VIDEO tags.
-            // The YT Iframe contains a video tag but it's cross-origin usually.
-            // So we might depend on the User activating it via the native player controls if the API blocks us.
-
-            // Let's try a workaround: create a dummy video for PiP that "proxies" the audio?
-            // No, that's too complex.
-
-            // Alternative: The user might be on Android/iOS knowing the native player has PiP.
-            // We will just show a Toast explaining how to use it if we can't trigger it programmatically
-            // for the YT frame.
-
-            showToast("Usa el botón PiP del reproductor de YouTube");
-        }
-    } catch (error) {
-        console.error(error);
-        showToast("Error al activar PiP: " + error.message, "error");
-    }
-}
-
-// Helper to try to enable background playback capabilities
-function enableBackgroundPlayback() {
-    // iOS Safari requires a user interaction to start audio context
-    document.addEventListener('touchstart', function () {
-        initAudioContext();
-    }, { once: true });
-
-    document.addEventListener('click', function () {
-        initAudioContext();
-    }, { once: true });
-}
-
-enableBackgroundPlayback();
-
-async function onPlayerError(event) {
-    console.error("YT Player Error:", event.data);
-
-    // Restrictions (External playback forbidden)
-    if (event.data === 101 || event.data === 150) {
-        if (currentTrack && !currentTrack.isFallback) {
-            showToast("Canción restringida. Buscando versión de audio compatible...", "error");
-
-            try {
-                // Background search for audio version - prioritize "Topic" and "Lyrics" for better compatibility
-                // REPLACED: Use Piped instead of Google API to avoid quota issues
-                const fallbackSongResult = await findPipedFallback(currentTrack);
-
-                if (fallbackSongResult) {
-                    showToast("Reproduciendo versión alternativa");
-
-                    // Force native audio for the fallback, as IFrame will likely fail for the same reason (restriction)
-                    useNativeAudio = true;
-
-                    // Update current track in queue to avoid repeated failures if re-played
-                    if (currentQueueIndex >= 0 && currentQueueIndex < queue.length) {
-                        queue[currentQueueIndex] = fallbackSongResult;
+                        // Return object with URL
+                        return {
+                            url: audioStreams[0].url
+                            // segments: segments // DEPRECATED: We fetch independently now
+                        };
                     }
-                    playSong(fallbackSongResult, queue, true);
-                    return;
-                }
-            } catch (fallbackError) {
-                console.error("Fallback search failed:", fallbackError);
-            }
-        }
-
-        showToast("No se pudo encontrar una versión compatible. Saltando...", "error");
-    } else {
-        showToast("Error de reproducción", "error");
-    }
-
-    // Final fallback: skip to next
-    if (queue.length > 0) {
-        setTimeout(() => playNext(), 2000);
-    }
-}
-
-// --- PIPED SEARCH FALLBACK ---
-async function searchPiped(query) {
-    console.log("🕵️ Iniciando búsqueda de respaldo en Piped para:", query);
-    showToast("Usando buscador alternativo...");
-
-    // Try multiple instances until one works
-    // We reuse the PIPED_INSTANCES list
-    // Shuffle slightly to distribute load, but keep "heroes" often
-    const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
-
-    for (let instance of candidates) {
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
-
-            const response = await fetch(`${instance}/search?q=${encodeURIComponent(query)}&filter=music_videos`, {
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-
-            if (!response.ok) continue;
-
-            const data = await response.json();
-            if (!data.items || data.items.length === 0) continue;
-
-            console.log(`✅ Búsqueda Piped exitosa en: ${instance}`);
-
-            // Map Piped format to our internal format
-            return data.items.map(item => ({
-                id: item.url.split('/watch?v=')[1],
-                title: item.title,
-                channel: item.uploaderName,
-                thumbnail: item.thumbnail,
-                duration: item.duration ? formatPipedDuration(item.duration) : '0:00'
-            }));
-
-        } catch (e) {
-            continue;
-        }
-    }
-    throw new Error("Piped search failed on all instances");
-}
-
-function formatPipedDuration(seconds) {
-    if (!seconds) return '0:00';
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-// Helper to find audio-only fallback without using API key
-async function findPipedFallback(song) {
-    const query = `${song.title} ${song.channel} topic audio`;
-    try {
-        const results = await searchPiped(query);
-        if (results && results.length > 0) {
-            return {
-                ...results[0],
-                isFallback: true
-            };
-        }
-    } catch (e) {
-        console.error("Piped fallback search failed:", e);
-    }
-    return null;
-}
-
-// --- API KEY MANAGEMENT ---
-function saveApiKey() {
-    const keys = [];
-    for (let i = 1; i <= 3; i++) {
-        const val = document.getElementById(`apiKeyInput${i}`).value.trim();
-        if (val) keys.push(val);
-    }
-
-    if (keys.length > 0) {
-        apiKeys = keys;
-        currentKeyIndex = 0;
-        localStorage.setItem('amaya_yt_keys', JSON.stringify(keys));
-        localStorage.setItem('amaya_yt_key_index', 0);
-        document.getElementById('apiKeySection').classList.add('hidden');
-        document.getElementById('apiKeyToggleButton').innerText = "Mostrar clave API";
-        document.getElementById('apiWarning').classList.add('hidden');
-        showToast(`Guardadas ${keys.length} claves con éxito`);
-    } else {
-        showToast("Por favor, introduce al menos una clave", "error");
-    }
-}
-
-function rotateApiKey() {
-    if (apiKeys.length <= 1) return false;
-    currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
-    localStorage.setItem('amaya_yt_key_index', currentKeyIndex);
-    console.log(`🔄 Rotando a clave API #${currentKeyIndex + 1}`);
-    return true;
-}
-
-function getCurrentApiKey() {
-    return apiKeys[currentKeyIndex] || '';
-}
-
-function toggleApiKeySection() {
-    const section = document.getElementById('apiKeySection');
-    const button = document.getElementById('apiKeyToggleButton');
-    const isHidden = section.classList.toggle('hidden');
-    button.innerText = isHidden ? "Mostrar clave API" : "Ocultar clave API";
-}
-
-function showApiInstructions() {
-    document.getElementById('instructionsModal').classList.remove('hidden');
-}
-
-function hideApiInstructions() {
-    document.getElementById('instructionsModal').classList.add('hidden');
-}
-
-function toggleClearButton() {
-    const input = document.getElementById('searchInput');
-    const btn = document.getElementById('clearSearchBtn');
-    if (input.value.length > 0) {
-        btn.classList.remove('hidden');
-    } else {
-        btn.classList.add('hidden');
-    }
-}
-
-function clearSearch() {
-    const input = document.getElementById('searchInput');
-    input.value = '';
-    toggleClearButton();
-    document.getElementById('resultsGrid').innerHTML = '';
-    document.getElementById('resultsSection').classList.add('hidden');
-    showHome();
-}
-
-// --- SEARCH ---
-async function searchMusic(pageToken = '', retryCount = 0) {
-    const input = document.getElementById('searchInput');
-    const query = input.value.trim();
-    if (!query) return;
-
-    // Robust keyboard closing: Multiple blurs and focus shift
-    input.blur();
-    setTimeout(() => input.blur(), 50);
-    window.focus();
-
-    const currentKey = getCurrentApiKey();
-    // Allow search even if no key - go straight to fallback
-    if (!currentKey) {
-        console.warn("No API Key. Attempting Piped fallback directly.");
-    }
-
-    currentSearchQuery = query;
-    if (!pageToken) currentSearchPage = 1;
-
-    switchTab('search');
-    document.getElementById('loading').classList.remove('hidden');
-
-    try {
-        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&key=${currentKey}${pageToken ? `&pageToken=${pageToken}` : ''}`);
-        const data = await response.json();
-
-        if (data.error) {
-            // Check for quota error
-            if (data.error.errors && data.error.errors.some(e => e.reason === 'quotaExceeded')) {
-                if (rotateApiKey() && retryCount < apiKeys.length) {
-                    showToast("Límite de cuota superado. Rotando clave...", "warning");
-                    return searchMusic(pageToken, retryCount + 1);
+                    throw new Error("No valid streams");
+                } catch (e) {
+                    throw e;
                 }
             }
-            throw new Error(data.error.message);
-        }
 
-        nextSearchToken = data.nextPageToken || '';
-        prevSearchToken = data.prevPageToken || '';
+            // --- SPONSORBLOCK DIRECT API ---
+            async function fetchSponsorBlockSegments(videoId) {
+                currentSegments = []; // Reset first
 
-        const videos = data.items.map(item => ({
-            id: item.id.videoId,
-            title: decodeHtml(item.snippet.title),
-            channel: decodeHtml(item.snippet.channelTitle),
-            thumbnail: item.snippet.thumbnails.medium.url,
-            duration: '0:00'
-        }));
+                // Categories to skip (Aggressive Mode)
+                // sponsor: Paid promotion
+                // intro: Animation/intermission before video
+                // outro: End credits/intermission
+                // interaction: "Like and subscribe"
+                // selfpromo: Unpaid promotion
+                // music_offtopic: Non-music sections in music videos
+                // preview: Recaps
+                // filler: Filler content
+                const categories = ['sponsor', 'intro', 'outro', 'interaction', 'selfpromo', 'music_offtopic', 'preview', 'filler'];
 
-        // Fetch durations
-        const ids = videos.map(v => v.id).join(',');
-        const detailsResp = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${getCurrentApiKey()}`);
-        const detailsData = await detailsResp.json();
+                try {
+                    console.log(`🛡️ Consultando SponsorBlock API para: ${videoId}`);
+                    // categories parameter needs to be repeated: ?category=sponsor&category=intro...
+                    const categoryParams = categories.map(c => `category=${c}`).join('&');
+                    const url = `https://sponsor.ajay.app/api/skipSegments?videoID=${videoId}&${categoryParams}`;
 
-        if (detailsData.items) {
-            detailsData.items.forEach(item => {
-                const video = videos.find(v => v.id === item.id);
-                if (video) {
-                    video.duration = parseISO8601Duration(item.contentDetails.duration);
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout is enough
+
+                    const response = await fetch(url, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+
+                    if (response.status === 404) {
+                        console.log("ℹ️ No hay segmentos SponsorBlock para este video.");
+                        return;
+                    }
+
+                    if (!response.ok) throw new Error("API returned " + response.status);
+
+                    const data = await response.json();
+
+                    // Transform standard API response to our simpler format if needed, 
+                    // but the API returns [{category, segment: [start, end], UUID}, ...]
+                    // Piped returned { category, start, end }
+
+                    currentSegments = data.map(item => ({
+                        category: item.category,
+                        start: item.segment[0],
+                        end: item.segment[1]
+                    }));
+
+                    console.log(`✅ ${currentSegments.length} segmentos de publicidad detectados y listos para saltar.`);
+                    if (currentSegments.length > 0) {
+                        showToast(`🛡️ Bloqueo de anuncios activado (${currentSegments.length} cortes)`, 'success');
+                    }
+
+                } catch (e) {
+                    // Silent fail is fine, we just won't skip
+                    console.warn("SponsorBlock API fetch failed (non-critical):", e);
+                }
+            }
+
+            // --- BACKGROUND PLAYBACK & OPIMIZATION ---
+
+            let wakeLock = null;
+            let wakeLockRequested = false;
+
+            async function requestWakeLock() {
+                if (!('wakeLock' in navigator)) return;
+
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLockRequested = true;
+                    console.log("🔒 Wake Lock activado");
+
+                    // Re-request if released by system
+                    wakeLock.addEventListener('release', () => {
+                        console.warn('⚠️ Wake Lock liberado por el sistema');
+                        if (wakeLockRequested && !isUserPaused) {
+                            setTimeout(() => requestWakeLock(), 1000);
+                        }
+                    });
+                } catch (err) {
+                    console.error(`Wake Lock error: ${err.name}, ${err.message}`);
+                }
+            }
+
+            function releaseWakeLock() {
+                wakeLockRequested = false;
+                if (wakeLock) {
+                    wakeLock.release().then(() => {
+                        wakeLock = null;
+                        console.log("🔓 Wake Lock liberado");
+                    });
+                }
+            }
+
+            // Re-request wake lock on visibility change (it can be released by the OS)
+            document.addEventListener('visibilitychange', async () => {
+                if (document.visibilityState === 'visible') {
+                    await requestWakeLock();
+                } else {
+                    // App went to background
+                    // Ensure audio context is passing time to keep the thread alive
+                    if (audioCtx && audioCtx.state === 'suspended') {
+                        audioCtx.resume();
+                    }
                 }
             });
-        }
 
-        renderSearchResults(videos);
-        updateSearchPagination();
-    } catch (error) {
-        console.warn("Google API failed. Trying Piped Fallback...", error);
+            let audioCtx = null;
+            let oscillator = null;
+            let gainNode = null;
 
-        // Hide API error message if we are trying fallback
-        document.getElementById('errorMessage').classList.add('hidden');
+            function initAudioContext() {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            }
 
-        try {
-            const pipedResults = await searchPiped(query);
-            renderSearchResults(pipedResults);
+            function keepAudioAlive() {
+                try {
+                    initAudioContext();
 
-            // Disable pagination buttons for Piped (shim)
-            nextSearchToken = '';
-            prevSearchToken = '';
-            updateSearchPagination();
+                    // Stop existing oscillator to avoid stacking
+                    if (oscillator) {
+                        try { oscillator.stop(); } catch (e) { }
+                        oscillator.disconnect();
+                    }
 
-            showToast("Resultados de respaldo cargados", "info");
-        } catch (pipedError) {
-            document.getElementById('errorText').innerText = "Error: " + error.message + " | Fallback: " + pipedError.message;
-            document.getElementById('errorMessage').classList.remove('hidden');
-        }
-    } finally {
-        document.getElementById('loading').classList.add('hidden');
-    }
-}
+                    // Create a "pulsing" oscillator
+                    // Changing parameters forces the audio engine to stay active calculating mixing
+                    oscillator = audioCtx.createOscillator();
+                    gainNode = audioCtx.createGain();
 
-function renderSearchResults(videos) {
-    const grid = document.getElementById('resultsGrid');
-    grid.innerHTML = '';
+                    oscillator.type = 'sine';
+                    oscillator.frequency.value = 60; // Low frequency
 
-    if (videos.length === 0) {
-        grid.innerHTML = '<div class="p-8 text-center text-gray-400">No se han encontrado resultados</div>';
-    } else {
-        videos.forEach((video, index) => {
-            const inQueue = isSongInQueue(video.id);
-            const inQueueClass = inQueue ? 'in-queue' : 'text-[#b3b3b3]';
+                    // Very low volume, effectively silent but mathematically present
+                    gainNode.gain.value = 0.001;
 
-            const isCurrent = isMediaPlaying && currentTrack && String(currentTrack.id) === String(video.id);
-            const row = document.createElement('div');
-            row.className = `result-row flex items-center gap-4 p-3 cursor-pointer group ${isCurrent ? 'is-playing' : ''}`;
-            row.dataset.videoId = video.id;
-            row.onclick = () => {
-                currentlyPlayingPlaylistId = null;
-                localStorage.removeItem('amaya_playing_pl_id');
-                renderHomePlaylists();
-                playSong(video, [video]);
-            };
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
 
-            row.innerHTML = `
+                    oscillator.start();
+
+                    // "Pulse" the frequency every few seconds to prevent optimization
+                    // (Some engines sleep if the graph is static)
+                    setInterval(() => {
+                        if (audioCtx && audioCtx.state === 'running' && oscillator) {
+                            const newFreq = oscillator.frequency.value === 60 ? 65 : 60;
+                            oscillator.frequency.setValueAtTime(newFreq, audioCtx.currentTime);
+                        }
+                    }, 5000);
+
+                    console.log("Enhanced Web Audio Heartbeat active");
+                } catch (e) {
+                    console.error("Web Audio Heartbeat failed:", e);
+                }
+            }
+
+            function startSilentAudio() {
+                const audio = document.getElementById('silentAudio');
+                if (audio) {
+                    audio.volume = 0.01; // Not zero, to prevent "mute" optimization
+                    // Manual loop: better than loop attribute for some browsers
+                    audio.onended = () => {
+                        audio.currentTime = 0;
+                        audio.play().catch(() => { });
+                    };
+                    audio.play().catch(e => console.log("Silent audio failed to start:", e));
+                }
+
+                keepAudioAlive();
+                requestWakeLock();
+            }
+
+            function stopSilentAudio() {
+                // We actually DON'T want to unwantedly stop the heartbeat if we want background resilience,
+                // but we can lower the priority if paused. 
+                // For now, we'll clear resources to be good citizens when explicitly paused.
+
+                const audio = document.getElementById('silentAudio');
+                if (audio) {
+                    audio.pause();
+                }
+
+                if (oscillator) {
+                    try { oscillator.stop(); } catch (e) { }
+                    oscillator = null;
+                }
+
+                releaseWakeLock();
+            }
+
+            // --- PICTURE IN PICTURE ---
+            async function togglePictureInPicture() {
+                try {
+                    if (document.pictureInPictureElement) {
+                        await document.exitPictureInPicture();
+                    } else {
+                        // NOTE: YouTube IFrame API doesn't expose the video element directly for PiP 
+                        // easily unless we hack it or use the Media Session API actions.
+                        // HOWEVER, we can try to use the MediaSession 'enterpictureinpicture' action if supported,
+                        // OR simply suggest the user use the native controls if we can't force it.
+
+                        // BUT, strictly speaking, `document.pictureInPictureElement` works on VIDEO tags.
+                        // The YT Iframe contains a video tag but it's cross-origin usually.
+                        // So we might depend on the User activating it via the native player controls if the API blocks us.
+
+                        // Let's try a workaround: create a dummy video for PiP that "proxies" the audio?
+                        // No, that's too complex.
+
+                        // Alternative: The user might be on Android/iOS knowing the native player has PiP.
+                        // We will just show a Toast explaining how to use it if we can't trigger it programmatically
+                        // for the YT frame.
+
+                        showToast("Usa el botón PiP del reproductor de YouTube");
+                    }
+                } catch (error) {
+                    console.error(error);
+                    showToast("Error al activar PiP: " + error.message, "error");
+                }
+            }
+
+            // Helper to try to enable background playback capabilities
+            function enableBackgroundPlayback() {
+                // iOS Safari requires a user interaction to start audio context
+                document.addEventListener('touchstart', function () {
+                    initAudioContext();
+                }, { once: true });
+
+                document.addEventListener('click', function () {
+                    initAudioContext();
+                }, { once: true });
+            }
+
+            enableBackgroundPlayback();
+
+            async function onPlayerError(event) {
+                console.error("YT Player Error:", event.data);
+
+                // Restrictions (External playback forbidden)
+                if (event.data === 101 || event.data === 150) {
+                    if (currentTrack && !currentTrack.isFallback) {
+                        showToast("Canción restringida. Buscando versión de audio compatible...", "error");
+
+                        try {
+                            // Background search for audio version - prioritize "Topic" and "Lyrics" for better compatibility
+                            // REPLACED: Use Piped instead of Google API to avoid quota issues
+                            const fallbackSongResult = await findPipedFallback(currentTrack);
+
+                            if (fallbackSongResult) {
+                                showToast("Reproduciendo versión alternativa");
+
+                                // Force native audio for the fallback, as IFrame will likely fail for the same reason (restriction)
+                                useNativeAudio = true;
+
+                                // Update current track in queue to avoid repeated failures if re-played
+                                if (currentQueueIndex >= 0 && currentQueueIndex < queue.length) {
+                                    queue[currentQueueIndex] = fallbackSongResult;
+                                }
+                                playSong(fallbackSongResult, queue, true);
+                                return;
+                            }
+                        } catch (fallbackError) {
+                            console.error("Fallback search failed:", fallbackError);
+                        }
+                    }
+
+                    showToast("No se pudo encontrar una versión compatible. Saltando...", "error");
+                } else {
+                    showToast("Error de reproducción", "error");
+                }
+
+                // Final fallback: skip to next
+                if (queue.length > 0) {
+                    setTimeout(() => playNext(), 2000);
+                }
+            }
+
+            // --- PIPED SEARCH FALLBACK ---
+            async function searchPiped(query) {
+                console.log("🕵️ Iniciando búsqueda de respaldo en Piped para:", query);
+                showToast("Usando buscador alternativo...");
+
+                // Try multiple instances until one works
+                // We reuse the PIPED_INSTANCES list
+                // Shuffle slightly to distribute load, but keep "heroes" often
+                const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
+
+                for (let instance of candidates) {
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
+
+                        const response = await fetch(`${instance}/search?q=${encodeURIComponent(query)}&filter=music_videos`, {
+                            signal: controller.signal
+                        });
+                        clearTimeout(timeoutId);
+
+                        if (!response.ok) continue;
+
+                        const data = await response.json();
+                        if (!data.items || data.items.length === 0) continue;
+
+                        console.log(`✅ Búsqueda Piped exitosa en: ${instance}`);
+
+                        // Map Piped format to our internal format
+                        return data.items.map(item => ({
+                            id: item.url.split('/watch?v=')[1],
+                            title: item.title,
+                            channel: item.uploaderName,
+                            thumbnail: item.thumbnail,
+                            duration: item.duration ? formatPipedDuration(item.duration) : '0:00'
+                        }));
+
+                    } catch (e) {
+                        continue;
+                    }
+                }
+                throw new Error("Piped search failed on all instances");
+            }
+
+            function formatPipedDuration(seconds) {
+                if (!seconds) return '0:00';
+                const m = Math.floor(seconds / 60);
+                const s = Math.floor(seconds % 60);
+                return `${m}:${s.toString().padStart(2, '0')}`;
+            }
+
+            // Helper to find audio-only fallback without using API key
+            async function findPipedFallback(song) {
+                const query = `${song.title} ${song.channel} topic audio`;
+                try {
+                    const results = await searchPiped(query);
+                    if (results && results.length > 0) {
+                        return {
+                            ...results[0],
+                            isFallback: true
+                        };
+                    }
+                } catch (e) {
+                    console.error("Piped fallback search failed:", e);
+                }
+                return null;
+            }
+
+            // --- API KEY MANAGEMENT ---
+            function saveApiKey() {
+                const keys = [];
+                for (let i = 1; i <= 3; i++) {
+                    const val = document.getElementById(`apiKeyInput${i}`).value.trim();
+                    if (val) keys.push(val);
+                }
+
+                if (keys.length > 0) {
+                    apiKeys = keys;
+                    currentKeyIndex = 0;
+                    localStorage.setItem('amaya_yt_keys', JSON.stringify(keys));
+                    localStorage.setItem('amaya_yt_key_index', 0);
+                    document.getElementById('apiKeySection').classList.add('hidden');
+                    document.getElementById('apiKeyToggleButton').innerText = "Mostrar clave API";
+                    document.getElementById('apiWarning').classList.add('hidden');
+                    showToast(`Guardadas ${keys.length} claves con éxito`);
+                } else {
+                    showToast("Por favor, introduce al menos una clave", "error");
+                }
+            }
+
+            function rotateApiKey() {
+                if (apiKeys.length <= 1) return false;
+                currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
+                localStorage.setItem('amaya_yt_key_index', currentKeyIndex);
+                console.log(`🔄 Rotando a clave API #${currentKeyIndex + 1}`);
+                return true;
+            }
+
+            function getCurrentApiKey() {
+                return apiKeys[currentKeyIndex] || '';
+            }
+
+            function toggleApiKeySection() {
+                const section = document.getElementById('apiKeySection');
+                const button = document.getElementById('apiKeyToggleButton');
+                const isHidden = section.classList.toggle('hidden');
+                button.innerText = isHidden ? "Mostrar clave API" : "Ocultar clave API";
+            }
+
+            function showApiInstructions() {
+                document.getElementById('instructionsModal').classList.remove('hidden');
+            }
+
+            function hideApiInstructions() {
+                document.getElementById('instructionsModal').classList.add('hidden');
+            }
+
+            function toggleClearButton() {
+                const input = document.getElementById('searchInput');
+                const btn = document.getElementById('clearSearchBtn');
+                if (input.value.length > 0) {
+                    btn.classList.remove('hidden');
+                } else {
+                    btn.classList.add('hidden');
+                }
+            }
+
+            function clearSearch() {
+                const input = document.getElementById('searchInput');
+                input.value = '';
+                toggleClearButton();
+                document.getElementById('resultsGrid').innerHTML = '';
+                document.getElementById('resultsSection').classList.add('hidden');
+                showHome();
+            }
+
+            // --- SEARCH ---
+            async function searchMusic(pageToken = '', retryCount = 0) {
+                const input = document.getElementById('searchInput');
+                const query = input.value.trim();
+                if (!query) return;
+
+                // Robust keyboard closing: Multiple blurs and focus shift
+                input.blur();
+                setTimeout(() => input.blur(), 50);
+                window.focus();
+
+                const currentKey = getCurrentApiKey();
+                // Allow search even if no key - go straight to fallback
+                if (!currentKey) {
+                    console.warn("No API Key. Attempting Piped fallback directly.");
+                }
+
+                currentSearchQuery = query;
+                if (!pageToken) currentSearchPage = 1;
+
+                switchTab('search');
+                document.getElementById('loading').classList.remove('hidden');
+
+                try {
+                    const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&key=${currentKey}${pageToken ? `&pageToken=${pageToken}` : ''}`);
+                    const data = await response.json();
+
+                    if (data.error) {
+                        // Check for quota error
+                        if (data.error.errors && data.error.errors.some(e => e.reason === 'quotaExceeded')) {
+                            if (rotateApiKey() && retryCount < apiKeys.length) {
+                                showToast("Límite de cuota superado. Rotando clave...", "warning");
+                                return searchMusic(pageToken, retryCount + 1);
+                            }
+                        }
+                        throw new Error(data.error.message);
+                    }
+
+                    nextSearchToken = data.nextPageToken || '';
+                    prevSearchToken = data.prevPageToken || '';
+
+                    const videos = data.items.map(item => ({
+                        id: item.id.videoId,
+                        title: decodeHtml(item.snippet.title),
+                        channel: decodeHtml(item.snippet.channelTitle),
+                        thumbnail: item.snippet.thumbnails.medium.url,
+                        duration: '0:00'
+                    }));
+
+                    // Fetch durations
+                    const ids = videos.map(v => v.id).join(',');
+                    const detailsResp = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${getCurrentApiKey()}`);
+                    const detailsData = await detailsResp.json();
+
+                    if (detailsData.items) {
+                        detailsData.items.forEach(item => {
+                            const video = videos.find(v => v.id === item.id);
+                            if (video) {
+                                video.duration = parseISO8601Duration(item.contentDetails.duration);
+                            }
+                        });
+                    }
+
+                    renderSearchResults(videos);
+                    updateSearchPagination();
+                } catch (error) {
+                    console.warn("Google API failed. Trying Piped Fallback...", error);
+
+                    // Hide API error message if we are trying fallback
+                    document.getElementById('errorMessage').classList.add('hidden');
+
+                    try {
+                        const pipedResults = await searchPiped(query);
+                        renderSearchResults(pipedResults);
+
+                        // Disable pagination buttons for Piped (shim)
+                        nextSearchToken = '';
+                        prevSearchToken = '';
+                        updateSearchPagination();
+
+                        showToast("Resultados de respaldo cargados", "info");
+                    } catch (pipedError) {
+                        document.getElementById('errorText').innerText = "Error: " + error.message + " | Fallback: " + pipedError.message;
+                        document.getElementById('errorMessage').classList.remove('hidden');
+                    }
+                } finally {
+                    document.getElementById('loading').classList.add('hidden');
+                }
+            }
+
+            function renderSearchResults(videos) {
+                const grid = document.getElementById('resultsGrid');
+                grid.innerHTML = '';
+
+                if (videos.length === 0) {
+                    grid.innerHTML = '<div class="p-8 text-center text-gray-400">No se han encontrado resultados</div>';
+                } else {
+                    videos.forEach((video, index) => {
+                        const inQueue = isSongInQueue(video.id);
+                        const inQueueClass = inQueue ? 'in-queue' : 'text-[#b3b3b3]';
+
+                        const isCurrent = isMediaPlaying && currentTrack && String(currentTrack.id) === String(video.id);
+                        const row = document.createElement('div');
+                        row.className = `result-row flex items-center gap-4 p-3 cursor-pointer group ${isCurrent ? 'is-playing' : ''}`;
+                        row.dataset.videoId = video.id;
+                        row.onclick = () => {
+                            currentlyPlayingPlaylistId = null;
+                            localStorage.removeItem('amaya_playing_pl_id');
+                            renderHomePlaylists();
+                            playSong(video, [video]);
+                        };
+
+                        row.innerHTML = `
                 <div class="w-10 text-center text-sm text-[#b3b3b3] track-number group-hover:hidden">${(currentSearchPage - 1) * 20 + index + 1}</div>
                 <div class="hidden group-hover:block w-10 text-center">
                     <svg class="w-4 h-4 text-white mx-auto" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -1323,554 +1289,554 @@ function renderSearchResults(videos) {
                     </button>
                 </div>
             `;
-            grid.appendChild(row);
-        });
-    }
-
-    document.getElementById('resultsSection').classList.remove('hidden');
-    document.getElementById('searchPagination').classList.toggle('hidden', !nextSearchToken && !prevSearchToken);
-
-    // Apply marquees to all result rows
-    grid.querySelectorAll('.marquee-content').forEach(el => updateMarquee(el));
-}
-
-function searchNextPage() {
-    if (nextSearchToken) {
-        currentSearchPage++;
-        searchMusic(nextSearchToken);
-    }
-}
-function searchPrevPage() {
-    if (prevSearchToken) {
-        currentSearchPage--;
-        searchMusic(prevSearchToken);
-    }
-}
-
-function updateSearchPagination() {
-    document.getElementById('nextPageBtn').disabled = !nextSearchToken;
-    document.getElementById('prevPageBtn').disabled = !prevSearchToken;
-    const info = document.getElementById('searchPageInfo');
-    if (info) info.innerText = `Página ${currentSearchPage}`;
-}
-
-// --- PLAYBACK ---
-async function playSong(song, list = [], fromQueue = false) {
-    try {
-        isUserPaused = false; // Reset intent state: starting a song implies active user intent
-        currentTrack = song;
-        // Initialize session state if not from queue
-        if (!fromQueue) {
-            queue = [...list];
-            currentQueueIndex = list.findIndex(s => String(s.id) === String(song.id));
-            if (currentQueueIndex === -1) currentQueueIndex = 0;
-        }
-
-        currentTrack = song;
-        isMediaPlaying = true;
-        isUserPaused = false;
-
-        // Highlight in UI
-        highlightCurrentTrack(song.id);
-        updateQueueIcons();
-        updateQueueCount();
-        refreshUIHighlights();
-
-        // CRITICAL MOBILE FIX: Initialize audio context IMMEDIATELY on user click
-        try {
-            startSilentAudio();
-
-            // Ensure ALL audio engines are stopped immediately to avoid overlaps
-            if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
-            if (nativeAudio) {
-                nativeAudio.pause();
-                nativeAudio.src = ""; // Clear src to stop buffering old track
-            }
-
-            // Reset progress UI while loading
-            if (navigator.mediaSession) {
-                try {
-                    navigator.mediaSession.setPositionState(null);
-                    navigator.mediaSession.playbackState = 'paused';
-                } catch (e) { }
-            }
-        } catch (e) { console.error("Early audio init failed", e); }
-        document.getElementById('currentTitle').innerText = song.title;
-        document.getElementById('currentChannel').innerText = song.channel;
-        document.getElementById('currentThumbnail').src = song.thumbnail;
-        document.getElementById('currentThumbnail').classList.remove('hidden');
-
-        // Mobile updates
-        const miniPlayer = document.getElementById('mobilePlayerMini');
-        if (miniPlayer) miniPlayer.classList.remove('hidden');
-
-        const fullTitle = document.getElementById('mobileFullTitle');
-        if (fullTitle) fullTitle.innerText = song.title;
-
-        const fullChannel = document.getElementById('mobileFullChannel');
-        if (fullChannel) fullChannel.innerText = song.channel;
-
-        // Artwork
-        const mobileArt = document.getElementById('mobileFullArt');
-        if (mobileArt) mobileArt.src = song.thumbnail;
-
-        // Update Ambient Background 2.0
-        updateAmbientBackground(song.thumbnail);
-
-        // Dynamic Marquee update
-        updateMarquees();
-        // Media Session API - Metadata Update
-        if ('mediaSession' in navigator) {
-            navigator.mediaSession.metadata = new MediaMetadata({
-                title: song.title,
-                artist: song.channel,
-                album: "Amaya's Music",
-                artwork: [
-                    { src: song.thumbnail, sizes: '96x96', type: 'image/jpeg' },
-                    { src: song.thumbnail, sizes: '128x128', type: 'image/jpeg' },
-                    { src: song.thumbnail, sizes: '192x192', type: 'image/jpeg' },
-                    { src: song.thumbnail, sizes: '256x256', type: 'image/jpeg' },
-                    { src: song.thumbnail, sizes: '384x384', type: 'image/jpeg' },
-                    { src: song.thumbnail, sizes: '512x512', type: 'image/jpeg' },
-                ]
-            });
-            navigator.mediaSession.playbackState = 'playing';
-        }
-
-        // Try native audio first
-        if (useNativeAudio && nativeAudio) {
-            isCurrentlyUsingNative = true;
-            try {
-                console.log(`🎵 Intentando reproducir con audio nativo: ${song.title}`);
-
-                const audioUrlPromise = getAudioUrl(song.id);
-                // Increased timeout to 60s to allow exhaustive search of all servers
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Audio URL timeout')), 60000)
-                );
-
-                const audioUrl = await Promise.race([audioUrlPromise, timeoutPromise]);
-
-                if (!audioUrl) {
-                    throw new Error('No audio URL returned');
+                        grid.appendChild(row);
+                    });
                 }
 
-                nativeAudio.src = audioUrl;
-                await nativeAudio.play();
+                document.getElementById('resultsSection').classList.remove('hidden');
+                document.getElementById('searchPagination').classList.toggle('hidden', !nextSearchToken && !prevSearchToken);
 
-                isMediaPlaying = true;
-                updatePlayPauseIcons(true);
-                console.log('✅ Reproducción nativa exitosa');
-            } catch (error) {
-                console.error('❌ Error con audio nativo:', error);
+                // Apply marquees to all result rows
+                grid.querySelectorAll('.marquee-content').forEach(el => updateMarquee(el));
+            }
 
-                // Handle "NotAllowedError" (Autoplay blocked)
-                if (error.name === 'NotAllowedError') {
-                    showToast("⚠️ Toca 'Play' para iniciar", "warning");
-                    // The user interaction requirement was lost during the async fetch.
-                    // We leave the player in "paused" state but with src loaded.
-                    // The user just needs to hit the main play button now.
+            function searchNextPage() {
+                if (nextSearchToken) {
+                    currentSearchPage++;
+                    searchMusic(nextSearchToken);
+                }
+            }
+            function searchPrevPage() {
+                if (prevSearchToken) {
+                    currentSearchPage--;
+                    searchMusic(prevSearchToken);
+                }
+            }
+
+            function updateSearchPagination() {
+                document.getElementById('nextPageBtn').disabled = !nextSearchToken;
+                document.getElementById('prevPageBtn').disabled = !prevSearchToken;
+                const info = document.getElementById('searchPageInfo');
+                if (info) info.innerText = `Página ${currentSearchPage}`;
+            }
+
+            // --- PLAYBACK ---
+            async function playSong(song, list = [], fromQueue = false) {
+                try {
+                    isUserPaused = false; // Reset intent state: starting a song implies active user intent
+                    currentTrack = song;
+                    // Initialize session state if not from queue
+                    if (!fromQueue) {
+                        queue = [...list];
+                        currentQueueIndex = list.findIndex(s => String(s.id) === String(song.id));
+                        if (currentQueueIndex === -1) currentQueueIndex = 0;
+                    }
+
+                    currentTrack = song;
+                    isMediaPlaying = true;
+                    isUserPaused = false;
+
+                    // Highlight in UI
+                    highlightCurrentTrack(song.id);
+                    updateQueueIcons();
+                    updateQueueCount();
+                    refreshUIHighlights();
+
+                    // CRITICAL MOBILE FIX: Initialize audio context IMMEDIATELY on user click
+                    try {
+                        startSilentAudio();
+
+                        // Ensure ALL audio engines are stopped immediately to avoid overlaps
+                        if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
+                        if (nativeAudio) {
+                            nativeAudio.pause();
+                            nativeAudio.src = ""; // Clear src to stop buffering old track
+                        }
+
+                        // Reset progress UI while loading
+                        if (navigator.mediaSession) {
+                            try {
+                                navigator.mediaSession.setPositionState(null);
+                                navigator.mediaSession.playbackState = 'paused';
+                            } catch (e) { }
+                        }
+                    } catch (e) { console.error("Early audio init failed", e); }
+                    document.getElementById('currentTitle').innerText = song.title;
+                    document.getElementById('currentChannel').innerText = song.channel;
+                    document.getElementById('currentThumbnail').src = song.thumbnail;
+                    document.getElementById('currentThumbnail').classList.remove('hidden');
+
+                    // Mobile updates
+                    const miniPlayer = document.getElementById('mobilePlayerMini');
+                    if (miniPlayer) miniPlayer.classList.remove('hidden');
+
+                    const fullTitle = document.getElementById('mobileFullTitle');
+                    if (fullTitle) fullTitle.innerText = song.title;
+
+                    const fullChannel = document.getElementById('mobileFullChannel');
+                    if (fullChannel) fullChannel.innerText = song.channel;
+
+                    // Artwork
+                    const mobileArt = document.getElementById('mobileFullArt');
+                    if (mobileArt) mobileArt.src = song.thumbnail;
+
+                    // Update Ambient Background 2.0
+                    updateAmbientBackground(song.thumbnail);
+
+                    // Dynamic Marquee update
+                    updateMarquees();
+                    // Media Session API - Metadata Update
+                    if ('mediaSession' in navigator) {
+                        navigator.mediaSession.metadata = new MediaMetadata({
+                            title: song.title,
+                            artist: song.channel,
+                            album: "Amaya's Music",
+                            artwork: [
+                                { src: song.thumbnail, sizes: '96x96', type: 'image/jpeg' },
+                                { src: song.thumbnail, sizes: '128x128', type: 'image/jpeg' },
+                                { src: song.thumbnail, sizes: '192x192', type: 'image/jpeg' },
+                                { src: song.thumbnail, sizes: '256x256', type: 'image/jpeg' },
+                                { src: song.thumbnail, sizes: '384x384', type: 'image/jpeg' },
+                                { src: song.thumbnail, sizes: '512x512', type: 'image/jpeg' },
+                            ]
+                        });
+                        navigator.mediaSession.playbackState = 'playing';
+                    }
+
+                    // Try native audio first
+                    if (useNativeAudio && nativeAudio) {
+                        isCurrentlyUsingNative = true;
+                        try {
+                            console.log(`🎵 Intentando reproducir con audio nativo: ${song.title}`);
+
+                            const audioUrlPromise = getAudioUrl(song.id);
+                            // Increased timeout to 60s to allow exhaustive search of all servers
+                            const timeoutPromise = new Promise((_, reject) =>
+                                setTimeout(() => reject(new Error('Audio URL timeout')), 60000)
+                            );
+
+                            const audioUrl = await Promise.race([audioUrlPromise, timeoutPromise]);
+
+                            if (!audioUrl) {
+                                throw new Error('No audio URL returned');
+                            }
+
+                            nativeAudio.src = audioUrl;
+                            await nativeAudio.play();
+
+                            isMediaPlaying = true;
+                            updatePlayPauseIcons(true);
+                            console.log('✅ Reproducción nativa exitosa');
+                        } catch (error) {
+                            console.error('❌ Error con audio nativo:', error);
+
+                            // Handle "NotAllowedError" (Autoplay blocked)
+                            if (error.name === 'NotAllowedError') {
+                                showToast("⚠️ Toca 'Play' para iniciar", "warning");
+                                // The user interaction requirement was lost during the async fetch.
+                                // We leave the player in "paused" state but with src loaded.
+                                // The user just needs to hit the main play button now.
+                                return;
+                            }
+                            // Fallback to YouTube IFrame REMOVED (Strict No-Ad Policy)
+                            console.warn("❌ Clean audio failed. Skipping song instead of using IFrame with ads.");
+                            showToast("Audio limpio no disponible. Saltando canción...", "error");
+                            setTimeout(() => playNext(), 1500);
+                        }
+                    } else {
+                        // STRICT MODE: FORCE NATIVE AUDIO ALWAYS
+                        // If we ended up here, it means useNativeAudio was false. We fix that.
+                        console.warn("⚠️ Intentando forzar audio nativo.");
+                        useNativeAudio = true;
+                        playSong(song, list, fromQueue);
+                    }
+                } catch (error) {
+                    console.error("Error playing song:", error);
+                    showToast(`Error al reproducir: ${error.message}`, "error");
+                    isMediaPlaying = false;
+                    updatePlayPauseIcons(false);
+                }
+            }
+
+            // --- QUEUE MANAGEMENT ---
+            function isSongInQueue(songId) {
+                if (!songId) return false;
+                return queue.some(s => String(s.id) === String(songId));
+            }
+
+            function updateQueueIcons() {
+                // Update all queue buttons in search results and playlists
+                document.querySelectorAll('.queue-btn').forEach(btn => {
+                    const songId = btn.getAttribute('data-song-id');
+                    if (isSongInQueue(songId)) {
+                        btn.classList.add('in-queue');
+                        btn.classList.remove('text-[#b3b3b3]');
+                    } else {
+                        btn.classList.remove('in-queue');
+                        btn.classList.add('text-[#b3b3b3]');
+                    }
+                });
+            }
+
+            function toggleQueue(song) {
+                const index = queue.findIndex(s => String(s.id) === String(song.id));
+
+                if (index !== -1) {
+                    // Already in queue, remove it
+                    if (currentTrack && index === currentQueueIndex) {
+                        showToast("No puedes eliminar la canción que está sonando", "warning");
+                        return;
+                    }
+
+                    const removedSong = queue.splice(index, 1)[0];
+
+                    // Adjust currentQueueIndex if needed
+                    if (currentTrack && index < currentQueueIndex) {
+                        currentQueueIndex--;
+                    }
+
+                    showToast(`- ${removedSong.title}`);
+                } else {
+                    // Not in queue, add it
+                    queue.push(song);
+                    showToast(`+ ${song.title}`);
+                }
+
+                // Update visual count
+                updateQueueCount();
+
+                // Update icons colors
+                updateQueueIcons();
+
+                // Refresh queue modal if visible
+                const modal = document.getElementById('queueModal');
+                if (modal && !modal.classList.contains('hidden')) {
+                    showQueue();
+                }
+            }
+
+            function updateQueueCount() {
+                const queueCountEl = document.getElementById('queueCount');
+                const queueCountMiniEl = document.getElementById('queueCountMini');
+                const total = queue.length;
+
+                if (queueCountEl) {
+                    queueCountEl.innerText = total;
+                    if (total > 0) {
+                        queueCountEl.classList.remove('hidden');
+                    } else {
+                        queueCountEl.classList.add('hidden');
+                    }
+                }
+
+                if (queueCountMiniEl) {
+                    queueCountMiniEl.innerText = total;
+                    if (total > 0) {
+                        queueCountMiniEl.classList.remove('hidden');
+                    } else {
+                        queueCountMiniEl.classList.add('hidden');
+                    }
+                }
+            }
+
+            // --- YOUTUBE IFRAME (EXTERMINATED) ---
+            // This function is kept as a stub to prevent crashes if called,
+            // but it will NEVER load the player (and thus never load ads).
+            function loadYouTubeIFrame(videoId) {
+                console.error(`⛔ BLOQUEADO: Intento de cargar YouTube IFrame para: ${videoId}`);
+                showToast("🚫 Publicidad bloqueada. Saltando canción...", "error");
+
+                // Skip to next song immediately
+                setTimeout(() => playNext(), 1000);
+            }
+
+            function onYouTubeIframeAPIReady() {
+                // Disabled
+                console.log("YouTube API Ready but disabled for ad-free experience.");
+            }
+
+            function onPlayerReady(event) {
+                // Disabled
+            }
+
+            function onPlayerStateChange(event) {
+                // Disabled
+            }
+
+            async function resumePlaybackBruteForce() {
+                if (!player) return;
+
+                // Always start silent audio first to regain audio context focus
+                startSilentAudio();
+
+                // Attempt multiple ways to kickstart the YouTube player
+                player.playVideo();
+
+                // If it's potentially stuck (common in background), try a tiny seek to wake it up
+                setTimeout(() => {
+                    if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
+                        const cur = player.getCurrentTime();
+                        player.seekTo(cur + 0.1);
+                        player.playVideo();
+                    }
+                }, 100);
+            }
+
+            function togglePlayPause() {
+                console.log("⏯️ togglePlayPause. Engine:", isCurrentlyUsingNative ? "Native" : "YouTube");
+
+                if (isCurrentlyUsingNative && nativeAudio) {
+                    console.log("  Native Audio - paused:", nativeAudio.paused, "src:", nativeAudio.src ? "set" : "empty");
+                    if (nativeAudio.paused) {
+                        console.log("  Attempting nativeAudio.play()...");
+                        nativeAudio.play().then(() => {
+                            console.log("  ✅ nativeAudio.play() success");
+                            isUserPaused = false;
+                        }).catch(e => {
+                            console.error("  ❌ nativeAudio.play() error:", e);
+                            showToast("Error al reproducir. Reintentando...", "error");
+                        });
+                    } else {
+                        console.log("  Attempting nativeAudio.pause()...");
+                        isUserPaused = true;
+                        nativeAudio.pause();
+                    }
+                } else if (player && typeof player.getPlayerState === 'function') {
+                    const state = player.getPlayerState();
+                    console.log("  YT Player - state:", state);
+                    if (state === 1) { // YT.PlayerState.PLAYING
+                        isUserPaused = true;
+                        player.pauseVideo();
+                    } else {
+                        isUserPaused = false;
+                        player.playVideo();
+                    }
+                } else {
+                    console.warn("  ⚠️ No active player to toggle. isCurrentlyUsingNative:", isCurrentlyUsingNative, "nativeAudio:", !!nativeAudio, "player:", !!player);
+                }
+            }
+
+            function playNext() {
+                if (repeatMode === 2) {
+                    if (isCurrentlyUsingNative && nativeAudio) {
+                        nativeAudio.currentTime = 0;
+                        nativeAudio.play();
+                    } else if (player && player.seekTo) {
+                        player.seekTo(0);
+                        player.playVideo();
+                    }
                     return;
                 }
-                // Fallback to YouTube IFrame REMOVED (Strict No-Ad Policy)
-                console.warn("❌ Clean audio failed. Skipping song instead of using IFrame with ads.");
-                showToast("Audio limpio no disponible. Saltando canción...", "error");
-                setTimeout(() => playNext(), 1500);
+
+                if (isShuffle) {
+                    currentQueueIndex = Math.floor(Math.random() * queue.length);
+                } else {
+                    currentQueueIndex++;
+                    if (currentQueueIndex >= queue.length) {
+                        if (repeatMode === 1) {
+                            currentQueueIndex = 0;
+                        } else {
+                            currentQueueIndex = queue.length - 1;
+                            // If we reached the end and won't repeat, reset the session state
+                            if (navigator.mediaSession) navigator.mediaSession.playbackState = 'none';
+                            return;
+                        }
+                    }
+                }
+                playSong(queue[currentQueueIndex], queue, true);
             }
-        } else {
-            // STRICT MODE: FORCE NATIVE AUDIO ALWAYS
-            // If we ended up here, it means useNativeAudio was false. We fix that.
-            console.warn("⚠️ Intentando forzar audio nativo.");
-            useNativeAudio = true;
-            playSong(song, list, fromQueue);
-        }
-    } catch (error) {
-        console.error("Error playing song:", error);
-        showToast(`Error al reproducir: ${error.message}`, "error");
-        isMediaPlaying = false;
-        updatePlayPauseIcons(false);
-    }
-}
 
-// --- QUEUE MANAGEMENT ---
-function isSongInQueue(songId) {
-    if (!songId) return false;
-    return queue.some(s => String(s.id) === String(songId));
-}
-
-function updateQueueIcons() {
-    // Update all queue buttons in search results and playlists
-    document.querySelectorAll('.queue-btn').forEach(btn => {
-        const songId = btn.getAttribute('data-song-id');
-        if (isSongInQueue(songId)) {
-            btn.classList.add('in-queue');
-            btn.classList.remove('text-[#b3b3b3]');
-        } else {
-            btn.classList.remove('in-queue');
-            btn.classList.add('text-[#b3b3b3]');
-        }
-    });
-}
-
-function toggleQueue(song) {
-    const index = queue.findIndex(s => String(s.id) === String(song.id));
-
-    if (index !== -1) {
-        // Already in queue, remove it
-        if (currentTrack && index === currentQueueIndex) {
-            showToast("No puedes eliminar la canción que está sonando", "warning");
-            return;
-        }
-
-        const removedSong = queue.splice(index, 1)[0];
-
-        // Adjust currentQueueIndex if needed
-        if (currentTrack && index < currentQueueIndex) {
-            currentQueueIndex--;
-        }
-
-        showToast(`- ${removedSong.title}`);
-    } else {
-        // Not in queue, add it
-        queue.push(song);
-        showToast(`+ ${song.title}`);
-    }
-
-    // Update visual count
-    updateQueueCount();
-
-    // Update icons colors
-    updateQueueIcons();
-
-    // Refresh queue modal if visible
-    const modal = document.getElementById('queueModal');
-    if (modal && !modal.classList.contains('hidden')) {
-        showQueue();
-    }
-}
-
-function updateQueueCount() {
-    const queueCountEl = document.getElementById('queueCount');
-    const queueCountMiniEl = document.getElementById('queueCountMini');
-    const total = queue.length;
-
-    if (queueCountEl) {
-        queueCountEl.innerText = total;
-        if (total > 0) {
-            queueCountEl.classList.remove('hidden');
-        } else {
-            queueCountEl.classList.add('hidden');
-        }
-    }
-
-    if (queueCountMiniEl) {
-        queueCountMiniEl.innerText = total;
-        if (total > 0) {
-            queueCountMiniEl.classList.remove('hidden');
-        } else {
-            queueCountMiniEl.classList.add('hidden');
-        }
-    }
-}
-
-// --- YOUTUBE IFRAME (EXTERMINATED) ---
-// This function is kept as a stub to prevent crashes if called,
-// but it will NEVER load the player (and thus never load ads).
-function loadYouTubeIFrame(videoId) {
-    console.error(`⛔ BLOQUEADO: Intento de cargar YouTube IFrame para: ${videoId}`);
-    showToast("🚫 Publicidad bloqueada. Saltando canción...", "error");
-
-    // Skip to next song immediately
-    setTimeout(() => playNext(), 1000);
-}
-
-function onYouTubeIframeAPIReady() {
-    // Disabled
-    console.log("YouTube API Ready but disabled for ad-free experience.");
-}
-
-function onPlayerReady(event) {
-    // Disabled
-}
-
-function onPlayerStateChange(event) {
-    // Disabled
-}
-
-async function resumePlaybackBruteForce() {
-    if (!player) return;
-
-    // Always start silent audio first to regain audio context focus
-    startSilentAudio();
-
-    // Attempt multiple ways to kickstart the YouTube player
-    player.playVideo();
-
-    // If it's potentially stuck (common in background), try a tiny seek to wake it up
-    setTimeout(() => {
-        if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
-            const cur = player.getCurrentTime();
-            player.seekTo(cur + 0.1);
-            player.playVideo();
-        }
-    }, 100);
-}
-
-function togglePlayPause() {
-    console.log("⏯️ togglePlayPause. Engine:", isCurrentlyUsingNative ? "Native" : "YouTube");
-
-    if (isCurrentlyUsingNative && nativeAudio) {
-        console.log("  Native Audio - paused:", nativeAudio.paused, "src:", nativeAudio.src ? "set" : "empty");
-        if (nativeAudio.paused) {
-            console.log("  Attempting nativeAudio.play()...");
-            nativeAudio.play().then(() => {
-                console.log("  ✅ nativeAudio.play() success");
-                isUserPaused = false;
-            }).catch(e => {
-                console.error("  ❌ nativeAudio.play() error:", e);
-                showToast("Error al reproducir. Reintentando...", "error");
-            });
-        } else {
-            console.log("  Attempting nativeAudio.pause()...");
-            isUserPaused = true;
-            nativeAudio.pause();
-        }
-    } else if (player && typeof player.getPlayerState === 'function') {
-        const state = player.getPlayerState();
-        console.log("  YT Player - state:", state);
-        if (state === 1) { // YT.PlayerState.PLAYING
-            isUserPaused = true;
-            player.pauseVideo();
-        } else {
-            isUserPaused = false;
-            player.playVideo();
-        }
-    } else {
-        console.warn("  ⚠️ No active player to toggle. isCurrentlyUsingNative:", isCurrentlyUsingNative, "nativeAudio:", !!nativeAudio, "player:", !!player);
-    }
-}
-
-function playNext() {
-    if (repeatMode === 2) {
-        if (isCurrentlyUsingNative && nativeAudio) {
-            nativeAudio.currentTime = 0;
-            nativeAudio.play();
-        } else if (player && player.seekTo) {
-            player.seekTo(0);
-            player.playVideo();
-        }
-        return;
-    }
-
-    if (isShuffle) {
-        currentQueueIndex = Math.floor(Math.random() * queue.length);
-    } else {
-        currentQueueIndex++;
-        if (currentQueueIndex >= queue.length) {
-            if (repeatMode === 1) {
-                currentQueueIndex = 0;
-            } else {
-                currentQueueIndex = queue.length - 1;
-                // If we reached the end and won't repeat, reset the session state
-                if (navigator.mediaSession) navigator.mediaSession.playbackState = 'none';
-                return;
+            function playPrevious() {
+                currentQueueIndex--;
+                if (currentQueueIndex < 0) {
+                    if (repeatMode === 1) {
+                        currentQueueIndex = queue.length - 1;
+                    } else {
+                        currentQueueIndex = 0;
+                        return;
+                    }
+                }
+                playSong(queue[currentQueueIndex], queue, true);
             }
-        }
-    }
-    playSong(queue[currentQueueIndex], queue, true);
-}
 
-function playPrevious() {
-    currentQueueIndex--;
-    if (currentQueueIndex < 0) {
-        if (repeatMode === 1) {
-            currentQueueIndex = queue.length - 1;
-        } else {
-            currentQueueIndex = 0;
-            return;
-        }
-    }
-    playSong(queue[currentQueueIndex], queue, true);
-}
-
-function handleTrackEnded() {
-    playNext();
-}
-
-function toggleShuffle() {
-    isShuffle = !isShuffle;
-    // Update all shuffle buttons (Desktop, Mobile Mini, Mobile Full)
-    const btns = document.querySelectorAll('.shuffle-btn, #shuffleBtn');
-    btns.forEach(btn => {
-        if (isShuffle) {
-            btn.classList.add('text-green-500');
-            btn.classList.remove('text-white', 'text-gray-400', 'text-[#b3b3b3]');
-            btn.style.setProperty('color', '', 'important');
-        } else {
-            btn.classList.remove('text-green-500');
-            // If it's in the mini player, default to white, otherwise to gray
-            if (btn.closest('.mobile-player-mini')) {
-                btn.classList.add('text-white');
-            } else {
-                btn.classList.add('text-[#b3b3b3]');
+            function handleTrackEnded() {
+                playNext();
             }
-        }
-    });
-    showToast(isShuffle ? "Modo aleatorio activado" : "Modo aleatorio desactivado");
-}
 
-function toggleRepeat() {
-    repeatMode = (repeatMode + 1) % 3;
-    const btns = document.querySelectorAll('.repeat-btn, #repeatBtn');
-    const labels = ["No repetir", "Repetir lista", "Repetir una"];
-
-    btns.forEach(btn => {
-        btn.classList.remove('text-green-500', 'text-white', 'text-gray-400', 'text-[#b3b3b3]');
-        btn.style.setProperty('color', '', 'important');
-
-        if (repeatMode > 0) {
-            btn.classList.add('text-green-500');
-        } else {
-            if (btn.closest('.mobile-player-mini')) {
-                btn.classList.add('text-white');
-            } else {
-                btn.classList.add('text-[#b3b3b3]');
+            function toggleShuffle() {
+                isShuffle = !isShuffle;
+                // Update all shuffle buttons (Desktop, Mobile Mini, Mobile Full)
+                const btns = document.querySelectorAll('.shuffle-btn, #shuffleBtn');
+                btns.forEach(btn => {
+                    if (isShuffle) {
+                        btn.classList.add('text-green-500');
+                        btn.classList.remove('text-white', 'text-gray-400', 'text-[#b3b3b3]');
+                        btn.style.setProperty('color', '', 'important');
+                    } else {
+                        btn.classList.remove('text-green-500');
+                        // If it's in the mini player, default to white, otherwise to gray
+                        if (btn.closest('.mobile-player-mini')) {
+                            btn.classList.add('text-white');
+                        } else {
+                            btn.classList.add('text-[#b3b3b3]');
+                        }
+                    }
+                });
+                showToast(isShuffle ? "Modo aleatorio activado" : "Modo aleatorio desactivado");
             }
-        }
 
-        // "Repeat One" indicator
-        if (repeatMode === 2) {
-            btn.innerHTML = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v6z"/><text x="10" y="16" font-size="8" font-weight="bold">1</text></svg>`;
-        } else {
-            btn.innerHTML = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v6z"/></svg>`;
-        }
-    });
+            function toggleRepeat() {
+                repeatMode = (repeatMode + 1) % 3;
+                const btns = document.querySelectorAll('.repeat-btn, #repeatBtn');
+                const labels = ["No repetir", "Repetir lista", "Repetir una"];
 
-    showToast(labels[repeatMode]);
-}
+                btns.forEach(btn => {
+                    btn.classList.remove('text-green-500', 'text-white', 'text-gray-400', 'text-[#b3b3b3]');
+                    btn.style.setProperty('color', '', 'important');
 
-// --- PLAYLISTS ---
-function showCreatePlaylistModal() {
-    document.getElementById('createPlaylistModal').classList.remove('hidden');
-    document.getElementById('newPlaylistName').focus();
-}
+                    if (repeatMode > 0) {
+                        btn.classList.add('text-green-500');
+                    } else {
+                        if (btn.closest('.mobile-player-mini')) {
+                            btn.classList.add('text-white');
+                        } else {
+                            btn.classList.add('text-[#b3b3b3]');
+                        }
+                    }
 
-function hideCreatePlaylistModal() {
-    document.getElementById('createPlaylistModal').classList.add('hidden');
-}
+                    // "Repeat One" indicator
+                    if (repeatMode === 2) {
+                        btn.innerHTML = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v6z"/><text x="10" y="16" font-size="8" font-weight="bold">1</text></svg>`;
+                    } else {
+                        btn.innerHTML = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v6z"/></svg>`;
+                    }
+                });
 
-function createPlaylist() {
-    const name = document.getElementById('newPlaylistName').value.trim();
-    if (!name) return;
+                showToast(labels[repeatMode]);
+            }
 
-    const newPlaylist = {
-        id: 'pl_' + Date.now(),
-        name: name,
-        description: '',
-        cover: '',
-        songs: []
-    };
+            // --- PLAYLISTS ---
+            function showCreatePlaylistModal() {
+                document.getElementById('createPlaylistModal').classList.remove('hidden');
+                document.getElementById('newPlaylistName').focus();
+            }
 
-    playlists.push(newPlaylist);
-    savePlaylists();
-    renderPlaylists();
-    hideCreatePlaylistModal();
-    document.getElementById('newPlaylistName').value = '';
-    showToast(`Lista "${name}" creada`);
-}
+            function hideCreatePlaylistModal() {
+                document.getElementById('createPlaylistModal').classList.add('hidden');
+            }
 
-async function savePlaylists() {
-    localStorage.setItem('amaya_playlists', JSON.stringify(playlists));
-    if (!currentUserUid) {
-        console.log("ℹ️ Sesión no iniciada. Guardando solo localmente.");
-        return;
-    }
-    try {
-        await setDoc(doc(db, "users", currentUserUid), {
-            playlists: playlists,
-            lastUpdate: new Date().toISOString()
-        });
-        console.log("☁️ Playlists sincronizadas con la nube para el usuario:", currentUserUid);
-    } catch (e) {
-        console.error("Error al sincronizar con la nube:", e);
-    }
-}
+            function createPlaylist() {
+                const name = document.getElementById('newPlaylistName').value.trim();
+                if (!name) return;
 
-async function shareCurrentPlaylist() {
-    if (!activePlaylistId) return;
-    const pl = playlists.find(p => p.id === activePlaylistId);
-    if (!pl) return;
+                const newPlaylist = {
+                    id: 'pl_' + Date.now(),
+                    name: name,
+                    description: '',
+                    cover: '',
+                    songs: []
+                };
 
-    try {
-        // Upload to a public 'shared_playlists' collection
-        await setDoc(doc(db, "shared_playlists", pl.id), {
-            ...pl,
-            ownerName: auth.currentUser ? auth.currentUser.displayName : 'Usuario Amaya',
-            sharedAt: new Date().toISOString()
-        });
+                playlists.push(newPlaylist);
+                savePlaylists();
+                renderPlaylists();
+                hideCreatePlaylistModal();
+                document.getElementById('newPlaylistName').value = '';
+                showToast(`Lista "${name}" creada`);
+            }
 
-        const shareUrl = `${window.location.origin}${window.location.pathname}?share=${pl.id}`;
-        await navigator.clipboard.writeText(shareUrl);
-        showToast("¡Enlace de compartición copiado al portapapeles! 🔗");
-    } catch (e) {
-        console.error("Error en compartir:", e);
-        showToast("Error al compartir la lista", "error");
-    }
-}
+            async function savePlaylists() {
+                localStorage.setItem('amaya_playlists', JSON.stringify(playlists));
+                if (!currentUserUid) {
+                    console.log("ℹ️ Sesión no iniciada. Guardando solo localmente.");
+                    return;
+                }
+                try {
+                    await setDoc(doc(db, "users", currentUserUid), {
+                        playlists: playlists,
+                        lastUpdate: new Date().toISOString()
+                    });
+                    console.log("☁️ Playlists sincronizadas con la nube para el usuario:", currentUserUid);
+                } catch (e) {
+                    console.error("Error al sincronizar con la nube:", e);
+                }
+            }
 
-async function checkSharedPlaylist() {
-    const params = new URLSearchParams(window.location.search);
-    const sharedId = params.get('share');
-    if (!sharedId) return;
+            async function shareCurrentPlaylist() {
+                if (!activePlaylistId) return;
+                const pl = playlists.find(p => p.id === activePlaylistId);
+                if (!pl) return;
 
-    try {
-        const docRef = doc(db, "shared_playlists", sharedId);
-        const docSnap = await getDoc(docRef);
+                try {
+                    // Upload to a public 'shared_playlists' collection
+                    await setDoc(doc(db, "shared_playlists", pl.id), {
+                        ...pl,
+                        ownerName: auth.currentUser ? auth.currentUser.displayName : 'Usuario Amaya',
+                        sharedAt: new Date().toISOString()
+                    });
 
-        if (docSnap.exists()) {
-            sharedPlaylistData = docSnap.data();
-            renderSharedPlaylist(sharedPlaylistData);
-        } else {
-            showToast("La lista compartida no existe", "error");
-        }
-    } catch (e) {
-        console.error("Error fetching shared playlist:", e);
-    }
-}
+                    const shareUrl = `${window.location.origin}${window.location.pathname}?share=${pl.id}`;
+                    await navigator.clipboard.writeText(shareUrl);
+                    showToast("¡Enlace de compartición copiado al portapapeles! 🔗");
+                } catch (e) {
+                    console.error("Error en compartir:", e);
+                    showToast("Error al compartir la lista", "error");
+                }
+            }
 
-function renderSharedPlaylist(pl) {
-    activePlaylistId = pl.id;
+            async function checkSharedPlaylist() {
+                const params = new URLSearchParams(window.location.search);
+                const sharedId = params.get('share');
+                if (!sharedId) return;
 
-    // UI elements
-    document.getElementById('playlistTitle').innerText = pl.name;
-    document.getElementById('playlistInfo').innerText = `Compartida por ${pl.ownerName || 'Amaya User'} • ${pl.songs.length} canciones`;
+                try {
+                    const docRef = doc(db, "shared_playlists", sharedId);
+                    const docSnap = await getDoc(docRef);
 
-    // Handle cover
-    const coverImg = document.getElementById('playlistCoverImage');
-    const coverIcon = document.getElementById('playlistCoverIcon');
-    if (pl.cover) {
-        coverImg.src = pl.cover;
-        coverImg.classList.remove('hidden');
-        coverIcon.classList.add('hidden');
-    } else {
-        coverImg.classList.add('hidden');
-        coverIcon.classList.remove('hidden');
-    }
+                    if (docSnap.exists()) {
+                        sharedPlaylistData = docSnap.data();
+                        renderSharedPlaylist(sharedPlaylistData);
+                    } else {
+                        showToast("La lista compartida no existe", "error");
+                    }
+                } catch (e) {
+                    console.error("Error fetching shared playlist:", e);
+                }
+            }
 
-    // Toggle actions
-    document.getElementById('playlistOwnerActions').classList.add('hidden');
-    document.getElementById('playlistSharedActions').classList.remove('hidden');
+            function renderSharedPlaylist(pl) {
+                activePlaylistId = pl.id;
 
-    // Render songs
-    const container = document.getElementById('playlistSongs');
-    container.innerHTML = '';
-    playlist = pl.songs; // Use shared songs for playback
+                // UI elements
+                document.getElementById('playlistTitle').innerText = pl.name;
+                document.getElementById('playlistInfo').innerText = `Compartida por ${pl.ownerName || 'Amaya User'} • ${pl.songs.length} canciones`;
 
-    pl.songs.forEach((song, index) => {
-        const row = document.createElement('div');
-        row.className = 'flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer group';
-        row.onclick = () => playSong(index);
-        row.innerHTML = `
+                // Handle cover
+                const coverImg = document.getElementById('playlistCoverImage');
+                const coverIcon = document.getElementById('playlistCoverIcon');
+                if (pl.cover) {
+                    coverImg.src = pl.cover;
+                    coverImg.classList.remove('hidden');
+                    coverIcon.classList.add('hidden');
+                } else {
+                    coverImg.classList.add('hidden');
+                    coverIcon.classList.remove('hidden');
+                }
+
+                // Toggle actions
+                document.getElementById('playlistOwnerActions').classList.add('hidden');
+                document.getElementById('playlistSharedActions').classList.remove('hidden');
+
+                // Render songs
+                const container = document.getElementById('playlistSongs');
+                container.innerHTML = '';
+                playlist = pl.songs; // Use shared songs for playback
+
+                pl.songs.forEach((song, index) => {
+                    const row = document.createElement('div');
+                    row.className = 'flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer group';
+                    row.onclick = () => playSong(index);
+                    row.innerHTML = `
             <span class="w-8 text-center text-gray-500 group-hover:hidden">${index + 1}</span>
             <div class="hidden group-hover:flex w-8 justify-center">
                 <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -1882,130 +1848,130 @@ function renderSharedPlaylist(pl) {
             </div>
             <span class="text-sm text-gray-500">${song.duration || ''}</span>
         `;
-        container.appendChild(row);
-    });
+                    container.appendChild(row);
+                });
 
-    // Show view
-    document.getElementById('homeSection').classList.add('hidden');
-    document.getElementById('resultsSection').classList.add('hidden');
-    document.getElementById('playlistView').classList.remove('hidden');
-}
+                // Show view
+                document.getElementById('homeSection').classList.add('hidden');
+                document.getElementById('resultsSection').classList.add('hidden');
+                document.getElementById('playlistView').classList.remove('hidden');
+            }
 
-function importSharedPlaylist() {
-    if (!sharedPlaylistData) return;
+            function importSharedPlaylist() {
+                if (!sharedPlaylistData) return;
 
-    // Check if already exists
-    if (playlists.find(p => p.id === sharedPlaylistData.id)) {
-        showToast("Esta lista ya está en tu biblioteca");
-        return;
-    }
+                // Check if already exists
+                if (playlists.find(p => p.id === sharedPlaylistData.id)) {
+                    showToast("Esta lista ya está en tu biblioteca");
+                    return;
+                }
 
-    const newPl = { ...sharedPlaylistData, id: 'pl_' + Date.now() }; // New ID for personal copy
-    playlists.push(newPl);
-    savePlaylists();
-    renderPlaylists();
+                const newPl = { ...sharedPlaylistData, id: 'pl_' + Date.now() }; // New ID for personal copy
+                playlists.push(newPl);
+                savePlaylists();
+                renderPlaylists();
 
-    // Return to owner view for this new copy
-    openPlaylist(newPl.id);
-    showToast(`¡Lista "${newPl.name}" añadida a tu biblioteca!`);
-}
+                // Return to owner view for this new copy
+                openPlaylist(newPl.id);
+                showToast(`¡Lista "${newPl.name}" añadida a tu biblioteca!`);
+            }
 
-function renderPlaylists() {
-    const sidebar = document.getElementById('playlistsSidebar');
-    sidebar.innerHTML = '';
+            function renderPlaylists() {
+                const sidebar = document.getElementById('playlistsSidebar');
+                sidebar.innerHTML = '';
 
-    if (playlists.length === 0) {
-        sidebar.innerHTML = '<p class="text-xs text-center text-gray-500 py-4 px-2">Aún no tienes ninguna lista. ¡Crea la primera!</p>';
-    }
+                if (playlists.length === 0) {
+                    sidebar.innerHTML = '<p class="text-xs text-center text-gray-500 py-4 px-2">Aún no tienes ninguna lista. ¡Crea la primera!</p>';
+                }
 
-    playlists.forEach(pl => {
-        // Sidebar item
-        const sideItem = document.createElement('div');
-        sideItem.className = 'playlist-item flex items-center gap-3 p-2 rounded-lg hover:bg-[#1a1a1a] cursor-pointer group transition-colors';
-        sideItem.onclick = () => openPlaylist(pl.id);
+                playlists.forEach(pl => {
+                    // Sidebar item
+                    const sideItem = document.createElement('div');
+                    sideItem.className = 'playlist-item flex items-center gap-3 p-2 rounded-lg hover:bg-[#1a1a1a] cursor-pointer group transition-colors';
+                    sideItem.onclick = () => openPlaylist(pl.id);
 
-        const coverImg = pl.cover || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=100&h=100&fit=crop';
-        sideItem.innerHTML = `
+                    const coverImg = pl.cover || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=100&h=100&fit=crop';
+                    sideItem.innerHTML = `
             <img src="${coverImg}" class="w-12 h-12 rounded object-cover shadow-md">
             <div class="flex-1 min-w-0">
                 <p class="text-white text-sm font-semibold truncate">${pl.name}</p>
                 <p class="text-[#b3b3b3] text-xs">${pl.songs.length} canciones</p>
             </div>
         `;
-        sidebar.appendChild(sideItem);
-    });
+                    sidebar.appendChild(sideItem);
+                });
 
-    // Also update the main library rows
-    renderHomePlaylists();
-}
-
-let activePlaylistId = null;
-
-function openPlaylist(id) {
-    const pl = playlists.find(p => p.id === id);
-    if (!pl) return;
-
-    activePlaylistId = id;
-    sharedPlaylistData = null; // Standard playlist, not shared view
-
-    // Maintain tab state
-    const tabPlaylists = document.getElementById('tab-playlists');
-    const tabSearch = document.getElementById('tab-search');
-    if (tabPlaylists) tabPlaylists.classList.add('active');
-    if (tabSearch) tabSearch.classList.remove('active');
-
-    // Switch views
-    document.getElementById('resultsSection').classList.add('hidden');
-    document.getElementById('homeSection').classList.add('hidden');
-    document.getElementById('playlistView').classList.remove('hidden');
-
-    // Hide search input section when viewing a playlist
-    const searchInputSection = document.getElementById('searchInputSection');
-    if (searchInputSection) searchInputSection.classList.add('hidden');
-
-    // Toggle actions (show owner actions)
-    document.getElementById('playlistOwnerActions').classList.remove('hidden');
-    document.getElementById('playlistSharedActions').classList.add('hidden');
-
-    const totalSeconds = getPlaylistTotalDuration(pl);
-    const durationStr = formatDuration(totalSeconds, true);
-
-    document.getElementById('playlistTitle').innerText = pl.name;
-    document.getElementById('playlistInfo').innerText = `${pl.songs.length} canciones • Total: ${durationStr}`;
-
-    const coverImg = document.getElementById('playlistCoverImage');
-    const coverIcon = document.getElementById('playlistCoverIcon');
-    if (pl.cover) {
-        coverImg.src = pl.cover;
-        coverImg.classList.remove('hidden');
-        coverIcon.classList.add('hidden');
-    } else {
-        coverImg.classList.add('hidden');
-        coverIcon.classList.remove('hidden');
-    }
-
-    const songsList = document.getElementById('playlistSongs');
-    songsList.innerHTML = '';
-
-    if (pl.songs.length === 0) {
-        songsList.innerHTML = '<div class="p-8 text-center text-gray-500">Esta lista está vacía</div>';
-    } else {
-        pl.songs.forEach((song, index) => {
-            const inQueue = isSongInQueue(song.id);
-            const inQueueClass = inQueue ? 'in-queue' : 'text-[#b3b3b3]';
-
-            const isCurrent = isMediaPlaying && currentTrack && String(currentTrack.id) === String(song.id);
-            const row = document.createElement('div');
-            row.className = `result-row flex items-center gap-4 p-3 cursor-pointer group hover:bg-white/5 ${isCurrent ? 'is-playing' : ''}`;
-            row.dataset.videoId = song.id;
-            row.onclick = () => {
-                currentlyPlayingPlaylistId = id;
-                localStorage.setItem('amaya_playing_pl_id', id);
+                // Also update the main library rows
                 renderHomePlaylists();
-                playSong(song, pl.songs);
-            };
+            }
 
-            row.innerHTML = `
+            let activePlaylistId = null;
+
+            function openPlaylist(id) {
+                const pl = playlists.find(p => p.id === id);
+                if (!pl) return;
+
+                activePlaylistId = id;
+                sharedPlaylistData = null; // Standard playlist, not shared view
+
+                // Maintain tab state
+                const tabPlaylists = document.getElementById('tab-playlists');
+                const tabSearch = document.getElementById('tab-search');
+                if (tabPlaylists) tabPlaylists.classList.add('active');
+                if (tabSearch) tabSearch.classList.remove('active');
+
+                // Switch views
+                document.getElementById('resultsSection').classList.add('hidden');
+                document.getElementById('homeSection').classList.add('hidden');
+                document.getElementById('playlistView').classList.remove('hidden');
+
+                // Hide search input section when viewing a playlist
+                const searchInputSection = document.getElementById('searchInputSection');
+                if (searchInputSection) searchInputSection.classList.add('hidden');
+
+                // Toggle actions (show owner actions)
+                document.getElementById('playlistOwnerActions').classList.remove('hidden');
+                document.getElementById('playlistSharedActions').classList.add('hidden');
+
+                const totalSeconds = getPlaylistTotalDuration(pl);
+                const durationStr = formatDuration(totalSeconds, true);
+
+                document.getElementById('playlistTitle').innerText = pl.name;
+                document.getElementById('playlistInfo').innerText = `${pl.songs.length} canciones • Total: ${durationStr}`;
+
+                const coverImg = document.getElementById('playlistCoverImage');
+                const coverIcon = document.getElementById('playlistCoverIcon');
+                if (pl.cover) {
+                    coverImg.src = pl.cover;
+                    coverImg.classList.remove('hidden');
+                    coverIcon.classList.add('hidden');
+                } else {
+                    coverImg.classList.add('hidden');
+                    coverIcon.classList.remove('hidden');
+                }
+
+                const songsList = document.getElementById('playlistSongs');
+                songsList.innerHTML = '';
+
+                if (pl.songs.length === 0) {
+                    songsList.innerHTML = '<div class="p-8 text-center text-gray-500">Esta lista está vacía</div>';
+                } else {
+                    pl.songs.forEach((song, index) => {
+                        const inQueue = isSongInQueue(song.id);
+                        const inQueueClass = inQueue ? 'in-queue' : 'text-[#b3b3b3]';
+
+                        const isCurrent = isMediaPlaying && currentTrack && String(currentTrack.id) === String(song.id);
+                        const row = document.createElement('div');
+                        row.className = `result-row flex items-center gap-4 p-3 cursor-pointer group hover:bg-white/5 ${isCurrent ? 'is-playing' : ''}`;
+                        row.dataset.videoId = song.id;
+                        row.onclick = () => {
+                            currentlyPlayingPlaylistId = id;
+                            localStorage.setItem('amaya_playing_pl_id', id);
+                            renderHomePlaylists();
+                            playSong(song, pl.songs);
+                        };
+
+                        row.innerHTML = `
                 <div class="w-10 text-center text-sm text-[#b3b3b3] group-hover:hidden">${index + 1}</div>
                 <div class="hidden group-hover:block w-10 text-center">
                     <svg class="w-4 h-4 text-white mx-auto" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -2029,176 +1995,176 @@ function openPlaylist(id) {
                     </button>
                 </div>
             `;
-            songsList.appendChild(row);
-        });
-    }
-    // Apply marquees to playlist songs
-    songsList.querySelectorAll('.marquee-content').forEach(el => updateMarquee(el));
-}
-
-function showAddToPlaylistMenu(event, song) {
-    event.stopPropagation();
-    const menu = document.getElementById('addToPlaylistMenu');
-    const items = document.getElementById('playlistMenuItems');
-    items.innerHTML = '';
-
-    if (playlists.length === 0) {
-        items.innerHTML = '<p class="px-4 py-2 text-xs text-gray-500">No tienes ninguna lista</p>';
-    } else {
-        playlists.forEach(pl => {
-            const btn = document.createElement('button');
-            btn.className = 'w-full text-left px-4 py-2 hover:bg-[#3e3e3e] truncate text-sm';
-            btn.innerText = pl.name;
-            btn.onclick = () => {
-                const targetSong = song || currentTrack;
-                if (!pl.songs.some(s => s.id === targetSong.id)) {
-                    pl.songs.push(targetSong);
-                    savePlaylists();
-                    renderPlaylists();
-                    showToast(`Añadido a ${pl.name}`);
-                } else {
-                    showToast("Ya está en la lista", "error");
+                        songsList.appendChild(row);
+                    });
                 }
-                hideAddToPlaylistMenu();
-            };
-            items.appendChild(btn);
-        });
-    }
+                // Apply marquees to playlist songs
+                songsList.querySelectorAll('.marquee-content').forEach(el => updateMarquee(el));
+            }
 
-    menu.classList.remove('hidden');
+            function showAddToPlaylistMenu(event, song) {
+                event.stopPropagation();
+                const menu = document.getElementById('addToPlaylistMenu');
+                const items = document.getElementById('playlistMenuItems');
+                items.innerHTML = '';
 
-    // Position menu near cursor
-    const x = Math.min(event.clientX, window.innerWidth - 220);
-    const y = Math.min(event.clientY, window.innerHeight - menu.offsetHeight - 100);
-    menu.style.left = x + 'px';
-    menu.style.top = y + 'px';
+                if (playlists.length === 0) {
+                    items.innerHTML = '<p class="px-4 py-2 text-xs text-gray-500">No tienes ninguna lista</p>';
+                } else {
+                    playlists.forEach(pl => {
+                        const btn = document.createElement('button');
+                        btn.className = 'w-full text-left px-4 py-2 hover:bg-[#3e3e3e] truncate text-sm';
+                        btn.innerText = pl.name;
+                        btn.onclick = () => {
+                            const targetSong = song || currentTrack;
+                            if (!pl.songs.some(s => s.id === targetSong.id)) {
+                                pl.songs.push(targetSong);
+                                savePlaylists();
+                                renderPlaylists();
+                                showToast(`Añadido a ${pl.name}`);
+                            } else {
+                                showToast("Ya está en la lista", "error");
+                            }
+                            hideAddToPlaylistMenu();
+                        };
+                        items.appendChild(btn);
+                    });
+                }
 
-    // Close menu when clicking outside
-    const closeMenu = (e) => {
-        if (!menu.contains(e.target)) {
-            hideAddToPlaylistMenu();
-            document.removeEventListener('click', closeMenu);
-        }
-    };
-    setTimeout(() => document.addEventListener('click', closeMenu), 10);
-}
+                menu.classList.remove('hidden');
 
-function hideAddToPlaylistMenu() {
-    document.getElementById('addToPlaylistMenu').classList.add('hidden');
-}
+                // Position menu near cursor
+                const x = Math.min(event.clientX, window.innerWidth - 220);
+                const y = Math.min(event.clientY, window.innerHeight - menu.offsetHeight - 100);
+                menu.style.left = x + 'px';
+                menu.style.top = y + 'px';
 
-function removeSongFromPlaylist(plId, songId) {
-    const pl = playlists.find(p => p.id === plId);
-    if (!pl) return;
-    pl.songs = pl.songs.filter(s => s.id !== songId);
-    savePlaylists();
-    renderPlaylists();
-    openPlaylist(plId);
-    showToast("Canción eliminada de la lista");
-}
+                // Close menu when clicking outside
+                const closeMenu = (e) => {
+                    if (!menu.contains(e.target)) {
+                        hideAddToPlaylistMenu();
+                        document.removeEventListener('click', closeMenu);
+                    }
+                };
+                setTimeout(() => document.addEventListener('click', closeMenu), 10);
+            }
 
-function triggerPlaylistCoverUpload() {
-    document.getElementById('playlistCoverInput').click();
-}
+            function hideAddToPlaylistMenu() {
+                document.getElementById('addToPlaylistMenu').classList.add('hidden');
+            }
 
-function handlePlaylistCoverChange(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+            function removeSongFromPlaylist(plId, songId) {
+                const pl = playlists.find(p => p.id === plId);
+                if (!pl) return;
+                pl.songs = pl.songs.filter(s => s.id !== songId);
+                savePlaylists();
+                renderPlaylists();
+                openPlaylist(plId);
+                showToast("Canción eliminada de la lista");
+            }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const pl = playlists.find(p => p.id === activePlaylistId);
-        if (pl) {
-            pl.cover = e.target.result;
-            savePlaylists();
-            renderPlaylists();
-            openPlaylist(activePlaylistId);
-        }
-    };
-    reader.readAsDataURL(file);
-}
+            function triggerPlaylistCoverUpload() {
+                document.getElementById('playlistCoverInput').click();
+            }
 
-function openEditPlaylistModal(id) {
-    activePlaylistId = id;
-    showEditPlaylistModal();
-}
+            function handlePlaylistCoverChange(event) {
+                const file = event.target.files[0];
+                if (!file) return;
 
-function showEditPlaylistModal() {
-    const pl = playlists.find(p => p.id === activePlaylistId);
-    if (!pl) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const pl = playlists.find(p => p.id === activePlaylistId);
+                    if (pl) {
+                        pl.cover = e.target.result;
+                        savePlaylists();
+                        renderPlaylists();
+                        openPlaylist(activePlaylistId);
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
 
-    document.getElementById('editPlaylistName').value = pl.name;
-    document.getElementById('editPlaylistDescription').value = pl.description || '';
-    document.getElementById('editPlaylistModal').classList.remove('hidden');
-}
+            function openEditPlaylistModal(id) {
+                activePlaylistId = id;
+                showEditPlaylistModal();
+            }
 
-function hideEditPlaylistModal() {
-    document.getElementById('editPlaylistModal').classList.add('hidden');
-}
+            function showEditPlaylistModal() {
+                const pl = playlists.find(p => p.id === activePlaylistId);
+                if (!pl) return;
 
-function savePlaylistEdits() {
-    const pl = playlists.find(p => p.id === activePlaylistId);
-    if (!pl) return;
+                document.getElementById('editPlaylistName').value = pl.name;
+                document.getElementById('editPlaylistDescription').value = pl.description || '';
+                document.getElementById('editPlaylistModal').classList.remove('hidden');
+            }
 
-    pl.name = document.getElementById('editPlaylistName').value.trim() || pl.name;
-    pl.description = document.getElementById('editPlaylistDescription').value.trim();
+            function hideEditPlaylistModal() {
+                document.getElementById('editPlaylistModal').classList.add('hidden');
+            }
 
-    savePlaylists();
-    renderPlaylists();
-    openPlaylist(activePlaylistId);
-    hideEditPlaylistModal();
-    showToast("Lista actualizada");
-}
+            function savePlaylistEdits() {
+                const pl = playlists.find(p => p.id === activePlaylistId);
+                if (!pl) return;
 
-function showDeletePlaylistConfirm() {
-    document.getElementById('deletePlaylistModal').classList.remove('hidden');
-}
+                pl.name = document.getElementById('editPlaylistName').value.trim() || pl.name;
+                pl.description = document.getElementById('editPlaylistDescription').value.trim();
 
-function hideDeletePlaylistConfirm() {
-    document.getElementById('deletePlaylistModal').classList.add('hidden');
-}
+                savePlaylists();
+                renderPlaylists();
+                openPlaylist(activePlaylistId);
+                hideEditPlaylistModal();
+                showToast("Lista actualizada");
+            }
 
-function deleteCurrentPlaylist() {
-    if (!activePlaylistId) return;
-    playlists = playlists.filter(p => p.id !== activePlaylistId);
-    savePlaylists();
-    renderPlaylists();
-    hideDeletePlaylistConfirm();
-    showHome();
-    showToast("Lista eliminada");
-}
+            function showDeletePlaylistConfirm() {
+                document.getElementById('deletePlaylistModal').classList.remove('hidden');
+            }
 
-function playCurrentPlaylist() {
-    const pl = playlists.find(p => p.id === activePlaylistId);
-    if (pl && pl.songs.length > 0) {
-        currentlyPlayingPlaylistId = activePlaylistId;
-        localStorage.setItem('amaya_playing_pl_id', currentlyPlayingPlaylistId);
-        renderHomePlaylists();
-        playSong(pl.songs[0], pl.songs);
-    }
-}
+            function hideDeletePlaylistConfirm() {
+                document.getElementById('deletePlaylistModal').classList.add('hidden');
+            }
 
-// --- QUEUE ---
-function showQueue() {
-    const modal = document.getElementById('queueModal');
-    const content = document.getElementById('queueContent');
-    content.innerHTML = '';
+            function deleteCurrentPlaylist() {
+                if (!activePlaylistId) return;
+                playlists = playlists.filter(p => p.id !== activePlaylistId);
+                savePlaylists();
+                renderPlaylists();
+                hideDeletePlaylistConfirm();
+                showHome();
+                showToast("Lista eliminada");
+            }
 
-    if (queue.length === 0) {
-        content.innerHTML = '<p class="text-center text-gray-500 py-8">La cola está vacía</p>';
-    } else {
-        queue.forEach((song, index) => {
-            const row = document.createElement('div');
-            row.className = `flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer group ${index === currentQueueIndex ? 'bg-green-500/10' : ''}`;
+            function playCurrentPlaylist() {
+                const pl = playlists.find(p => p.id === activePlaylistId);
+                if (pl && pl.songs.length > 0) {
+                    currentlyPlayingPlaylistId = activePlaylistId;
+                    localStorage.setItem('amaya_playing_pl_id', currentlyPlayingPlaylistId);
+                    renderHomePlaylists();
+                    playSong(pl.songs[0], pl.songs);
+                }
+            }
 
-            // Clicking the row plays the song
-            row.onclick = () => {
-                currentQueueIndex = index;
-                playSong(song, queue, true);
-                hideQueue();
-            };
+            // --- QUEUE ---
+            function showQueue() {
+                const modal = document.getElementById('queueModal');
+                const content = document.getElementById('queueContent');
+                content.innerHTML = '';
 
-            row.innerHTML = `
+                if (queue.length === 0) {
+                    content.innerHTML = '<p class="text-center text-gray-500 py-8">La cola está vacía</p>';
+                } else {
+                    queue.forEach((song, index) => {
+                        const row = document.createElement('div');
+                        row.className = `flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer group ${index === currentQueueIndex ? 'bg-green-500/10' : ''}`;
+
+                        // Clicking the row plays the song
+                        row.onclick = () => {
+                            currentQueueIndex = index;
+                            playSong(song, queue, true);
+                            hideQueue();
+                        };
+
+                        row.innerHTML = `
                 <span class="text-xs text-gray-500 w-4">${index + 1}</span>
                 <img src="${song.thumbnail}" class="w-10 h-10 rounded object-cover">
                 <div class="flex-1 min-w-0">
@@ -2215,145 +2181,145 @@ function showQueue() {
                     </svg>
                 </button>
             `;
-            content.appendChild(row);
-        });
-    }
+                        content.appendChild(row);
+                    });
+                }
 
-    modal.classList.remove('hidden');
-    // Apply marquees to queue items
-    content.querySelectorAll('.marquee-content').forEach(el => updateMarquee(el));
-}
-
-function removeFromQueue(index) {
-    if (index === currentQueueIndex) {
-        showToast("No puedes eliminar la canción que está sonando", "warning");
-        return;
-    }
-
-    const removedSong = queue.splice(index, 1)[0];
-
-    // Adjust currentQueueIndex if needed
-    if (index < currentQueueIndex) {
-        currentQueueIndex--;
-    }
-
-    showToast(`- ${removedSong.title}`);
-    updateQueueCount();
-    updateQueueIcons();
-    showQueue(); // Refresh the list
-}
-
-function hideQueue() {
-    document.getElementById('queueModal').classList.add('hidden');
-}
-
-function clearQueue() {
-    queue = [];
-    currentQueueIndex = -1;
-    updateQueueCount();
-    updateQueueIcons();
-    hideQueue();
-    showToast("Cola vacía");
-}
-
-
-function highlightCurrentTrack(videoId) {
-    if (!videoId) return;
-
-    // 1. CLEANUP: Remove highlight class and badges from ALL elements
-    document.querySelectorAll('.is-playing, .result-row, .playlist-item, [data-video-id]').forEach(row => {
-        row.classList.remove('is-playing');
-
-        // Remove badge while preserving title text
-        const titleEl = row.querySelector('.song-title, .marquee-content, h3');
-        if (titleEl) {
-            const badge = titleEl.querySelector('.playing-badge');
-            if (badge) {
-                // If the badge exists, we remove only the badge element
-                badge.remove();
-                // If it was a text span within h3, sometimes it's easier to just strip the badge
+                modal.classList.remove('hidden');
+                // Apply marquees to queue items
+                content.querySelectorAll('.marquee-content').forEach(el => updateMarquee(el));
             }
-        }
-    });
 
-    // 2. APPLY: Add highlight to rows matching current videoId
-    // We target both .result-row (search) and [data-video-id] (playlist views)
-    document.querySelectorAll('.result-row, [data-video-id]').forEach(row => {
-        if (String(row.dataset.videoId) === String(videoId)) {
-            row.classList.add('is-playing');
+            function removeFromQueue(index) {
+                if (index === currentQueueIndex) {
+                    showToast("No puedes eliminar la canción que está sonando", "warning");
+                    return;
+                }
 
-            // Add badge if not present
-            const titleEl = row.querySelector('.song-title, .marquee-content, h3');
-            if (titleEl && !titleEl.querySelector('.playing-badge')) {
-                const badge = document.createElement('span');
-                badge.className = 'playing-badge';
-                badge.innerText = 'SONANDO';
-                titleEl.appendChild(badge);
+                const removedSong = queue.splice(index, 1)[0];
+
+                // Adjust currentQueueIndex if needed
+                if (index < currentQueueIndex) {
+                    currentQueueIndex--;
+                }
+
+                showToast(`- ${removedSong.title}`);
+                updateQueueCount();
+                updateQueueIcons();
+                showQueue(); // Refresh the list
             }
-        }
-    });
-}
 
-// --- UI UPDATES ---
-function switchTab(tab) {
-    const homeSection = document.getElementById('homeSection');
-    const resultsSection = document.getElementById('resultsSection');
-    const playlistView = document.getElementById('playlistView');
-    const tabPlaylists = document.getElementById('tab-playlists');
-    const tabSearch = document.getElementById('tab-search');
+            function hideQueue() {
+                document.getElementById('queueModal').classList.add('hidden');
+            }
 
-    // Update tab buttons
-    if (tabPlaylists) tabPlaylists.classList.toggle('active', tab === 'playlists');
-    if (tabSearch) tabSearch.classList.toggle('active', tab === 'search');
+            function clearQueue() {
+                queue = [];
+                currentQueueIndex = -1;
+                updateQueueCount();
+                updateQueueIcons();
+                hideQueue();
+                showToast("Cola vacía");
+            }
 
-    const searchInputSection = document.getElementById('searchInputSection');
 
-    if (tab === 'playlists') {
-        homeSection.classList.remove('hidden');
-        resultsSection.classList.add('hidden');
-        playlistView.classList.add('hidden');
-        if (searchInputSection) searchInputSection.classList.add('hidden');
-        renderHomePlaylists();
-        activePlaylistId = null;
-    } else if (tab === 'search') {
-        homeSection.classList.add('hidden');
-        resultsSection.classList.remove('hidden');
-        playlistView.classList.add('hidden');
-        if (searchInputSection) searchInputSection.classList.remove('hidden');
-    }
-}
+            function highlightCurrentTrack(videoId) {
+                if (!videoId) return;
 
-function showHome() {
-    switchTab('playlists');
-}
+                // 1. CLEANUP: Remove highlight class and badges from ALL elements
+                document.querySelectorAll('.is-playing, .result-row, .playlist-item, [data-video-id]').forEach(row => {
+                    row.classList.remove('is-playing');
 
-function renderHomePlaylists() {
-    const list = document.getElementById('homePlaylistsList');
-    if (!list) return;
+                    // Remove badge while preserving title text
+                    const titleEl = row.querySelector('.song-title, .marquee-content, h3');
+                    if (titleEl) {
+                        const badge = titleEl.querySelector('.playing-badge');
+                        if (badge) {
+                            // If the badge exists, we remove only the badge element
+                            badge.remove();
+                            // If it was a text span within h3, sometimes it's easier to just strip the badge
+                        }
+                    }
+                });
 
-    list.innerHTML = '';
+                // 2. APPLY: Add highlight to rows matching current videoId
+                // We target both .result-row (search) and [data-video-id] (playlist views)
+                document.querySelectorAll('.result-row, [data-video-id]').forEach(row => {
+                    if (String(row.dataset.videoId) === String(videoId)) {
+                        row.classList.add('is-playing');
 
-    if (playlists.length === 0) {
-        list.innerHTML = `
+                        // Add badge if not present
+                        const titleEl = row.querySelector('.song-title, .marquee-content, h3');
+                        if (titleEl && !titleEl.querySelector('.playing-badge')) {
+                            const badge = document.createElement('span');
+                            badge.className = 'playing-badge';
+                            badge.innerText = 'SONANDO';
+                            titleEl.appendChild(badge);
+                        }
+                    }
+                });
+            }
+
+            // --- UI UPDATES ---
+            function switchTab(tab) {
+                const homeSection = document.getElementById('homeSection');
+                const resultsSection = document.getElementById('resultsSection');
+                const playlistView = document.getElementById('playlistView');
+                const tabPlaylists = document.getElementById('tab-playlists');
+                const tabSearch = document.getElementById('tab-search');
+
+                // Update tab buttons
+                if (tabPlaylists) tabPlaylists.classList.toggle('active', tab === 'playlists');
+                if (tabSearch) tabSearch.classList.toggle('active', tab === 'search');
+
+                const searchInputSection = document.getElementById('searchInputSection');
+
+                if (tab === 'playlists') {
+                    homeSection.classList.remove('hidden');
+                    resultsSection.classList.add('hidden');
+                    playlistView.classList.add('hidden');
+                    if (searchInputSection) searchInputSection.classList.add('hidden');
+                    renderHomePlaylists();
+                    activePlaylistId = null;
+                } else if (tab === 'search') {
+                    homeSection.classList.add('hidden');
+                    resultsSection.classList.remove('hidden');
+                    playlistView.classList.add('hidden');
+                    if (searchInputSection) searchInputSection.classList.remove('hidden');
+                }
+            }
+
+            function showHome() {
+                switchTab('playlists');
+            }
+
+            function renderHomePlaylists() {
+                const list = document.getElementById('homePlaylistsList');
+                if (!list) return;
+
+                list.innerHTML = '';
+
+                if (playlists.length === 0) {
+                    list.innerHTML = `
             <div class="p-12 text-center bg-white/5 rounded-2xl border border-dashed border-white/10">
                 <p class="text-gray-400 mb-4">Aún no tienes ninguna lista</p>
                 <button onclick="showCreatePlaylistModal()" class="text-green-500 font-bold hover:underline">Empieza a crear una aquí</button>
             </div>
         `;
-        return;
-    }
+                    return;
+                }
 
-    playlists.forEach(pl => {
-        const totalSeconds = getPlaylistTotalDuration(pl);
-        const durationStr = formatDuration(totalSeconds, true);
-        const coverImg = pl.cover || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=300&h=300&fit=crop';
+                playlists.forEach(pl => {
+                    const totalSeconds = getPlaylistTotalDuration(pl);
+                    const durationStr = formatDuration(totalSeconds, true);
+                    const coverImg = pl.cover || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=300&h=300&fit=crop';
 
-        const isPlaying = isMediaPlaying && currentlyPlayingPlaylistId && String(currentlyPlayingPlaylistId) === String(pl.id);
-        const row = document.createElement('div');
-        row.className = `group flex items-center justify-between p-3 rounded-xl transition-all cursor-pointer border ${isPlaying ? 'bg-white/10 border-green-500/50 shadow-[0_0_15px_rgba(30,215,96,0.1)]' : 'hover:bg-white/5 border-transparent hover:border-white/10'}`;
-        row.onclick = () => openPlaylist(pl.id);
+                    const isPlaying = isMediaPlaying && currentlyPlayingPlaylistId && String(currentlyPlayingPlaylistId) === String(pl.id);
+                    const row = document.createElement('div');
+                    row.className = `group flex items-center justify-between p-3 rounded-xl transition-all cursor-pointer border ${isPlaying ? 'bg-white/10 border-green-500/50 shadow-[0_0_15px_rgba(30,215,96,0.1)]' : 'hover:bg-white/5 border-transparent hover:border-white/10'}`;
+                    row.onclick = () => openPlaylist(pl.id);
 
-        row.innerHTML = `
+                    row.innerHTML = `
             <div class="flex items-center gap-4 flex-1 min-w-0">
                 <div class="relative">
                     <img src="${coverImg}" class="w-16 h-16 rounded-lg object-cover shadow-lg">
@@ -2376,588 +2342,588 @@ function renderHomePlaylists() {
                 </div>
             </div>
         `;
-        list.appendChild(row);
-    });
-}
-
-function getPlaylistTotalDuration(pl) {
-    return pl.songs.reduce((acc, song) => {
-        const sec = parseDurationToSeconds(song.duration);
-        return acc + sec;
-    }, 0);
-}
-
-function parseDurationToSeconds(duration) {
-    if (!duration || duration === '0:00') return 0;
-    // Handle standard MM:SS or HH:MM:SS
-    const parts = duration.split(':').map(Number);
-    if (parts.length === 3) {
-        return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    } else if (parts.length === 2) {
-        return parts[0] * 60 + parts[1];
-    }
-    return 0;
-}
-
-function formatDuration(seconds, verbose = false) {
-    if (!seconds) return verbose ? "0 min" : "0:00";
-
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-
-    if (verbose) {
-        let res = [];
-        if (h > 0) res.push(`${h} h`);
-        if (m > 0 || h > 0) res.push(`${m} min`);
-        if (h === 0 && s > 0) res.push(`${s} seg`);
-        return res.join(' ') || "0 min";
-    }
-
-    if (h > 0) {
-        return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')} `;
-    }
-    return `${m}:${s.toString().padStart(2, '0')} `;
-}
-
-function playPlaylist(event, plId) {
-    event.stopPropagation();
-    const pl = playlists.find(p => p.id === plId);
-    if (pl && pl.songs.length > 0) {
-        currentlyPlayingPlaylistId = plId;
-        localStorage.setItem('amaya_playing_pl_id', plId);
-        renderHomePlaylists();
-        playSong(pl.songs[0], pl.songs);
-    } else {
-        showToast("Esta lista no tiene canciones", "error");
-    }
-}
-
-function showToast(m, t = 'success') {
-    const c = document.getElementById('toastContainer');
-    c.innerHTML = `<div class="px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-2xl animate-fade-in ${t === 'success' ? 'bg-green-600' : 'bg-red-600'}">${m}</div>`;
-    clearTimeout(window.toastT);
-    window.toastT = setTimeout(() => c.innerHTML = '', 2500);
-}
-
-let progressUpdaterInterval; // Renamed from progressInterval to avoid conflict and be more descriptive
-
-function checkSkipping(currentTime) {
-    if (!currentSegments || currentSegments.length === 0) return;
-
-    // Categories to skip: sponsor, intro, outro, selfpromo, interaction, music_offtopic, preview, filler
-    const skipCategories = ['sponsor', 'intro', 'outro', 'selfpromo', 'interaction', 'music_offtopic', 'preview', 'filler'];
-
-    for (const segment of currentSegments) {
-        if (skipCategories.includes(segment.category)) {
-            // Add a small buffer (0.5s) to start to avoid skipping if we just seeked there
-            if (currentTime >= segment.start + 0.2 && currentTime < segment.end) {
-                console.log(`⏭️ Saltando segmento (${segment.category}): ${segment.start} -> ${segment.end}`);
-                showToast(`Saltando ${segment.category}...`, 'info');
-
-                // Seek to end of segment
-                if (isCurrentlyUsingNative && nativeAudio) {
-                    nativeAudio.currentTime = segment.end;
-                } else if (player && typeof player.seekTo === 'function') {
-                    player.seekTo(segment.end);
-                }
-                break; // Only skip one at a time per check
+                    list.appendChild(row);
+                });
             }
-        }
-    }
-}
 
-// --- PROGRESS BAR ---
-function updateProgressBar() {
-    let currentTime, duration;
+            function getPlaylistTotalDuration(pl) {
+                return pl.songs.reduce((acc, song) => {
+                    const sec = parseDurationToSeconds(song.duration);
+                    return acc + sec;
+                }, 0);
+            }
 
-    if (isCurrentlyUsingNative && nativeAudio && !nativeAudio.paused) {
-        currentTime = nativeAudio.currentTime;
-        duration = nativeAudio.duration;
-    } else if (player && typeof player.getCurrentTime === 'function') {
-        currentTime = player.getCurrentTime();
-        duration = player.getDuration();
-    } else {
-        return;
-    }
+            function parseDurationToSeconds(duration) {
+                if (!duration || duration === '0:00') return 0;
+                // Handle standard MM:SS or HH:MM:SS
+                const parts = duration.split(':').map(Number);
+                if (parts.length === 3) {
+                    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+                } else if (parts.length === 2) {
+                    return parts[0] * 60 + parts[1];
+                }
+                return 0;
+            }
 
-    if (!duration || isNaN(duration)) return;
+            function formatDuration(seconds, verbose = false) {
+                if (!seconds) return verbose ? "0 min" : "0:00";
 
-    const progress = (currentTime / duration) * 100;
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                const s = Math.floor(seconds % 60);
 
-    // Update desktop progress
-    const progressBar = document.getElementById('progressBar');
-    const progressFill = document.getElementById('progressFill');
-    const progressThumb = document.getElementById('progressThumb');
+                if (verbose) {
+                    let res = [];
+                    if (h > 0) res.push(`${h} h`);
+                    if (m > 0 || h > 0) res.push(`${m} min`);
+                    if (h === 0 && s > 0) res.push(`${s} seg`);
+                    return res.join(' ') || "0 min";
+                }
 
-    if (progressBar) progressBar.value = progress;
-    if (progressFill) progressFill.style.width = progress + '%';
-    if (progressThumb) progressThumb.style.left = progress + '%';
+                if (h > 0) {
+                    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')} `;
+                }
+                return `${m}:${s.toString().padStart(2, '0')} `;
+            }
 
-    // Update mobile progress
-    const mobileProgressBar = document.getElementById('mobileProgressBar');
-    const mobileProgressFill = document.getElementById('mobileProgressFill');
-    const progressFillMini = document.getElementById('progressFillMini');
+            function playPlaylist(event, plId) {
+                event.stopPropagation();
+                const pl = playlists.find(p => p.id === plId);
+                if (pl && pl.songs.length > 0) {
+                    currentlyPlayingPlaylistId = plId;
+                    localStorage.setItem('amaya_playing_pl_id', plId);
+                    renderHomePlaylists();
+                    playSong(pl.songs[0], pl.songs);
+                } else {
+                    showToast("Esta lista no tiene canciones", "error");
+                }
+            }
 
-    if (mobileProgressBar) mobileProgressBar.value = progress;
-    if (mobileProgressFill) mobileProgressFill.style.width = progress + '%';
-    if (progressFillMini) progressFillMini.style.width = progress + '%';
+            function showToast(m, t = 'success') {
+                const c = document.getElementById('toastContainer');
+                c.innerHTML = `<div class="px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-2xl animate-fade-in ${t === 'success' ? 'bg-green-600' : 'bg-red-600'}">${m}</div>`;
+                clearTimeout(window.toastT);
+                window.toastT = setTimeout(() => c.innerHTML = '', 2500);
+            }
 
-    // Check for SponsorBlock segments
-    checkSkipping(currentTime);
+            let progressUpdaterInterval; // Renamed from progressInterval to avoid conflict and be more descriptive
 
-    // Update time labels
-    document.getElementById('currentTime').textContent = formatTime(currentTime);
-    document.getElementById('remainingTime').textContent = '-' + formatTime(duration - currentTime);
+            function checkSkipping(currentTime) {
+                if (!currentSegments || currentSegments.length === 0) return;
 
-    const mobileCurrentTime = document.getElementById('mobileCurrentTime');
-    const mobileRemainingTime = document.getElementById('mobileRemainingTime');
-    if (mobileCurrentTime) mobileCurrentTime.textContent = formatTime(currentTime);
-    if (mobileRemainingTime) mobileRemainingTime.textContent = '-' + formatTime(duration - currentTime);
+                // Categories to skip: sponsor, intro, outro, selfpromo, interaction, music_offtopic, preview, filler
+                const skipCategories = ['sponsor', 'intro', 'outro', 'selfpromo', 'interaction', 'music_offtopic', 'preview', 'filler'];
 
-    // Update Media Session position state
-    updateMediaSessionPosition();
-}
+                for (const segment of currentSegments) {
+                    if (skipCategories.includes(segment.category)) {
+                        // Add a small buffer (0.5s) to start to avoid skipping if we just seeked there
+                        if (currentTime >= segment.start + 0.2 && currentTime < segment.end) {
+                            console.log(`⏭️ Saltando segmento (${segment.category}): ${segment.start} -> ${segment.end}`);
+                            showToast(`Saltando ${segment.category}...`, 'info');
 
-function updateMediaSessionPosition() {
-    if (!('mediaSession' in navigator) || !('setPositionState' in navigator.mediaSession)) return;
+                            // Seek to end of segment
+                            if (isCurrentlyUsingNative && nativeAudio) {
+                                nativeAudio.currentTime = segment.end;
+                            } else if (player && typeof player.seekTo === 'function') {
+                                player.seekTo(segment.end);
+                            }
+                            break; // Only skip one at a time per check
+                        }
+                    }
+                }
+            }
 
-    let currentTime, duration, playbackRate;
+            // --- PROGRESS BAR ---
+            function updateProgressBar() {
+                let currentTime, duration;
 
-    if (isCurrentlyUsingNative && nativeAudio && !isNaN(nativeAudio.duration)) {
-        currentTime = nativeAudio.currentTime;
-        duration = nativeAudio.duration;
-        playbackRate = nativeAudio.playbackRate;
-    } else if (player && typeof player.getCurrentTime === 'function') {
-        currentTime = player.getCurrentTime();
-        duration = player.getDuration();
-        playbackRate = player.getPlaybackRate ? player.getPlaybackRate() : 1;
-    } else {
-        return;
-    }
+                if (isCurrentlyUsingNative && nativeAudio && !nativeAudio.paused) {
+                    currentTime = nativeAudio.currentTime;
+                    duration = nativeAudio.duration;
+                } else if (player && typeof player.getCurrentTime === 'function') {
+                    currentTime = player.getCurrentTime();
+                    duration = player.getDuration();
+                } else {
+                    return;
+                }
 
-    if (!duration || isNaN(duration) || isNaN(currentTime)) return;
+                if (!duration || isNaN(duration)) return;
 
-    try {
-        navigator.mediaSession.setPositionState({
-            duration: duration,
-            playbackRate: playbackRate || 1,
-            position: Math.min(currentTime, duration)
-        });
-    } catch (e) {
-        console.error("Error setting MediaSession position:", e);
-    }
-}
+                const progress = (currentTime / duration) * 100;
 
-function startProgressUpdater() {
-    if (progressUpdaterInterval) clearInterval(progressUpdaterInterval);
-    progressUpdaterInterval = setInterval(updateProgressBar, 500);
-}
+                // Update desktop progress
+                const progressBar = document.getElementById('progressBar');
+                const progressFill = document.getElementById('progressFill');
+                const progressThumb = document.getElementById('progressThumb');
 
-function formatTime(seconds) {
-    if (isNaN(seconds)) return "0:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')} `;
-}
+                if (progressBar) progressBar.value = progress;
+                if (progressFill) progressFill.style.width = progress + '%';
+                if (progressThumb) progressThumb.style.left = progress + '%';
 
-// --- CONTROLS INTERACTION ---
-document.getElementById('progressBar').oninput = function () {
-    if (!player) return;
-    const time = (this.value / 100) * player.getDuration();
-    player.seekTo(time);
-};
+                // Update mobile progress
+                const mobileProgressBar = document.getElementById('mobileProgressBar');
+                const mobileProgressFill = document.getElementById('mobileProgressFill');
+                const progressFillMini = document.getElementById('progressFillMini');
 
-document.getElementById('volumeBar').oninput = function () {
-    if (!player) return;
-    const vol = this.value;
-    player.setVolume(vol);
-    document.getElementById('volumeFill').style.width = vol + '%';
-    document.getElementById('volumeThumb').style.left = vol + '%';
+                if (mobileProgressBar) mobileProgressBar.value = progress;
+                if (mobileProgressFill) mobileProgressFill.style.width = progress + '%';
+                if (progressFillMini) progressFillMini.style.width = progress + '%';
 
-    const icon = document.getElementById('volumeIcon');
-    if (vol == 0) icon.innerHTML = '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>';
-    else if (vol < 50) icon.innerHTML = '<path d="M7 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>';
-    else icon.innerHTML = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>';
-};
+                // Check for SponsorBlock segments
+                checkSkipping(currentTime);
 
-function toggleMute() {
-    if (!nativeAudio) return;
-    nativeAudio.muted = !nativeAudio.muted;
-    const icon = document.getElementById('volumeIcon');
-    if (nativeAudio.muted) {
-        icon.innerHTML = '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>';
-    } else {
-        icon.innerHTML = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>';
-    }
-}
+                // Update time labels
+                document.getElementById('currentTime').textContent = formatTime(currentTime);
+                document.getElementById('remainingTime').textContent = '-' + formatTime(duration - currentTime);
+
+                const mobileCurrentTime = document.getElementById('mobileCurrentTime');
+                const mobileRemainingTime = document.getElementById('mobileRemainingTime');
+                if (mobileCurrentTime) mobileCurrentTime.textContent = formatTime(currentTime);
+                if (mobileRemainingTime) mobileRemainingTime.textContent = '-' + formatTime(duration - currentTime);
+
+                // Update Media Session position state
+                updateMediaSessionPosition();
+            }
+
+            function updateMediaSessionPosition() {
+                if (!('mediaSession' in navigator) || !('setPositionState' in navigator.mediaSession)) return;
+
+                let currentTime, duration, playbackRate;
+
+                if (isCurrentlyUsingNative && nativeAudio && !isNaN(nativeAudio.duration)) {
+                    currentTime = nativeAudio.currentTime;
+                    duration = nativeAudio.duration;
+                    playbackRate = nativeAudio.playbackRate;
+                } else if (player && typeof player.getCurrentTime === 'function') {
+                    currentTime = player.getCurrentTime();
+                    duration = player.getDuration();
+                    playbackRate = player.getPlaybackRate ? player.getPlaybackRate() : 1;
+                } else {
+                    return;
+                }
+
+                if (!duration || isNaN(duration) || isNaN(currentTime)) return;
+
+                try {
+                    navigator.mediaSession.setPositionState({
+                        duration: duration,
+                        playbackRate: playbackRate || 1,
+                        position: Math.min(currentTime, duration)
+                    });
+                } catch (e) {
+                    console.error("Error setting MediaSession position:", e);
+                }
+            }
+
+            function startProgressUpdater() {
+                if (progressUpdaterInterval) clearInterval(progressUpdaterInterval);
+                progressUpdaterInterval = setInterval(updateProgressBar, 500);
+            }
+
+            function formatTime(seconds) {
+                if (isNaN(seconds)) return "0:00";
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins}:${secs.toString().padStart(2, '0')} `;
+            }
+
+            // --- CONTROLS INTERACTION ---
+            document.getElementById('progressBar').oninput = function () {
+                if (!player) return;
+                const time = (this.value / 100) * player.getDuration();
+                player.seekTo(time);
+            };
+
+            document.getElementById('volumeBar').oninput = function () {
+                if (!player) return;
+                const vol = this.value;
+                player.setVolume(vol);
+                document.getElementById('volumeFill').style.width = vol + '%';
+                document.getElementById('volumeThumb').style.left = vol + '%';
+
+                const icon = document.getElementById('volumeIcon');
+                if (vol == 0) icon.innerHTML = '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>';
+                else if (vol < 50) icon.innerHTML = '<path d="M7 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>';
+                else icon.innerHTML = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>';
+            };
+
+            function toggleMute() {
+                if (!nativeAudio) return;
+                nativeAudio.muted = !nativeAudio.muted;
+                const icon = document.getElementById('volumeIcon');
+                if (nativeAudio.muted) {
+                    icon.innerHTML = '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>';
+                } else {
+                    icon.innerHTML = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>';
+                }
+            }
 
 
-// --- MOBILE PLAYER ---
-function openMobilePlayer() {
-    const fullPlayer = document.getElementById('mobilePlayerFull');
-    const miniPlayer = document.getElementById('mobilePlayerMini');
+            // --- MOBILE PLAYER ---
+            function openMobilePlayer() {
+                const fullPlayer = document.getElementById('mobilePlayerFull');
+                const miniPlayer = document.getElementById('mobilePlayerMini');
 
-    fullPlayer.classList.add('active');
-    if (miniPlayer) miniPlayer.classList.add('opacity-0', 'pointer-events-none');
+                fullPlayer.classList.add('active');
+                if (miniPlayer) miniPlayer.classList.add('opacity-0', 'pointer-events-none');
 
-    // Disable body scroll
-    document.body.style.overflow = 'hidden';
+                // Disable body scroll
+                document.body.style.overflow = 'hidden';
 
-    // Update marquees once visible
-    setTimeout(updateMarquees, 600);
-}
+                // Update marquees once visible
+                setTimeout(updateMarquees, 600);
+            }
 
-function closeMobilePlayer() {
-    const fullPlayer = document.getElementById('mobilePlayerFull');
-    const miniPlayer = document.getElementById('mobilePlayerMini');
+            function closeMobilePlayer() {
+                const fullPlayer = document.getElementById('mobilePlayerFull');
+                const miniPlayer = document.getElementById('mobilePlayerMini');
 
-    fullPlayer.classList.remove('active');
-    if (miniPlayer) miniPlayer.classList.remove('opacity-0', 'pointer-events-none');
+                fullPlayer.classList.remove('active');
+                if (miniPlayer) miniPlayer.classList.remove('opacity-0', 'pointer-events-none');
 
-    // Re-enable body scroll
-    document.body.style.overflow = '';
-}
+                // Re-enable body scroll
+                document.body.style.overflow = '';
+            }
 
-// --- USER SWITCHER FUNCTIONS ---
-function showUserSwitcher() {
-    const modal = document.getElementById('userSwitcherModal');
-    const list = document.getElementById('userList');
-    list.innerHTML = '';
+            // --- USER SWITCHER FUNCTIONS ---
+            function showUserSwitcher() {
+                const modal = document.getElementById('userSwitcherModal');
+                const list = document.getElementById('userList');
+                list.innerHTML = '';
 
-    users.forEach(user => {
-        const card = document.createElement('div');
-        card.className = `profile - card group ${user.id === currentUser.id ? 'active' : ''} `;
-        card.onclick = () => switchUser(user.id);
+                users.forEach(user => {
+                    const card = document.createElement('div');
+                    card.className = `profile - card group ${user.id === currentUser.id ? 'active' : ''} `;
+                    card.onclick = () => switchUser(user.id);
 
-        const initial = user.name.charAt(0).toUpperCase();
+                    const initial = user.name.charAt(0).toUpperCase();
 
-        card.innerHTML = `
+                    card.innerHTML = `
             < div class="w-20 h-20 md:w-32 md:h-32 rounded-lg bg-green-500 flex items-center justify-center text-4xl font-black text-black mx-auto mb-4 group-hover:scale-110 transition-transform" >
                 ${user.avatar ? `<img src="${user.avatar}" class="w-full h-full object-cover rounded-lg">` : initial}
             </div >
             <p class="text-white font-bold md:text-xl">${user.name}</p>
             ${user.id === currentUser.id ? '<p class="text-green-500 text-[10px] uppercase font-black mt-2">Activo</p>' : ''}
         `;
-        list.appendChild(card);
-    });
+                    list.appendChild(card);
+                });
 
-    modal.classList.remove('hidden');
-}
-
-function hideUserSwitcher() {
-    document.getElementById('userSwitcherModal').classList.add('hidden');
-}
-
-function showAddUserModal() {
-    document.getElementById('addUserModal').classList.remove('hidden');
-}
-
-function hideAddUserModal() {
-    document.getElementById('addUserModal').classList.add('hidden');
-}
-
-function createNewUser() {
-    const nameInput = document.getElementById('newUserName');
-    const name = nameInput.value.trim();
-    if (!name) return;
-
-    const newUser = {
-        id: 'user_' + Date.now(),
-        name: name,
-        avatar: ''
-    };
-
-    users.push(newUser);
-    localStorage.setItem('amaya_users', JSON.stringify(users));
-
-    nameInput.value = '';
-    hideAddUserModal();
-    showUserSwitcher(); // Refresh list
-    showToast(`Usuario "${name}" creado`);
-}
-
-function switchUser(userId) {
-    const targetUser = users.find(u => u.id === userId);
-    if (!targetUser) return;
-
-    currentUser = targetUser;
-    localStorage.setItem('amaya_current_user', JSON.stringify(currentUser));
-
-    updateUserUI();
-    renderPlaylists();
-    showHome();
-    hideUserSwitcher();
-    showToast(`Cambiado a ${currentUser.name}`);
-}
-
-function updateUserUI() {
-    const nameEl = document.getElementById('currentUserName');
-    const avatarEl = document.getElementById('currentUserAvatar');
-    const avatarMobileEl = document.getElementById('currentUserAvatarMobile');
-
-    if (nameEl) nameEl.innerText = currentUser.name;
-
-    const avatarContent = currentUser.avatar
-        ? `< img src = "${currentUser.avatar}" > `
-        : currentUser.name.charAt(0).toUpperCase();
-
-    if (avatarEl) avatarEl.innerHTML = avatarContent;
-    if (avatarMobileEl) avatarMobileEl.innerHTML = avatarContent;
-}
-
-// --- SHARING (IMPORT/EXPORT) ---
-function exportCurrentPlaylist() {
-    if (!activePlaylistId) return;
-    const pl = playlists.find(p => p.id === activePlaylistId);
-    if (!pl) return;
-
-    const dataStr = JSON.stringify(pl, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-
-    const exportFileDefaultName = `${pl.name.toLowerCase().replace(/\s+/g, '_')} _amaya.json`;
-
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-
-    showToast("Lista exportada correctamente");
-}
-
-
-
-function triggerPlaylistImport() {
-    document.getElementById('playlistImportInput').click();
-}
-
-function handlePlaylistImport(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const importedPl = JSON.parse(e.target.result);
-
-            // Validate basic structure
-            if (!importedPl.name || !Array.isArray(importedPl.songs)) {
-                throw new Error("Formato de archivo inválido");
+                modal.classList.remove('hidden');
             }
 
-            // Assign a new ID to avoid collisions
-            importedPl.id = 'pl_' + Date.now();
-
-            playlists.push(importedPl);
-            savePlaylists();
-            renderPlaylists();
-            showToast(`Lista "${importedPl.name}" importada`);
-
-        } catch (error) {
-            showToast("Error en importar: " + error.message, "error");
-        }
-    };
-    reader.readAsText(file);
-    event.target.value = ''; // Reset input
-}
-
-function seekMobile(val) {
-    if (!player) return;
-    const time = (val / 100) * player.getDuration();
-    player.seekTo(time);
-}
-
-function showMobileMenu() {
-    document.getElementById('mobileMenu').classList.remove('hidden');
-}
-
-function hideMobileMenu() {
-    document.getElementById('mobileMenu').classList.add('hidden');
-}
-
-// --- HELPERS ---
-function decodeHtml(html) {
-    const txt = document.createElement("textarea");
-    txt.innerHTML = html;
-    return txt.value;
-}
-
-function parseISO8601Duration(duration) {
-    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-    if (!match) return '0:00';
-
-    const h = parseInt(match[1]) || 0;
-    const m = parseInt(match[2]) || 0;
-    const s = parseInt(match[3]) || 0;
-
-    if (h > 0) {
-        return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')} `;
-    }
-    return `${m}:${s.toString().padStart(2, '0')} `;
-}
-
-// Background playback recovery & Heartbeat
-let wasPlaying = false;
-let heartbeatInterval = null;
-
-function startHeartbeat() {
-    if (heartbeatInterval) clearInterval(heartbeatInterval);
-    heartbeatInterval = setInterval(() => {
-        if (!isCurrentlyUsingNative && player && player.getPlayerState) {
-            const state = player.getPlayerState();
-            // If it stopped but it should be playing (based on our state)
-            if (state === YT.PlayerState.PAUSED && wasPlaying && !isUserPaused) {
-                console.log("Heartbeat: Detected forced pause, attempting recovery...");
-                resumePlaybackBruteForce();
+            function hideUserSwitcher() {
+                document.getElementById('userSwitcherModal').classList.add('hidden');
             }
-        }
-    }, 1000);
-}
 
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-        if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-            wasPlaying = true;
-            startHeartbeat();
-        }
-    } else {
-        if (wasPlaying && player && player.getPlayerState() === YT.PlayerState.PAUSED) {
-            resumePlaybackBruteForce();
-            wasPlaying = false;
-            if (heartbeatInterval) clearInterval(heartbeatInterval);
-        }
-    }
-});
-// --- DYNAMIC THEMING ---
-function updateAmbientBackground(imageUrl) {
-    const bg = document.getElementById('ambient-bg');
-    if (!bg) return;
+            function showAddUserModal() {
+                document.getElementById('addUserModal').classList.remove('hidden');
+            }
 
-    // Use a canvas to extract the dominant color (simplified approach)
-    const img = new Image();
-    img.crossOrigin = "Anonymous";
-    img.src = imageUrl;
-    img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = 1;
-        canvas.height = 1;
-        ctx.drawImage(img, 0, 0, 1, 1);
-        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+            function hideAddUserModal() {
+                document.getElementById('addUserModal').classList.add('hidden');
+            }
 
-        const accent = `rgba(${r}, ${g}, ${b}, 0.2)`;
+            function createNewUser() {
+                const nameInput = document.getElementById('newUserName');
+                const name = nameInput.value.trim();
+                if (!name) return;
 
-        bg.style.background = `radial-gradient(circle at 30% 30%, ${accent}, transparent 40%),
+                const newUser = {
+                    id: 'user_' + Date.now(),
+                    name: name,
+                    avatar: ''
+                };
+
+                users.push(newUser);
+                localStorage.setItem('amaya_users', JSON.stringify(users));
+
+                nameInput.value = '';
+                hideAddUserModal();
+                showUserSwitcher(); // Refresh list
+                showToast(`Usuario "${name}" creado`);
+            }
+
+            function switchUser(userId) {
+                const targetUser = users.find(u => u.id === userId);
+                if (!targetUser) return;
+
+                currentUser = targetUser;
+                localStorage.setItem('amaya_current_user', JSON.stringify(currentUser));
+
+                updateUserUI();
+                renderPlaylists();
+                showHome();
+                hideUserSwitcher();
+                showToast(`Cambiado a ${currentUser.name}`);
+            }
+
+            function updateUserUI() {
+                const nameEl = document.getElementById('currentUserName');
+                const avatarEl = document.getElementById('currentUserAvatar');
+                const avatarMobileEl = document.getElementById('currentUserAvatarMobile');
+
+                if (nameEl) nameEl.innerText = currentUser.name;
+
+                const avatarContent = currentUser.avatar
+                    ? `< img src = "${currentUser.avatar}" > `
+                    : currentUser.name.charAt(0).toUpperCase();
+
+                if (avatarEl) avatarEl.innerHTML = avatarContent;
+                if (avatarMobileEl) avatarMobileEl.innerHTML = avatarContent;
+            }
+
+            // --- SHARING (IMPORT/EXPORT) ---
+            function exportCurrentPlaylist() {
+                if (!activePlaylistId) return;
+                const pl = playlists.find(p => p.id === activePlaylistId);
+                if (!pl) return;
+
+                const dataStr = JSON.stringify(pl, null, 2);
+                const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+
+                const exportFileDefaultName = `${pl.name.toLowerCase().replace(/\s+/g, '_')} _amaya.json`;
+
+                const linkElement = document.createElement('a');
+                linkElement.setAttribute('href', dataUri);
+                linkElement.setAttribute('download', exportFileDefaultName);
+                linkElement.click();
+
+                showToast("Lista exportada correctamente");
+            }
+
+
+
+            function triggerPlaylistImport() {
+                document.getElementById('playlistImportInput').click();
+            }
+
+            function handlePlaylistImport(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const importedPl = JSON.parse(e.target.result);
+
+                        // Validate basic structure
+                        if (!importedPl.name || !Array.isArray(importedPl.songs)) {
+                            throw new Error("Formato de archivo inválido");
+                        }
+
+                        // Assign a new ID to avoid collisions
+                        importedPl.id = 'pl_' + Date.now();
+
+                        playlists.push(importedPl);
+                        savePlaylists();
+                        renderPlaylists();
+                        showToast(`Lista "${importedPl.name}" importada`);
+
+                    } catch (error) {
+                        showToast("Error en importar: " + error.message, "error");
+                    }
+                };
+                reader.readAsText(file);
+                event.target.value = ''; // Reset input
+            }
+
+            function seekMobile(val) {
+                if (!player) return;
+                const time = (val / 100) * player.getDuration();
+                player.seekTo(time);
+            }
+
+            function showMobileMenu() {
+                document.getElementById('mobileMenu').classList.remove('hidden');
+            }
+
+            function hideMobileMenu() {
+                document.getElementById('mobileMenu').classList.add('hidden');
+            }
+
+            // --- HELPERS ---
+            function decodeHtml(html) {
+                const txt = document.createElement("textarea");
+                txt.innerHTML = html;
+                return txt.value;
+            }
+
+            function parseISO8601Duration(duration) {
+                const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+                if (!match) return '0:00';
+
+                const h = parseInt(match[1]) || 0;
+                const m = parseInt(match[2]) || 0;
+                const s = parseInt(match[3]) || 0;
+
+                if (h > 0) {
+                    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')} `;
+                }
+                return `${m}:${s.toString().padStart(2, '0')} `;
+            }
+
+            // Background playback recovery & Heartbeat
+            let wasPlaying = false;
+            let heartbeatInterval = null;
+
+            function startHeartbeat() {
+                if (heartbeatInterval) clearInterval(heartbeatInterval);
+                heartbeatInterval = setInterval(() => {
+                    if (!isCurrentlyUsingNative && player && player.getPlayerState) {
+                        const state = player.getPlayerState();
+                        // If it stopped but it should be playing (based on our state)
+                        if (state === YT.PlayerState.PAUSED && wasPlaying && !isUserPaused) {
+                            console.log("Heartbeat: Detected forced pause, attempting recovery...");
+                            resumePlaybackBruteForce();
+                        }
+                    }
+                }, 1000);
+            }
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') {
+                    if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                        wasPlaying = true;
+                        startHeartbeat();
+                    }
+                } else {
+                    if (wasPlaying && player && player.getPlayerState() === YT.PlayerState.PAUSED) {
+                        resumePlaybackBruteForce();
+                        wasPlaying = false;
+                        if (heartbeatInterval) clearInterval(heartbeatInterval);
+                    }
+                }
+            });
+            // --- DYNAMIC THEMING ---
+            function updateAmbientBackground(imageUrl) {
+                const bg = document.getElementById('ambient-bg');
+                if (!bg) return;
+
+                // Use a canvas to extract the dominant color (simplified approach)
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.src = imageUrl;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = 1;
+                    canvas.height = 1;
+                    ctx.drawImage(img, 0, 0, 1, 1);
+                    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+
+                    const accent = `rgba(${r}, ${g}, ${b}, 0.2)`;
+
+                    bg.style.background = `radial-gradient(circle at 30% 30%, ${accent}, transparent 40%),
             radial-gradient(circle at 70% 70%, rgba(100, 50, 255, 0.08), transparent 40%),
             #050505`;
-    };
-}
+                };
+            }
 
-// --- MARQUEE LOGIC ---
-function updateMarquees() {
-    ['currentTitle', 'currentChannel', 'mobileFullTitle', 'mobileFullChannel'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) updateMarquee(el);
-    });
-}
+            // --- MARQUEE LOGIC ---
+            function updateMarquees() {
+                ['currentTitle', 'currentChannel', 'mobileFullTitle', 'mobileFullChannel'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) updateMarquee(el);
+                });
+            }
 
-function updateMarquee(el) {
-    if (!el) return;
+            function updateMarquee(el) {
+                if (!el) return;
 
-    const container = el.parentElement;
-    if (!container || !container.classList.contains('marquee-container')) return;
+                const container = el.parentElement;
+                if (!container || !container.classList.contains('marquee-container')) return;
 
-    // Reset state
-    container.classList.remove('marquee-active');
-    el.classList.remove('truncate'); // Ensure no truncation during measurement
-    el.style.setProperty('--marquee-width', '0px');
-    el.style.animationDuration = '';
+                // Reset state
+                container.classList.remove('marquee-active');
+                el.classList.remove('truncate'); // Ensure no truncation during measurement
+                el.style.setProperty('--marquee-width', '0px');
+                el.style.animationDuration = '';
 
-    // Small delay to allow layout calculation
-    setTimeout(() => {
-        const textWidth = el.scrollWidth;
-        const containerWidth = container.offsetWidth;
+                // Small delay to allow layout calculation
+                setTimeout(() => {
+                    const textWidth = el.scrollWidth;
+                    const containerWidth = container.offsetWidth;
 
-        if (textWidth > containerWidth) {
-            const scrollDistance = textWidth - containerWidth + 40;
-            el.style.setProperty('--marquee-width', `${scrollDistance}px`);
-            container.classList.add('marquee-active');
+                    if (textWidth > containerWidth) {
+                        const scrollDistance = textWidth - containerWidth + 40;
+                        el.style.setProperty('--marquee-width', `${scrollDistance}px`);
+                        container.classList.add('marquee-active');
 
-            // Adjust duration based on distance
-            const duration = Math.max(8, scrollDistance / 20);
-            el.style.animationDuration = `${duration}s`;
-        }
-    }, 200);
-}
+                        // Adjust duration based on distance
+                        const duration = Math.max(8, scrollDistance / 20);
+                        el.style.animationDuration = `${duration}s`;
+                    }
+                }, 200);
+            }
 
-window.addEventListener('resize', () => {
-    // Debounced resize update
-    clearTimeout(window.marqueeResizeTimeout);
-    window.marqueeResizeTimeout = setTimeout(updateMarquees, 500);
-});
-// --- EXPOSE TO GLOBAL SCOPE (For HTML onclick handlers) ---
-// Only expose functions that are actually defined in this file or imported
-Object.assign(window, {
-    showHome,
-    renderHomePlaylists,
-    switchTab,
-    showCreatePlaylistModal,
-    hideCreatePlaylistModal,
-    createPlaylist,
-    searchMusic,
-    toggleClearButton,
-    clearSearch,
-    searchPrevPage,
-    searchNextPage,
-    openPlaylist,
-    removeSongFromPlaylist,
-    showAddToPlaylistMenu,
-    hideAddToPlaylistMenu,
-    toggleShuffle,
-    playPrevious,
-    togglePlayPause,
-    playNext,
-    toggleRepeat,
-    showQueue,
-    hideQueue,
-    clearQueue,
-    toggleQueue,
-    playSong,
-    hideApiInstructions,
-    showApiInstructions,
-    toggleApiKeySection,
-    saveApiKey,
-    shareCurrentPlaylist,
-    importSharedPlaylist,
-    updateMarquees,
-    updateMarquee,
-    loginWithGoogle,
-    logout,
-    onYouTubeIframeAPIReady,
-    onPlayerReady,
-    onPlayerStateChange,
-    onPlayerError,
-    playNativeAudio,
-    setupAuthListener,
-    openMobilePlayer,
-    closeMobilePlayer,
-    seekMobile,
-    showMobileMenu,
-    hideMobileMenu,
-    triggerPlaylistImport,
-    handlePlaylistImport,
-    triggerPlaylistCoverUpload,
-    handlePlaylistCoverChange,
-    openEditPlaylistModal,
-    savePlaylistEdits,
-    hideEditPlaylistModal,
-    showDeletePlaylistConfirm,
-    hideDeletePlaylistConfirm,
-    deleteCurrentPlaylist,
-    playCurrentPlaylist,
-    toggleMute,
-    removeFromQueue
-});
+            window.addEventListener('resize', () => {
+                // Debounced resize update
+                clearTimeout(window.marqueeResizeTimeout);
+                window.marqueeResizeTimeout = setTimeout(updateMarquees, 500);
+            });
+            // --- EXPOSE TO GLOBAL SCOPE (For HTML onclick handlers) ---
+            // Only expose functions that are actually defined in this file or imported
+            Object.assign(window, {
+                showHome,
+                renderHomePlaylists,
+                switchTab,
+                showCreatePlaylistModal,
+                hideCreatePlaylistModal,
+                createPlaylist,
+                searchMusic,
+                toggleClearButton,
+                clearSearch,
+                searchPrevPage,
+                searchNextPage,
+                openPlaylist,
+                removeSongFromPlaylist,
+                showAddToPlaylistMenu,
+                hideAddToPlaylistMenu,
+                toggleShuffle,
+                playPrevious,
+                togglePlayPause,
+                playNext,
+                toggleRepeat,
+                showQueue,
+                hideQueue,
+                clearQueue,
+                toggleQueue,
+                playSong,
+                hideApiInstructions,
+                showApiInstructions,
+                toggleApiKeySection,
+                saveApiKey,
+                shareCurrentPlaylist,
+                importSharedPlaylist,
+                updateMarquees,
+                updateMarquee,
+                loginWithGoogle,
+                logout,
+                onYouTubeIframeAPIReady,
+                onPlayerReady,
+                onPlayerStateChange,
+                onPlayerError,
+                playNativeAudio,
+                setupAuthListener,
+                openMobilePlayer,
+                closeMobilePlayer,
+                seekMobile,
+                showMobileMenu,
+                hideMobileMenu,
+                triggerPlaylistImport,
+                handlePlaylistImport,
+                triggerPlaylistCoverUpload,
+                handlePlaylistCoverChange,
+                openEditPlaylistModal,
+                savePlaylistEdits,
+                hideEditPlaylistModal,
+                showDeletePlaylistConfirm,
+                hideDeletePlaylistConfirm,
+                deleteCurrentPlaylist,
+                playCurrentPlaylist,
+                toggleMute,
+                removeFromQueue
+            });
 
-console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE - V4");
-setTimeout(() => showToast("App Actualizada (V4)"), 1000);
+            console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE - V4");
+            setTimeout(() => showToast("App Actualizada (V4)"), 1000);
