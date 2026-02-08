@@ -608,13 +608,13 @@ async function getAudioUrl(videoId) {
     const raceCandidates = [...heroes, ...others.slice(0, 2)];
 
     try {
-        // Reduced to 4000ms (4s) for faster fallback.
-        // If Piped is slow, it's better to try Invidious or YT quickly.
-        const url = await Promise.any(raceCandidates.map(instance => fetchFromPiped(instance, videoId, 4000)));
-        console.log("🏆 Carrera ganada (Piped)");
+        // Timeout set to 8000ms (8s) for the initial race.
+        // This gives Piped servers enough time to respond reliably.
+        const url = await Promise.any(raceCandidates.map(instance => fetchFromPiped(instance, videoId, 8000)));
+        console.log("🏆 Carrera ganada!");
         return url;
     } catch (aggregateError) {
-        console.warn("🏁 Carrera de servidores Piped falló o fue lenta.");
+        console.warn("🏁 Carrera de servidores Piped falló:", aggregateError);
     }
 
     // STAGE 2: Try Invidious Instances (Fallback)
@@ -1081,7 +1081,7 @@ function renderSearchResults(videos) {
             row.onclick = () => {
                 currentlyPlayingPlaylistId = null;
                 localStorage.removeItem('amaya_playing_pl_id');
-                // Don't re-render everything here, just start playing
+                renderHomePlaylists();
                 playSong(video, [video]);
             };
 
