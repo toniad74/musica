@@ -438,6 +438,9 @@ function setupNativeAudioHandlers() {
         }
         showToast(`Error de audio: ${errorMsg}`, 'error');
 
+        // Clear cached server as it might be the cause
+        localStorage.removeItem('amaya_fastest_server');
+
         if (currentTrack) {
             console.log('Intento de fallback a YouTube IFrame...');
             showToast('Reiniciando con YouTube Player...', 'info');
@@ -895,6 +898,10 @@ async function onPlayerError(event) {
 
                 if (fallbackSongResult) {
                     showToast("Reproduciendo versión alternativa");
+
+                    // Force native audio for the fallback, as IFrame will likely fail for the same reason (restriction)
+                    useNativeAudio = true;
+
                     // Update current track in queue to avoid repeated failures if re-played
                     if (currentQueueIndex >= 0 && currentQueueIndex < queue.length) {
                         queue[currentQueueIndex] = fallbackSongResult;
