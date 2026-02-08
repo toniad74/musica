@@ -167,12 +167,35 @@ window.onload = () => {
 
     setupMediaSessionHandlers();
     renderPlaylists();
-    showHome();
+    // Check for shared playlists in URL
+    checkSharedPlaylist();
+
+    setupAuthListener();
+    switchTab('search');
+    updateQueueCount();
+
+    // Check for mobile-specific messages
+    if (window.innerWidth <= 768) {
+        const bgHint = document.getElementById('bgPlaybackHint');
+        if (bgHint) bgHint.classList.remove('hidden');
+    }
+
+    if (window.location.protocol === 'file:') {
+        const warning = document.getElementById('fileProtocolWarning');
+        if (warning) warning.classList.remove('hidden');
+    }
+
+    // Register Service Worker for background keepalive
+    if ('serviceWorker' in navigator) {
+        try { navigator.serviceWorker.register('sw.js'); } catch (e) { }
+    }
 };
 
 function renderHomePlaylists() {
     // 1. Render Playlists Row
     const plContainer = document.getElementById('homePlaylists');
+    if (!plContainer) return;
+
     plContainer.innerHTML = '';
 
     if (playlists.length === 0) {
@@ -197,33 +220,7 @@ function renderHomePlaylists() {
             plContainer.appendChild(card);
         });
     }
-
-    // 2. Render "Recently Played" or similar logic if we had history
 }
-
-setupAuthListener();
-switchTab('search');
-updateQueueCount();
-
-// Check for mobile-specific messages
-if (window.innerWidth <= 768) {
-    const bgHint = document.getElementById('bgPlaybackHint');
-    if (bgHint) bgHint.classList.remove('hidden');
-}
-
-if (window.location.protocol === 'file:') {
-    const warning = document.getElementById('fileProtocolWarning');
-    if (warning) warning.classList.remove('hidden');
-}
-
-// Register Service Worker for background keepalive
-if ('serviceWorker' in navigator) {
-    try { navigator.serviceWorker.register('sw.js'); } catch (e) { }
-}
-
-// Check for shared playlists in URL
-checkSharedPlaylist();
-};
 
 function setupAuthListener() {
     onAuthStateChanged(auth, (user) => {
