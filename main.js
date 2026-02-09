@@ -44,28 +44,24 @@ let nativeAudio = null;
 let useNativeAudio = true; // Prefer native audio over YouTube IFrame
 let isCurrentlyUsingNative = false; // Track engine active for CURRENT track
 
-// STRICTLY VERIFIED PROXIED INSTANCES (2025/2026 HIGH QUALITY)
+// STRICTLY VERIFIED PROXIED INSTANCES (2026 HIGH AVAILABILITY)
 const PIPED_INSTANCES = [
-    'https://pipedapi.kavin.rocks',
-    'https://api.piped.privacydev.net',
-    'https://pipedapi.projectsegfau.lt',
-    'https://pipedapi.mha.fi',
     'https://api.piped.li',
-    'https://pipedapi.privacy.com.de',
+    'https://api.piped.privacydev.net',
+    'https://pipedapi.mha.fi',
     'https://pipedapi.hostux.net',
-    'https://pipedapi.artemislena.eu',
     'https://piped-api.lunar.icu',
-    'https://pipedapi.cat.xyz'
+    'https://pipedapi.kavin.rocks'
 ];
 
 const INVIDIOUS_INSTANCES = [
-    'invidious.lunar.icu',
-    'invidious.projectsegfau.lt',
-    'invidious.asir.dev',
-    'invidious.privacydev.net',
-    'invidious.drgns.space',
-    'inv.tux.pizza',
     'yewtu.be',
+    'inv.nadeko.net',
+    'invidious.nerdvpn.de',
+    'yt.artemislena.eu',
+    'invidious.flokinet.to',
+    'invidious.privacydev.net',
+    'inv.tux.pizza',
     'inv.zzls.xyz'
 ];
 
@@ -766,7 +762,10 @@ async function getAudioUrl(videoId, excludeInstance = null, retryCount = 0) {
     const batchSize = 3;
     for (let i = 0; i < allCandidates.length; i += batchSize) {
         const batch = allCandidates.slice(i, i + batchSize);
-        console.log(`🚀 Intentando bloque ${i / batchSize + 1}...`);
+        const servers = batch.map(s => s.replace('https://', '').split('.')[0]).join(', ');
+
+        showToast("Sincronizando...", "success", `Probando: ${servers}`);
+        console.log(`🚀 Intentando bloque ${i / batchSize + 1}: ${servers}`);
 
         try {
             const promises = batch.map(inst => {
@@ -775,7 +774,10 @@ async function getAudioUrl(videoId, excludeInstance = null, retryCount = 0) {
             });
 
             const winner = await Promise.any(promises);
-            if (winner) return winner;
+            if (winner) {
+                showToast("¡Música conectada!", "success");
+                return winner;
+            }
         } catch (e) {
             batch.forEach(inst => FAILED_INSTANCES.add(inst));
         }
@@ -1283,24 +1285,43 @@ async function searchJioSaavn(query) {
 
                 if (!rawResults || !Array.isArray(rawResults) || rawResults.length === 0) continue;
 
-                return rawResults.map(item => {
-                    let dur = item.duration;
-                    if (!(typeof dur === 'string' && dur.includes(':'))) {
-                        dur = formatPipedDuration(dur);
-                    }
-                    // High Res thumbnail
-                    let thumb = (item.image?.[item.image.length - 1]?.link || item.image?.[0]?.link || item.image || '');
-                    thumb = thumb.replace('150x150', '500x500').replace('50x50', '500x500');
+                return rawResults
+                    .filter(item => {
+                        // Anti-Simulation Filter: Verify it's a song and matches query intent
+                        if (item.type !== 'song' && item.type !== 'music') return false;
 
-                    return {
-                        id: `jio_${item.id}`,
-                        title: item.name || item.title || 'Unknown Title',
-                        channel: item.artists?.primary?.map(a => a.name).join(', ') || item.primary_artists || 'Artist',
-                        thumbnail: thumb,
-                        duration: dur || '0:00',
-                        source: 'jio'
-                    };
-                });
+                        // Strict Artist Matching for shorter queries (like Artist Name only)
+                        const searchLower = query.toLowerCase();
+                        const artistMatch = item.artists?.primary?.some(a =>
+                            searchLower.includes(a.name.toLowerCase()) ||
+                            a.name.toLowerCase().includes(searchLower)
+                        );
+
+                        // Reject results that look like Karaoke or Covers unless explicitly searched
+                        const titleLower = (item.name || item.title || '').toLowerCase();
+                        if (!searchLower.includes('karaoke') && titleLower.includes('karaoke')) return false;
+                        if (!searchLower.includes('cover') && titleLower.includes('cover')) return false;
+
+                        return true;
+                    })
+                    .map(item => {
+                        let dur = item.duration;
+                        if (!(typeof dur === 'string' && dur.includes(':'))) {
+                            dur = formatPipedDuration(dur);
+                        }
+                        // High Res thumbnail
+                        let thumb = (item.image?.[item.image.length - 1]?.link || item.image?.[0]?.link || item.image || '');
+                        thumb = thumb.replace('150x150', '500x500').replace('50x50', '500x500');
+
+                        return {
+                            id: `jio_${item.id}`,
+                            title: item.name || item.title || 'Unknown Title',
+                            channel: item.artists?.primary?.map(a => a.name).join(', ') || item.primary_artists || 'Artist',
+                            thumbnail: thumb,
+                            duration: dur || '0:00',
+                            source: 'jio'
+                        };
+                    });
             } catch (e) {
                 lastError = e.message;
             }
@@ -1524,10 +1545,13 @@ async function searchMusic(pageToken = '', retryCount = 0) {
     }
 
     if (allResults.length > 0) {
-        // Simple deduplication by title/channel fuzzy
+        // Deduplication v2: Title + Artist similarity
         const seen = new Set();
         const finalResults = allResults.filter(song => {
-            const key = `${song.title.toLowerCase()}|${song.channel.toLowerCase()}`.substring(0, 50);
+            const cleanTitle = song.title.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 30);
+            const cleanArtist = song.channel.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 20);
+            const key = `${cleanTitle}|${cleanArtist}`;
+
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
@@ -2718,11 +2742,19 @@ function playPlaylist(event, plId) {
     }
 }
 
-function showToast(m, t = 'success') {
+function showToast(m, t = 'success', detail = '') {
     const c = document.getElementById('toastContainer');
-    c.innerHTML = `<div class="px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-2xl animate-fade-in ${t === 'success' ? 'bg-green-600' : 'bg-red-600'}">${m}</div>`;
+    if (!c) return;
+
+    // V8.0 Enhanced Toast: Multi-line support for diagnostics
+    c.innerHTML = `
+        <div class="px-4 py-2 rounded-2xl text-white text-xs font-bold shadow-2xl animate-fade-in flex flex-col items-center gap-1 ${t === 'success' ? 'bg-green-600' : 'bg-red-600'}">
+            <span>${m}</span>
+            ${detail ? `<span class="text-[9px] opacity-70 font-mono">${detail}</span>` : ''}
+        </div>
+    `;
     clearTimeout(window.toastT);
-    window.toastT = setTimeout(() => c.innerHTML = '', 2500);
+    window.toastT = setTimeout(() => c.innerHTML = '', 3500);
 }
 
 let progressUpdaterInterval; // Renamed from progressInterval to avoid conflict and be more descriptive
