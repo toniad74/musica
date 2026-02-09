@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Test CORS - Invidious</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #111;
+            color: #0f0;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            background: #0f0;
+            color: #000;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        #output {
+            white-space: pre-wrap;
+            margin-top: 20px;
+            border: 1px solid #0f0;
+            padding: 10px;
+        }
+
+        .error {
+            color: #f00;
+        }
+
+        .success {
+            color: #0f0;
+        }
+
+        .info {
+            color: #ff0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔍 Test CORS - invidious.nerdvpn.de</h1>
+    <p>Este test verificará si el servidor Invidious permite peticiones desde tu dominio</p>
+
+    <button onclick="testDirect()">Test Directo (Sin Proxy)</button>
+    <button onclick="testWithProxy()">Test Con Proxy CORS</button>
+    <button onclick="clearOutput()">Limpiar</button>
+
+    <div id="output"></div>
+
+    <script>
+        const output = document.getElementById('output');
+        const log = (msg, type = 'info') => {
+            output.innerHTML += `<div class="${type}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+        };
+        const clearOutput = () => output.innerHTML = '';
+
+        async function testDirect() {
+            log('🧪 Test 1: Petición directa a Invidious...', 'info');
+
+            try {
+                const url = 'https://invidious.nerdvpn.de/api/v1/search?q=rosalia&type=video';
+                log(`URL: ${url}`, 'info');
+
+                const response = await fetch(url);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ ÉXITO: ${data.length} resultados obtenidos`, 'success');
+                    log(`Primer resultado: ${data[0]?.title || 'N/A'}`, 'success');
+                } else {
+                    log(`❌ ERROR HTTP: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (e) {
+                log(`❌ CORS BLOQUEADO: ${e.message}`, 'error');
+                log('El servidor Invidious NO permite peticiones desde tu dominio', 'error');
+            }
+        }
+
+        async function testWithProxy() {
+            log('🧪 Test 2: Usando proxy CORS público...', 'info');
+
+            const proxies = [
+                'https://api.allorigins.win/raw?url=',
+                'https://corsproxy.io/?',
+                'https://api.codetabs.com/v1/proxy?quest='
+            ];
+
+            const targetUrl = encodeURIComponent('https://invidious.nerdvpn.de/api/v1/search?q=rosalia&type=video');
+
+            for (const proxy of proxies) {
+                try {
+                    log(`  Probando: ${proxy.split('/')[2]}...`, 'info');
+                    const url = proxy + targetUrl;
+
+                    const response = await fetch(url);
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        log(`✅ ÉXITO con ${proxy.split('/')[2]}`, 'success');
+                        log(`Resultados: ${Array.isArray(data) ? data.length : 'procesando...'}`, 'success');
+                        return;
+                    }
+                } catch (e) {
+                    log(`  ❌ ${proxy.split('/')[2]}: ${e.message}`, 'error');
+                }
+            }
+
+            log('⚠️ Todos los proxies CORS fallaron', 'error');
+        }
+
+        log('🚀 Herramienta lista. Presiona los botones para probar.', 'info');
+    </script>
+</body>
+
+</html>
