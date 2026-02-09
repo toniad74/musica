@@ -437,12 +437,21 @@ function setupNativeAudioHandlers() {
     });
 
     // Monitoreo continuo de anuncios durante la reproducción
+    let lastCheckedTime = -1;
+
     nativeAudio.addEventListener('timeupdate', () => {
-        // Verificar anuncios cada vez que se actualiza el tiempo
-        if (currentSponsorSegments && currentSponsorSegments.length > 0) {
-            const skipped = checkSponsorSegments(nativeAudio.currentTime);
-            if (skipped) {
-                console.log('🛡️ Anuncio detectado y saltado durante reproducción');
+        const currentTime = nativeAudio.currentTime;
+
+        // Solo verificar si el tiempo cambió significativamente (evitar spam)
+        if (Math.abs(currentTime - lastCheckedTime) > 0.3) {
+            lastCheckedTime = currentTime;
+
+            if (currentSponsorSegments && currentSponsorSegments.length > 0) {
+                const skipped = checkSponsorSegments(currentTime);
+                if (skipped) {
+                    console.log('🛡️ Anuncio bloqueado en reproducción activa');
+                    lastCheckedTime = nativeAudio.currentTime; // Actualizar después del skip
+                }
             }
         }
     });
@@ -772,7 +781,17 @@ async function fetchSponsorSegments(videoId) {
             if (response.ok) {
                 const data = await response.json();
                 currentSponsorSegments = data;
-                console.log(`🛡️ SponsorBlock: ${data.length} segmento(s) detectado(s)`);
+
+                // LOG DETALLADO
+                if (data.length > 0) {
+                    console.log(`🛡️ SponsorBlock: ${data.length} segmento(s) detectado(s):`);
+                    data.forEach((seg, i) => {
+                        const [start, end] = seg.segment;
+                        console.log(`  ${i + 1}. [${start.toFixed(1)}s - ${end.toFixed(1)}s] ${seg.category}`);
+                    });
+                } else {
+                    console.log("⚠️ SponsorBlock: Este video NO tiene segmentos marcados");
+                }
 
                 // Ultra-aggressive check for first 3 seconds
                 for (let delay of [0, 50, 150, 400, 800, 1500, 3000]) {
@@ -797,15 +816,17 @@ function checkSponsorSegments(currentTime) {
     let activeTime = currentTime;
 
     // Recursive search for consecutive segments (multiple ads)
-    while (iteration < 5) { // Protect against infinite loops
+    while (iteration < 5) {
         let jumpFound = false;
         for (const segment of currentSponsorSegments) {
             const [start, end] = segment.segment;
 
             // If current time is within or slightly before the segment
             if (activeTime >= start - 0.1 && activeTime < end - 0.1) {
-                console.log(`⏩ SponsorBlock (Skip ${iteration + 1}): ${activeTime.toFixed(2)} -> ${end.toFixed(2)} [${segment.category}]`);
-                activeTime = end;
+                console.log(`⏩ SALTANDO ANUNCIO: ${activeTime.toFixed(2)}s → ${end.toFixed(2)}s [${segment.category}]`);
+
+                // CRÍTICO: Añadir buffer de seguridad (0.2s después del final)
+                activeTime = end + 0.2;
                 jumpFound = true;
                 skippedTotal = true;
                 break;
@@ -816,12 +837,30 @@ function checkSponsorSegments(currentTime) {
     }
 
     if (skippedTotal) {
+        // EJECUTAR SKIP INMEDIATAMENTE
         if (isCurrentlyUsingNative && nativeAudio) {
+            console.log(`🛡️ EJECUTANDO SALTO A: ${activeTime.toFixed(2)}s`);
+
+            // PAUSAR primero para evitar que suene mientras salta
+            const wasPaused = nativeAudio.paused;
+            if (!wasPaused) {
+                nativeAudio.pause();
+            }
+
+            // Ejecutar el skip
             nativeAudio.currentTime = activeTime;
+
+            // Reanudar SOLO si estaba reproduciendo antes
+            if (!wasPaused && !isUserPaused) {
+                setTimeout(() => {
+                    nativeAudio.play().catch(e => console.error('Error resumiendo después de skip:', e));
+                }, 50);
+            }
         } else if (player && typeof player.seekTo === 'function') {
-            player.seekTo(activeTime);
+            player.seekTo(activeTime, true); // true = allowSeekAhead
         }
-        showToast("🛡️ Múltiples anuncios eliminados", "info");
+
+        showToast(`🛡️ ${iteration} anuncio(s) bloqueado(s)`, "success");
     }
     return skippedTotal;
 }
