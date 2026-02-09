@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Diagnóstico de Búsqueda</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #111;
+            color: #0f0;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            background: #0f0;
+            color: #000;
+            border: none;
+            cursor: pointer;
+        }
+
+        #output {
+            white-space: pre-wrap;
+            margin-top: 20px;
+            border: 1px solid #0f0;
+            padding: 10px;
+        }
+
+        .error {
+            color: #f00;
+        }
+
+        .success {
+            color: #0f0;
+        }
+
+        .info {
+            color: #ff0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔍 Diagnóstico de Búsqueda V8.1</h1>
+    <input type="text" id="query" placeholder="Buscar artista..." value="Rosalia" style="padding: 10px; width: 300px;">
+    <button onclick="testYouTube()">Test YouTube</button>
+    <button onclick="testJioSaavn()">Test JioSaavn</button>
+    <button onclick="testPiped()">Test Piped</button>
+    <button onclick="testInvidious()">Test Invidious</button>
+    <button onclick="clearOutput()">Limpiar</button>
+    <div id="output"></div>
+
+    <script>
+        const output = document.getElementById('output');
+        const log = (msg, type = 'info') => {
+            output.innerHTML += `<div class="${type}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+        };
+        const clearOutput = () => output.innerHTML = '';
+
+        async function testYouTube() {
+            const query = document.getElementById('query').value;
+            log(`Testing YouTube API con: "${query}"...`, 'info');
+
+            const apiKey = localStorage.getItem('amaya_ytApiKey') || 'NO_KEY_FOUND';
+            log(`API Key encontrada: ${apiKey.substring(0, 10)}...`, 'info');
+
+            try {
+                const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=5&q=${encodeURIComponent(query)}&type=video&key=${apiKey}`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.error) {
+                    log(`❌ ERROR YouTube: ${data.error.message}`, 'error');
+                } else if (data.items && data.items.length > 0) {
+                    log(`✅ YouTube: ${data.items.length} resultados`, 'success');
+                    data.items.slice(0, 3).forEach(item => {
+                        log(`  - ${item.snippet.title}`, 'success');
+                    });
+                } else {
+                    log(`⚠️ YouTube: 0 resultados`, 'error');
+                }
+            } catch (e) {
+                log(`❌ EXCEPCIÓN YouTube: ${e.message}`, 'error');
+            }
+        }
+
+        async function testJioSaavn() {
+            const query = document.getElementById('query').value;
+            log(`Testing JioSaavn con: "${query}"...`, 'info');
+
+            const mirrors = ['https://saavn.dev', 'https://saavn.me'];
+
+            for (const mirror of mirrors) {
+                try {
+                    const url = `${mirror}/api/search/songs?query=${encodeURIComponent(query)}&limit=5`;
+                    log(`  Probando: ${mirror}...`, 'info');
+                    const response = await fetch(url);
+                    const data = await response.json();
+
+                    const results = data.data?.results || data.data || data.results || [];
+
+                    if (results.length > 0) {
+                        log(`✅ JioSaavn (${mirror}): ${results.length} resultados`, 'success');
+                        results.slice(0, 3).forEach(item => {
+                            log(`  - ${item.name || item.title} (type: ${item.type || 'N/A'})`, 'success');
+                        });
+                        return;
+                    }
+                } catch (e) {
+                    log(`  ❌ ${mirror}: ${e.message}`, 'error');
+                }
+            }
+            log(`⚠️ Todos los mirrors de JioSaavn fallaron`, 'error');
+        }
+
+        async function testPiped() {
+            const query = document.getElementById('query').value;
+            log(`Testing Piped con: "${query}"...`, 'info');
+
+            const instances = [
+                'https://api.piped.li',
+                'https://api.piped.privacydev.net',
+                'https://pipedapi.mha.fi'
+            ];
+
+            for (const instance of instances) {
+                try {
+                    const url = `${instance}/search?q=${encodeURIComponent(query)}&filter=music_songs`;
+                    log(`  Probando: ${instance}...`, 'info');
+                    const response = await fetch(url);
+                    const data = await response.json();
+
+                    if (data.items && data.items.length > 0) {
+                        log(`✅ Piped (${instance}): ${data.items.length} resultados`, 'success');
+                        data.items.slice(0, 3).forEach(item => {
+                            log(`  - ${item.title}`, 'success');
+                        });
+                        return;
+                    }
+                } catch (e) {
+                    log(`  ❌ ${instance.split('//')[1]}: ${e.message}`, 'error');
+                }
+            }
+            log(`⚠️ Todas las instancias de Piped fallaron`, 'error');
+        }
+
+        async function testInvidious() {
+            const query = document.getElementById('query').value;
+            log(`Testing Invidious con: "${query}"...`, 'info');
+
+            const instances = ['yewtu.be', 'inv.nadeko.net', 'invidious.privacydev.net'];
+
+            for (const instance of instances) {
+                try {
+                    const url = `https://${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`;
+                    log(`  Probando: ${instance}...`, 'info');
+                    const response = await fetch(url);
+                    const data = await response.json();
+
+                    if (data.length > 0) {
+                        log(`✅ Invidious (${instance}): ${data.length} resultados`, 'success');
+                        data.slice(0, 3).forEach(item => {
+                            log(`  - ${item.title}`, 'success');
+                        });
+                        return;
+                    }
+                } catch (e) {
+                    log(`  ❌ ${instance}: ${e.message}`, 'error');
+                }
+            }
+            log(`⚠️ Todas las instancias de Invidious fallaron`, 'error');
+        }
+
+        log('🚀 Herramienta de diagnóstico lista. Presiona los botones para probar cada fuente.', 'info');
+    </script>
+</body>
+
+</html>
