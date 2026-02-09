@@ -1222,15 +1222,12 @@ async function searchPiped(query) {
     console.log("🕵️ Iniciando búsqueda de respaldo en Piped para:", query);
     showToast("Usando buscador alternativo...");
 
-    // Try multiple instances until one works
-    // We reuse the PIPED_INSTANCES list
-    // Shuffle slightly to distribute load, but keep "heroes" often
     const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
 
     for (let instance of candidates) {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
 
             const response = await fetch(`${instance}/search?q=${encodeURIComponent(query)}&filter=music_videos`, {
                 signal: controller.signal
@@ -1240,16 +1237,17 @@ async function searchPiped(query) {
             if (!response.ok) continue;
 
             const data = await response.json();
-            if (!data.items || data.items.length === 0) continue;
+            const items = data.items || data; // Handle different API responses
+
+            if (!items || items.length === 0) continue;
 
             console.log(`✅ Búsqueda Piped exitosa en: ${instance}`);
 
-            // Map Piped format to our internal format
-            return data.items.map(item => ({
-                id: item.url.split('/watch?v=')[1],
+            return items.filter(i => i.type === 'stream' || i.type === 'video').map(item => ({
+                id: item.url.split('v=')[1] || item.id,
                 title: item.title,
-                channel: item.uploaderName,
-                thumbnail: item.thumbnail,
+                channel: item.uploaderName || item.author,
+                thumbnail: item.thumbnail || item.thumbnails?.[0]?.url,
                 duration: item.duration ? formatPipedDuration(item.duration) : '0:00'
             }));
 
@@ -1257,7 +1255,39 @@ async function searchPiped(query) {
             continue;
         }
     }
-    throw new Error("Piped search failed on all instances");
+    return [];
+}
+
+// --- JIOSAAVN SEARCH ---
+async function searchJioSaavn(query) {
+    const endpoints = [
+        `https://saavn.dev/api/search/songs?query=${encodeURIComponent(query)}`,
+        `https://saavn.me/search/songs?query=${encodeURIComponent(query)}`
+    ];
+
+    for (const endpoint of endpoints) {
+        try {
+            const response = await fetch(endpoint);
+            if (!response.ok) continue;
+
+            const data = await response.json();
+            const results = data.data?.results || data.results;
+
+            if (!results || results.length === 0) continue;
+
+            return results.map(item => ({
+                id: `jio_${item.id}`, // Mark as JioSaavn ID
+                title: item.name,
+                channel: item.artists?.primary?.map(a => a.name).join(', ') || 'Global Artist',
+                thumbnail: item.image?.[item.image.length - 1]?.link || '',
+                duration: formatPipedDuration(item.duration),
+                source: 'jiosaavn'
+            }));
+        } catch (e) {
+            console.warn("JioSaavn search failed for endpoint:", endpoint);
+        }
+    }
+    return [];
 }
 
 function formatPipedDuration(seconds) {
@@ -1376,67 +1406,81 @@ async function searchMusic(pageToken = '', retryCount = 0) {
     document.getElementById('loading').classList.remove('hidden');
 
     try {
-        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&key=${currentKey}${pageToken ? `&pageToken=${pageToken}` : ''}`);
-        const data = await response.json();
+        let results = [];
 
-        if (data.error) {
-            // Check for quota error
-            if (data.error.errors && data.error.errors.some(e => e.reason === 'quotaExceeded')) {
-                if (rotateApiKey() && retryCount < apiKeys.length) {
-                    showToast("Límite de cuota superado. Rotando clave...", "warning");
-                    return searchMusic(pageToken, retryCount + 1);
+        // --- STAGE 1: GOOGLE API (If key exists) ---
+        if (currentKey) {
+            try {
+                const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&key=${currentKey}${pageToken ? `&pageToken=${pageToken}` : ''}`);
+                const data = await response.json();
+
+                if (!data.error) {
+                    nextSearchToken = data.nextPageToken || '';
+                    prevSearchToken = data.prevPageToken || '';
+
+                    results = data.items.map(item => ({
+                        id: item.id.videoId,
+                        title: decodeHtml(item.snippet.title),
+                        channel: decodeHtml(item.snippet.channelTitle),
+                        thumbnail: item.snippet.thumbnails.medium.url,
+                        duration: '0:00'
+                    }));
+
+                    // Fetch durations for YT results
+                    const ids = results.map(v => v.id).join(',');
+                    const detailsResp = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${getCurrentApiKey()}`);
+                    const detailsData = await detailsResp.json();
+
+                    if (detailsData.items) {
+                        detailsData.items.forEach(item => {
+                            const video = results.find(v => v.id === item.id);
+                            if (video) {
+                                video.duration = parseISO8601Duration(item.contentDetails.duration);
+                            }
+                        });
+                    }
+                } else {
+                    console.warn("Google API error, falling back:", data.error.message);
                 }
+            } catch (e) {
+                console.warn("Google API Exception, falling back:", e);
             }
-            throw new Error(data.error.message);
         }
 
-        nextSearchToken = data.nextPageToken || '';
-        prevSearchToken = data.prevPageToken || '';
-
-        const videos = data.items.map(item => ({
-            id: item.id.videoId,
-            title: decodeHtml(item.snippet.title),
-            channel: decodeHtml(item.snippet.channelTitle),
-            thumbnail: item.snippet.thumbnails.medium.url,
-            duration: '0:00'
-        }));
-
-        // Fetch durations
-        const ids = videos.map(v => v.id).join(',');
-        const detailsResp = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${getCurrentApiKey()}`);
-        const detailsData = await detailsResp.json();
-
-        if (detailsData.items) {
-            detailsData.items.forEach(item => {
-                const video = videos.find(v => v.id === item.id);
-                if (video) {
-                    video.duration = parseISO8601Duration(item.contentDetails.duration);
+        // --- STAGE 2: JIOSAAVN SEARCH (If Google failed or no key) ---
+        if (results.length === 0 && !pageToken) {
+            try {
+                results = await searchJioSaavn(query);
+                if (results && results.length > 0) {
+                    showToast("Buscando en Base de Datos Global...", "info");
                 }
-            });
+            } catch (e) {
+                console.warn("JioSaavn search failed:", e);
+            }
         }
 
-        renderSearchResults(videos);
-        updateSearchPagination();
-    } catch (error) {
-        console.warn("Google API failed. Trying Piped Fallback...", error);
+        // --- STAGE 3: PIPED SEARCH (Final desperate fallback) ---
+        if (results.length === 0 && !pageToken) {
+            try {
+                results = await searchPiped(query);
+            } catch (e) {
+                console.warn("Piped search failed:", e);
+            }
+        }
 
-        // Hide API error message if we are trying fallback
-        document.getElementById('errorMessage').classList.add('hidden');
-
-        try {
-            const pipedResults = await searchPiped(query);
-            renderSearchResults(pipedResults);
-
-            // Disable pagination buttons for Piped (shim)
-            nextSearchToken = '';
-            prevSearchToken = '';
+        if (results.length > 0) {
+            renderSearchResults(results);
             updateSearchPagination();
-
-            showToast("Resultados de respaldo cargados", "info");
-        } catch (pipedError) {
-            document.getElementById('errorText').innerText = "Error: " + error.message + " | Fallback: " + pipedError.message;
-            document.getElementById('errorMessage').classList.remove('hidden');
+            // Hide error message if we found something
+            document.getElementById('errorMessage').classList.add('hidden');
+        } else {
+            throw new Error("No se encontraron resultados en ninguna fuente.");
         }
+
+    } catch (error) {
+        console.error("Search failed completely:", error);
+        document.getElementById('errorText').innerText = "Error: " + error.message;
+        document.getElementById('errorMessage').classList.remove('hidden');
     } finally {
         document.getElementById('loading').classList.add('hidden');
     }
