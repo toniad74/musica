@@ -47,30 +47,13 @@ let isMediaPlaying = false;
 
 // SponsorBlock data
 let currentSponsorSegments = [];
-let pendingSponsorFetch = null; // Promise tracker for sync
+let sponsorFetchFinished = true; // Track if current fetch completed
 
 // Instance Blacklist for current session
 const FAILED_INSTANCES = new Set();
 
 // Invidious instances (fallback if one fails)
 // Prioritize instances known for speed and M4A support
-const INVIDIOUS_INSTANCES = [
-    'invidious.lunar.icu',
-    'invidious.projectsegfau.lt',
-    'invidious.asir.dev',
-    'invidious.privacydev.net',
-    'invidious.drgns.space',
-    'inv.tux.pizza',
-    'invidious.fdn.fr',
-    'yewtu.be',
-    'vid.puffyan.us',
-    'invidious.perennialte.ch',
-    'invidious.jing.rocks',
-    'invidious.nohost.network',
-    'invidious.nixnet.social',
-    'invidious.silkky.cloud'
-];
-
 const PIPED_INSTANCES = [
     'https://pipedapi.kavin.rocks',
     'https://api.piped.privacydev.net',
@@ -88,8 +71,28 @@ const PIPED_INSTANCES = [
     'https://pipedapi.moe.xyz',
     'https://pipedapi.astartes.nl',
     'https://pipedapi.vube.app',
-    'https://pipedapi.hostux.net',
-    'https://api.piped.video'
+    'https://api.piped.video',
+    'https://pipedapi.leptons.xyz',
+    'https://pipedapi.rivo.cf'
+];
+
+const INVIDIOUS_INSTANCES = [
+    'invidious.lunar.icu',
+    'invidious.projectsegfau.lt',
+    'invidious.asir.dev',
+    'invidious.privacydev.net',
+    'invidious.drgns.space',
+    'inv.tux.pizza',
+    'invidious.fdn.fr',
+    'yewtu.be',
+    'vid.puffyan.us',
+    'invidious.perennialte.ch',
+    'invidious.jing.rocks',
+    'invidious.nohost.network',
+    'invidious.nixnet.social',
+    'invidious.silkky.cloud',
+    'inv.nadeko.net',
+    'invidious.snopyta.org'
 ];
 
 // --- INITIALIZATION ---
@@ -461,14 +464,20 @@ function setupNativeAudioHandlers() {
             showToast("Error de conexión. Buscando servidor nuevo...", "warning");
 
             const savedTime = nativeAudio.currentTime;
-            localStorage.removeItem('amaya_fastest_server'); // Invalida el servidor actual
+            const currentInstance = localStorage.getItem('amaya_fastest_server');
+            if (currentInstance) {
+                console.log(`🚫 Penailzando instancia fallida: ${currentInstance}`);
+                FAILED_INSTANCES.add(currentInstance);
+            }
+            localStorage.removeItem('amaya_fastest_server');
 
             try {
-                const newUrl = await getAudioUrl(currentTrack.id);
+                // EXPLICIT RETRY with exclusion
+                const newUrl = await getAudioUrl(currentTrack.id, currentInstance);
                 if (newUrl) {
                     nativeAudio.src = newUrl;
+                    nativeAudio.load();
                     nativeAudio.currentTime = savedTime;
-                    // Reset the error listener and try again
                     await nativeAudio.play();
                     console.log('✅ Recuperado con éxito de otro servidor.');
                     return;
@@ -662,14 +671,15 @@ function updateAdFreeStatus(active) {
 }
 
 // --- INVIDIOUS & PIPED INTEGRATION (ULTRA-FAST PARALLEL RACING) ---
-async function getAudioUrl(videoId) {
-    console.log(`🔍 Buscando audio proxeado (Anti-403) para: ${videoId}`);
+async function getAudioUrl(videoId, excludeInstance = null) {
+    if (excludeInstance) FAILED_INSTANCES.add(excludeInstance);
+    console.log(`🔍 Buscando audio proxeado para: ${videoId} ${excludeInstance ? '(Evitando ' + excludeInstance + ')' : ''}`);
 
     // 1. Try Cached Instance First
     const cachedInstance = localStorage.getItem('amaya_fastest_server');
-    if (cachedInstance && !FAILED_INSTANCES.has(cachedInstance)) {
+    if (cachedInstance && !FAILED_INSTANCES.has(cachedInstance) && cachedInstance !== excludeInstance) {
         try {
-            const url = await fetchFromPiped(cachedInstance, videoId, 2000);
+            const url = await fetchFromPiped(cachedInstance, videoId, 3000);
             if (url) return url;
         } catch (e) {
             localStorage.removeItem('amaya_fastest_server');
@@ -679,37 +689,39 @@ async function getAudioUrl(videoId) {
 
     // 2. Parallel Racing Strategy
     const candidates = PIPED_INSTANCES
-        .filter(inst => !FAILED_INSTANCES.has(inst))
+        .filter(inst => !FAILED_INSTANCES.has(inst) && inst !== excludeInstance)
         .sort(() => 0.5 - Math.random());
 
-    const batchSize = 12; // Maximum speed coverage
-
+    // Attempt with larger batches and longer timeouts
+    const batchSize = 15;
     for (let i = 0; i < candidates.length; i += batchSize) {
         const batch = candidates.slice(i, i + batchSize);
-        console.log(`🚀 Racing Piped Batch ${Math.floor(i / batchSize) + 1}...`);
+        console.log(`🚀 Racing Piped Batch ${Math.floor(i / batchSize) + 1} (${batch.length} servers)...`);
 
         try {
             const winnerUrl = await Promise.any(batch.map(instance =>
-                fetchFromPiped(instance, videoId, 6000)
+                fetchFromPiped(instance, videoId, 8000)
             ));
             if (winnerUrl) return winnerUrl;
         } catch (e) {
-            batch.forEach(inst => FAILED_INSTANCES.add(inst));
-            console.warn("Batch failed, trying next set...");
+            console.warn("Batch failed or all servers in batch timed out.");
         }
     }
 
     // STAGE 3: Invidious Fallback (Proxied)
-    console.log("⚠️ Piped falló. Intentando Invidious Proxeado...");
-    const invidiousBatch = INVIDIOUS_INSTANCES.slice(0, 5);
+    console.log("⚠️ Piped agotado. Intentando Invidious...");
+    const invidiousCandidates = INVIDIOUS_INSTANCES.filter(inst => !FAILED_INSTANCES.has(inst));
+    const invidiousBatch = invidiousCandidates.slice(0, 6);
     try {
         const winnerUrl = await Promise.any(invidiousBatch.map(instance =>
-            fetchFromInvidious(instance, videoId, 6000)
+            fetchFromInvidious(instance, videoId, 8000)
         ));
         if (winnerUrl) return winnerUrl;
     } catch (e) { }
 
-    throw new Error('No se encontró audio proxeado compatible.');
+    // Final attempt: retry EVERYTHING once without proxy restriction if totally stuck? 
+    // No, better to fallback to YouTube with a clear warning than nothing.
+    throw new Error('No se encontró un servidor de audio nativo disponible.');
 }
 
 // Dedicated helper for Invidious Fetch with Scoring
@@ -750,29 +762,29 @@ async function fetchFromInvidious(instance, videoId, timeoutMs) {
 // --- SPONSORBLOCK INTEGRATION ---
 async function fetchSponsorSegments(videoId) {
     currentSponsorSegments = [];
-    pendingSponsorFetch = (async () => {
-        try {
-            const categories = ["sponsor", "intro", "outro", "interaction", "selfpromo", "music_offtopic", "preview", "filler"];
-            const response = await fetch(`https://sponsor.ajay.app/api/skipSegments?videoID=${videoId}&categories=${JSON.stringify(categories)}`);
+    sponsorFetchFinished = false;
+    try {
+        const categories = ["sponsor", "intro", "outro", "interaction", "selfpromo", "music_offtopic", "preview", "filler"];
+        const response = await fetch(`https://sponsor.ajay.app/api/skipSegments?videoID=${videoId}&categories=${JSON.stringify(categories)}`);
 
-            if (response.ok) {
-                const data = await response.json();
-                currentSponsorSegments = data;
-                console.log(`🛡️ SponsorBlock: ${data.length} segmentos activos`);
+        if (response.ok) {
+            const data = await response.json();
+            currentSponsorSegments = data;
+            console.log(`🛡️ SponsorBlock: ${data.length} segmentos activos`);
 
-                // Ultra-aggressive check for first 3 seconds
-                for (let delay of [0, 50, 150, 400, 800, 1500, 3000]) {
-                    setTimeout(() => {
-                        const time = isCurrentlyUsingNative ? (nativeAudio ? nativeAudio.currentTime : 0) : (player ? player.getCurrentTime() : 0);
-                        checkSponsorSegments(time || 0);
-                    }, delay);
-                }
+            // Ultra-aggressive check for first 5 seconds (catch ads everywhere)
+            for (let delay of [0, 50, 150, 300, 600, 1200, 2500, 5000]) {
+                setTimeout(() => {
+                    const time = isCurrentlyUsingNative ? (nativeAudio ? nativeAudio.currentTime : 0) : (player && typeof player.getCurrentTime === 'function' ? player.getCurrentTime() : 0);
+                    if (time !== undefined) checkSponsorSegments(time);
+                }, delay);
             }
-        } catch (e) {
-            console.log("ℹ️ SponsorBlock: Offline or no ads.");
         }
-    })();
-    return pendingSponsorFetch;
+    } catch (e) {
+        console.log("ℹ️ SponsorBlock: Offline or no ads.");
+    } finally {
+        sponsorFetchFinished = true;
+    }
 }
 
 function checkSponsorSegments(currentTime) {
@@ -829,10 +841,9 @@ async function fetchFromPiped(apiBase, videoId, timeoutMs) {
         const data = await response.json();
         if (!data.audioStreams || data.audioStreams.length === 0) throw new Error("No streams");
 
-        // FILTER: Strictly EXCLUDE direct googlevideo.com links to avoid Error 403
+        // FILTER: Prioritize proxied streams but allow direct as last resort to prevent total failure
         const proxiedStreams = data.audioStreams.filter(s => !s.url.includes('googlevideo.com'));
-        if (proxiedStreams.length === 0) throw new Error("No proxied streams found");
-        const targetList = proxiedStreams;
+        const targetList = proxiedStreams.length > 0 ? proxiedStreams : data.audioStreams;
 
         const audioStreams = targetList.sort((a, b) => {
             const getScore = (stream) => {
@@ -1397,8 +1408,6 @@ async function playSong(song, list = [], fromQueue = false) {
             currentQueueIndex = list.findIndex(s => String(s.id) === String(song.id));
             if (currentQueueIndex === -1) currentQueueIndex = 0;
         }
-
-        currentTrack = song;
         isMediaPlaying = true;
         isUserPaused = false;
 
@@ -1469,8 +1478,10 @@ async function playSong(song, list = [], fromQueue = false) {
             navigator.mediaSession.playbackState = 'playing';
         }
 
-        // Fetch SponsorBlock segments
-        fetchSponsorSegments(song.id);
+        // Fetch SponsorBlock segments (only if not already fetching/fetched for this song)
+        if (!currentTrack || currentTrack.id !== song.id || currentSponsorSegments.length === 0) {
+            fetchSponsorSegments(song.id);
+        }
 
         // Primary Execution (PROXIED AUDIO + ADS SYNC)
         if (useNativeAudio && nativeAudio) {
@@ -1478,17 +1489,14 @@ async function playSong(song, list = [], fromQueue = false) {
             try {
                 showToast("Sincronizando protección anti-anuncios...");
 
-                // Fetch segments and URL in parallel, but wait for BOTH
-                const sponsorPromise = fetchSponsorSegments(song.id);
+                // Fetch URL first
                 const audioPromise = getAudioUrl(song.id);
-
-                // Wait for URL first as it's the bottleneck
                 const audioUrl = await audioPromise;
                 if (!audioUrl) throw new Error('No audio URL found');
 
-                // Wait briefly for SponsorBlock if it hasn't returned yet (max 1.2s total)
+                // Wait briefly for SponsorBlock if it's still fetching (max 1.2s total)
                 const startWait = Date.now();
-                while (currentSponsorSegments.length === 0 && (Date.now() - startWait < 1200)) {
+                while (!sponsorFetchFinished && (Date.now() - startWait < 1200)) {
                     await new Promise(r => setTimeout(r, 50));
                 }
 
