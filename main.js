@@ -1287,21 +1287,15 @@ async function searchJioSaavn(query) {
 
                 return rawResults
                     .filter(item => {
-                        // Anti-Simulation Filter: Verify it's a song and matches query intent
-                        if (item.type !== 'song' && item.type !== 'music') return false;
-
-                        // Strict Artist Matching for shorter queries (like Artist Name only)
-                        const searchLower = query.toLowerCase();
-                        const artistMatch = item.artists?.primary?.some(a =>
-                            searchLower.includes(a.name.toLowerCase()) ||
-                            a.name.toLowerCase().includes(searchLower)
-                        );
-
-                        // Reject results that look like Karaoke or Covers unless explicitly searched
+                        // SOFT Filter: Only reject obvious karaoke/covers
                         const titleLower = (item.name || item.title || '').toLowerCase();
+                        const searchLower = query.toLowerCase();
+
+                        // Reject karaoke and covers ONLY if NOT explicitly searched
                         if (!searchLower.includes('karaoke') && titleLower.includes('karaoke')) return false;
                         if (!searchLower.includes('cover') && titleLower.includes('cover')) return false;
 
+                        // Accept everything else
                         return true;
                     })
                     .map(item => {
