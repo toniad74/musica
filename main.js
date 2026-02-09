@@ -51,7 +51,6 @@ let currentSponsorSegments = [];
 // Invidious instances (fallback if one fails)
 // Prioritize instances known for speed and M4A support
 const INVIDIOUS_INSTANCES = [
-    'invidious.io.lol',
     'invidious.lunar.icu',
     'invidious.projectsegfau.lt',
     'invidious.asir.dev',
@@ -62,12 +61,12 @@ const INVIDIOUS_INSTANCES = [
     'yewtu.be',
     'vid.puffyan.us',
     'invidious.perennialte.ch',
-    'invidious.nerdvpn.de',
-    'invidious.flokinet.to',
-    'invidious.000.gg'
+    'invidious.jing.rocks',
+    'invidious.nohost.network',
+    'invidious.nixnet.social',
+    'invidious.silkky.cloud'
 ];
 
-// Piped instances (Secondary fallback)
 const PIPED_INSTANCES = [
     'https://pipedapi.kavin.rocks',
     'https://api.piped.privacydev.net',
@@ -82,14 +81,11 @@ const PIPED_INSTANCES = [
     'https://pipedapi.sync-tube.de',
     'https://piped-api.garudalinux.org',
     'https://piped-api.lunar.icu',
-    'https://pipedapi.dk.2nd.io',
-    'https://pipedapi.moe',
-    'https://pipedapi.tokhmi.xyz',
-    'https://api.piped.yt',
-    'https://pa.il.ax',
-    'https://piped-api.no-logs.com',
-    'https://pipedapi.tapthebox.net',
-    'https://api.piped.victr.me'
+    'https://pipedapi.moe.xyz',
+    'https://pipedapi.astartes.nl',
+    'https://pipedapi.vube.app',
+    'https://pipedapi.hostux.net',
+    'https://api.piped.video'
 ];
 
 // --- INITIALIZATION ---
@@ -679,9 +675,8 @@ async function getAudioUrl(videoId) {
     }
 
     // 2. Parallel Racing Strategy
-    // We race the top batches of servers to find the first one that responds
     const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
-    const batchSize = 6; // Try 6 at a time for maximum speed
+    const batchSize = 10; // Increased for faster coverage
 
     for (let i = 0; i < candidates.length; i += batchSize) {
         const batch = candidates.slice(i, i + batchSize);
@@ -840,9 +835,10 @@ async function fetchFromPiped(apiBase, videoId, timeoutMs) {
         const data = await response.json();
         if (!data.audioStreams || data.audioStreams.length === 0) throw new Error("No streams");
 
-        // FILTER: Strictly prioritize proxied streams to avoid 403 errors
+        // FILTER: Strictly EXCLUDE direct googlevideo.com links to avoid Error 403
         const proxiedStreams = data.audioStreams.filter(s => !s.url.includes('googlevideo.com'));
-        const targetList = proxiedStreams.length > 0 ? proxiedStreams : data.audioStreams;
+        if (proxiedStreams.length === 0) throw new Error("No proxied streams found");
+        const targetList = proxiedStreams;
 
         const audioStreams = targetList.sort((a, b) => {
             const getScore = (stream) => {
@@ -1632,6 +1628,15 @@ function updateQueueCount() {
 
 // Function to load YouTube IFrame as fallback
 function loadYouTubeIFrame(videoId) {
+    if (!videoId) return;
+
+    // Stop and clear native audio to prevent conflicting error messages and double audio
+    if (nativeAudio) {
+        nativeAudio.pause();
+        nativeAudio.removeAttribute('src');
+        nativeAudio.load();
+    }
+
     console.log(`📺 Cargando YouTube IFrame para: ${videoId}`);
     isCurrentlyUsingNative = false;
     updateAdFreeStatus(false);
