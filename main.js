@@ -43,17 +43,8 @@ let isUserPaused = false;
 let nativeAudio = null;
 let useNativeAudio = true; // Prefer native audio over YouTube IFrame
 let isCurrentlyUsingNative = false; // Track engine active for CURRENT track
-let isMediaPlaying = false;
 
-// SponsorBlock data
-let currentSponsorSegments = [];
-let sponsorFetchFinished = true; // Track if current fetch completed
-
-// Instance Blacklist for current session
-const FAILED_INSTANCES = new Set();
-
-// Invidious instances (fallback if one fails)
-// Prioritize instances known for speed and M4A support
+// STRICTLY VERIFIED PROXIED INSTANCES (2025 HIGH QUALITY)
 const PIPED_INSTANCES = [
     'https://pipedapi.kavin.rocks',
     'https://api.piped.privacydev.net',
@@ -94,6 +85,15 @@ const INVIDIOUS_INSTANCES = [
     'inv.nadeko.net',
     'invidious.snopyta.org'
 ];
+
+let isMediaPlaying = false;
+
+// SponsorBlock data
+let currentSponsorSegments = [];
+let sponsorFetchFinished = true; // Track if current fetch completed
+
+// Instance Blacklist for current session
+const FAILED_INSTANCES = new Set();
 
 // --- INITIALIZATION ---
 window.onload = () => {
@@ -460,39 +460,45 @@ function setupNativeAudioHandlers() {
         // If we get a network or src error (like 403), DO NOT GO TO YOUTUBE YET.
         // Try to get a fresh URL from a DIFFERENT Piped instance first.
         if (currentTrack && err && (err.code === err.MEDIA_ERR_NETWORK || err.code === err.MEDIA_ERR_SRC_NOT_SUPPORTED)) {
-            console.log('🔄 Error detectado (403/Red). Reintentando con otro servidor...');
-            showToast("Error de conexión. Buscando servidor nuevo...", "warning");
+            console.log('🔄 Error crítico de audio nativo. Iniciando protocolo de recuperación infinita...');
+            showToast("⚠️ Conexión perdida. Buscando servidor alternativo...", "warning");
 
             const savedTime = nativeAudio.currentTime;
             const currentInstance = localStorage.getItem('amaya_fastest_server');
-            if (currentInstance) {
-                console.log(`🚫 Penailzando instancia fallida: ${currentInstance}`);
-                FAILED_INSTANCES.add(currentInstance);
-            }
-            localStorage.removeItem('amaya_fastest_server');
 
+            if (currentInstance) {
+                console.log(`🚫 Bloqueando instancia defectuosa: ${currentInstance}`);
+                FAILED_INSTANCES.add(currentInstance);
+                localStorage.removeItem('amaya_fastest_server');
+            }
+
+            // Retry with explicit exclusion of the failed server
+            // DO NOT FALLBACK TO YOUTUBE. RETRY.
             try {
-                // EXPLICIT RETRY with exclusion
+                // Determine if we need to completely reset standard instance list too? 
+                // getAudioUrl handles rotation.
                 const newUrl = await getAudioUrl(currentTrack.id, currentInstance);
                 if (newUrl) {
                     nativeAudio.src = newUrl;
                     nativeAudio.load();
                     nativeAudio.currentTime = savedTime;
                     await nativeAudio.play();
-                    console.log('✅ Recuperado con éxito de otro servidor.');
+                    console.log('✅ Recuperado exitosamente en nuevo servidor.');
                     return;
                 }
             } catch (retryError) {
-                console.error("Reintento fallido:", retryError);
+                console.error("❌ Falló la recuperación instantánea. Reintentando ciclo completo...", retryError);
+                // If even the immediate retry fails, force a full reload of the track (which triggers the main playSong logic again)
+                // allowing a full fresh start.
+                playSong(currentTrack, queue, true);
+                return;
             }
         }
 
-        // Final fallback if all native attempts fail
-        console.log('📡 Fallback final a YouTube por fallo crítico de audio nativo');
-        showToast(`Cambiando a reproductor secundario (${errorMsg})`, 'error');
-        if (currentTrack) {
-            loadYouTubeIFrame(currentTrack.id);
-        }
+        // Final catch-all: NEVER use YouTube.
+        console.error("❌ Audio nativo irrecuperable por el momento.");
+        showToast("Error de fuente. Saltando canción...", "error");
+        setTimeout(playNext, 2000); // Skip to next song instead of showing ads
     });
 
     nativeAudio.addEventListener('loadstart', () => console.log('⏳ Cargando audio...'));
@@ -517,6 +523,10 @@ function playNativeAudio(url) {
     }
 
     nativeAudio.src = url;
+    // SponsorBlock Timing: Ensure checkSponsorSegments is called immediately after nativeAudio.src is set.
+    if (currentTrack) {
+        fetchSponsorSegments(currentTrack.id);
+    }
     nativeAudio.play().then(() => {
         console.log("✅ Native playback started");
         isUserPaused = false;
@@ -670,58 +680,52 @@ function updateAdFreeStatus(active) {
     });
 }
 
-// --- INVIDIOUS & PIPED INTEGRATION (ULTRA-FAST PARALLEL RACING) ---
+// --- INVIDIOUS & PIPED INTEGRATION (INFINITE RETRY ENGINE) ---
 async function getAudioUrl(videoId, excludeInstance = null) {
     if (excludeInstance) FAILED_INSTANCES.add(excludeInstance);
-    console.log(`🔍 Buscando audio proxeado para: ${videoId} ${excludeInstance ? '(Evitando ' + excludeInstance + ')' : ''}`);
+    console.log(`🔍 Iniciando búsqueda estricta de audio (Sin Ads) para: ${videoId}`);
 
-    // 1. Try Cached Instance First
-    const cachedInstance = localStorage.getItem('amaya_fastest_server');
-    if (cachedInstance && !FAILED_INSTANCES.has(cachedInstance) && cachedInstance !== excludeInstance) {
+    // Combined list of all candidates
+    const allCandidates = [
+        ...PIPED_INSTANCES.filter(i => !FAILED_INSTANCES.has(i)),
+        ...INVIDIOUS_INSTANCES.filter(i => !FAILED_INSTANCES.has(i))
+    ].sort(() => 0.5 - Math.random());
+
+    if (allCandidates.length === 0) {
+        // If we ran out, clear blacklist and try one more desperate loop
+        console.warn("⚠️ Lista de servidores agotada. Reiniciando blacklist...");
+        FAILED_INSTANCES.clear();
+        return getAudioUrl(videoId); // Recursive retry once
+    }
+
+    // Try EVERY candidate one by one (or in small parallel batches) until success
+    const batchSize = 3; // Smaller batches to save resources but move fast
+
+    for (let i = 0; i < allCandidates.length; i += batchSize) {
+        const batch = allCandidates.slice(i, i + batchSize);
+        showToast(`Probando servidores ${i + 1}-${Math.min(i + batchSize, allCandidates.length)}...`, 'info');
+        console.log(`🚀 Probando bloque ${i / batchSize + 1}:`, batch);
+
         try {
-            const url = await fetchFromPiped(cachedInstance, videoId, 3000);
-            if (url) return url;
+            // Mix of Piped and Invidious handlers based on URL structure
+            const promises = batch.map(inst => {
+                if (inst.includes('piped')) return fetchFromPiped(inst, videoId, 5000);
+                return fetchFromInvidious(inst, videoId, 5000);
+            });
+
+            const winner = await Promise.any(promises);
+            if (winner) {
+                console.log("✅ Servidor Encontrado:", winner);
+                return winner;
+            }
         } catch (e) {
-            localStorage.removeItem('amaya_fastest_server');
-            FAILED_INSTANCES.add(cachedInstance);
+            // Batch failed. Mark these as failed for this song attempt.
+            batch.forEach(inst => FAILED_INSTANCES.add(inst));
+            console.warn("Bloque fallido. Continuando...");
         }
     }
 
-    // 2. Parallel Racing Strategy
-    const candidates = PIPED_INSTANCES
-        .filter(inst => !FAILED_INSTANCES.has(inst) && inst !== excludeInstance)
-        .sort(() => 0.5 - Math.random());
-
-    // Attempt with larger batches and longer timeouts
-    const batchSize = 15;
-    for (let i = 0; i < candidates.length; i += batchSize) {
-        const batch = candidates.slice(i, i + batchSize);
-        console.log(`🚀 Racing Piped Batch ${Math.floor(i / batchSize) + 1} (${batch.length} servers)...`);
-
-        try {
-            const winnerUrl = await Promise.any(batch.map(instance =>
-                fetchFromPiped(instance, videoId, 8000)
-            ));
-            if (winnerUrl) return winnerUrl;
-        } catch (e) {
-            console.warn("Batch failed or all servers in batch timed out.");
-        }
-    }
-
-    // STAGE 3: Invidious Fallback (Proxied)
-    console.log("⚠️ Piped agotado. Intentando Invidious...");
-    const invidiousCandidates = INVIDIOUS_INSTANCES.filter(inst => !FAILED_INSTANCES.has(inst));
-    const invidiousBatch = invidiousCandidates.slice(0, 6);
-    try {
-        const winnerUrl = await Promise.any(invidiousBatch.map(instance =>
-            fetchFromInvidious(instance, videoId, 8000)
-        ));
-        if (winnerUrl) return winnerUrl;
-    } catch (e) { }
-
-    // Final attempt: retry EVERYTHING once without proxy restriction if totally stuck? 
-    // No, better to fallback to YouTube with a clear warning than nothing.
-    throw new Error('No se encontró un servidor de audio nativo disponible.');
+    throw new Error("Imposible obtener audio limpio. Red saturada/bloqueada.");
 }
 
 // Dedicated helper for Invidious Fetch with Scoring
@@ -738,7 +742,8 @@ async function fetchFromInvidious(instance, videoId, timeoutMs) {
         const data = await response.json();
         if (!data.adaptiveFormats || data.adaptiveFormats.length === 0) throw new Error("No formats");
 
-        const audioFormats = data.adaptiveFormats.filter(f => f.type && f.type.includes('audio'))
+        const audioFormats = data.adaptiveFormats
+            .filter(f => f.type && f.type.includes('audio') && !f.url.includes('googlevideo.com'))
             .sort((a, b) => {
                 const getScore = (format) => {
                     let score = 0;
@@ -841,9 +846,10 @@ async function fetchFromPiped(apiBase, videoId, timeoutMs) {
         const data = await response.json();
         if (!data.audioStreams || data.audioStreams.length === 0) throw new Error("No streams");
 
-        // FILTER: Prioritize proxied streams but allow direct as last resort to prevent total failure
+        // FILTER: STRICTLY PROXIED ONLY. No direct googlevideo links.
         const proxiedStreams = data.audioStreams.filter(s => !s.url.includes('googlevideo.com'));
-        const targetList = proxiedStreams.length > 0 ? proxiedStreams : data.audioStreams;
+        if (proxiedStreams.length === 0) throw new Error("No proxied streams found (Strict Mode)");
+        const targetList = proxiedStreams;
 
         const audioStreams = targetList.sort((a, b) => {
             const getScore = (stream) => {
@@ -1513,18 +1519,17 @@ async function playSong(song, list = [], fromQueue = false) {
                 updatePlayPauseIcons(true);
                 console.log('✅ Reproducción limpia iniciada');
             } catch (error) {
-                console.error('❌ Error con audio nativo:', error);
+                console.error('❌ Error fatal en audio:', error);
 
-                // Handle "NotAllowedError" (Autoplay blocked)
+                // If "NotAllowed", pause. If anything else, SKIP or RETRY. Never YouTube.
                 if (error.name === 'NotAllowedError') {
                     showToast("⚠️ Toca 'Play' para iniciar", "warning");
                     return;
                 }
 
-                console.log('📡 Fallback final a YouTube Player (Puede contener anuncios)...');
-                showToast('Usando reproductor de reserva...', 'info');
-                isCurrentlyUsingNative = false;
-                loadYouTubeIFrame(song.id);
+                showToast("Fuente no disponible. Probando siguiente...", "error");
+                // Auto-skip to next song if this one is truly unplayable
+                setTimeout(() => playNext(), 1500);
             }
         } else {
             console.log('📡 Usando YouTube Player directamente');
