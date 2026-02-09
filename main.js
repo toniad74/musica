@@ -1420,8 +1420,6 @@ async function searchMusic(pageToken = '', retryCount = 0) {
     </div>
 </div>
 `;
-        errorMsg.classList.remove('hidden');
-    }
 }
 async function searchInvidious(query) {
     try {
