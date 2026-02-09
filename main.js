@@ -1258,33 +1258,41 @@ async function searchPiped(query) {
     return [];
 }
 
-// --- JIOSAAVN SEARCH ---
+// --- JIOSAAVN SEARCH (HIGH FIDELITY) ---
 async function searchJioSaavn(query) {
-    const endpoints = [
-        `https://saavn.dev/api/search/songs?query=${encodeURIComponent(query)}`,
-        `https://saavn.me/search/songs?query=${encodeURIComponent(query)}`
+    const mirrors = [
+        'https://saavn.me',
+        'https://saavn.dev',
+        'https://jiosaavn-api-v3.vercel.app',
+        'https://jiosaavn-api-one.vercel.app'
     ];
 
-    for (const endpoint of endpoints) {
+    for (const mirror of mirrors) {
         try {
-            const response = await fetch(endpoint);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s per mirror
+
+            const response = await fetch(`${mirror}/api/search/songs?query=${encodeURIComponent(query)}`, { signal: controller.signal });
+            clearTimeout(timeoutId);
             if (!response.ok) continue;
 
             const data = await response.json();
-            const results = data.data?.results || data.results;
+            // Flexible result extraction
+            let rawResults = data.data?.results || data.data || data.results || (Array.isArray(data) ? data : null);
+            if (!rawResults || !Array.isArray(rawResults) || rawResults.length === 0) continue;
 
-            if (!results || results.length === 0) continue;
+            console.log(`✅ JioSaavn results found from: ${mirror}`);
 
-            return results.map(item => ({
-                id: `jio_${item.id}`, // Mark as JioSaavn ID
-                title: item.name,
-                channel: item.artists?.primary?.map(a => a.name).join(', ') || 'Global Artist',
-                thumbnail: item.image?.[item.image.length - 1]?.link || '',
+            return rawResults.map(item => ({
+                id: `jio_${item.id}`,
+                title: item.name || item.title || 'Unknown Title',
+                channel: item.artists?.primary?.map(a => a.name).join(', ') || item.primary_artists || 'Artist',
+                thumbnail: (item.image?.[item.image.length - 1]?.link || item.image?.[0]?.link || item.image || '').replace('150x150', '500x500'),
                 duration: formatPipedDuration(item.duration),
-                source: 'jiosaavn'
+                source: 'jio'
             }));
         } catch (e) {
-            console.warn("JioSaavn search failed for endpoint:", endpoint);
+            console.warn(`JioSaavn mirror ${mirror} failed:`, e.name);
         }
     }
     return [];
@@ -1384,162 +1392,187 @@ function clearSearch() {
     showHome();
 }
 
-// --- SEARCH ---
+// --- SEARCH ENGINE: WATERFALL PROTOCOL ---
 async function searchMusic(pageToken = '', retryCount = 0) {
     const input = document.getElementById('searchInput');
     const query = input.value.trim();
     if (!query) return;
 
-    // UI State
+    // UI Feedback
     input.blur();
-    setTimeout(() => input.blur(), 50); // Robust keyboard closing
-    window.focus(); // Ensure window focus after blur
-
     currentSearchQuery = query;
     if (!pageToken) currentSearchPage = 1;
 
     switchTab('search');
     document.getElementById('loading').classList.remove('hidden');
-    document.getElementById('errorMessage').classList.add('hidden'); // Hide previous errors
+    document.getElementById('errorMessage').classList.add('hidden');
+
+    // Debug HUD
+    const debugTrace = [];
 
     try {
         let results = [];
         const currentKey = getCurrentApiKey();
 
-        // STAGE 1: GOOGLE API (Optional)
+        // PHASE 1: YOUTUBE (Only with valid key)
         if (currentKey) {
+            debugTrace.push("YT: Searching...");
             try {
                 const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&key=${currentKey}${pageToken ? `&pageToken=${pageToken}` : ''}`);
                 const data = await response.json();
 
-                if (data.items) {
+                if (data.items && data.items.length > 0) {
                     nextSearchToken = data.nextPageToken || '';
                     prevSearchToken = data.prevPageToken || '';
-
                     results = data.items.map(item => ({
                         id: item.id.videoId,
                         title: decodeHtml(item.snippet.title),
                         channel: decodeHtml(item.snippet.channelTitle),
                         thumbnail: item.snippet.thumbnails.medium.url,
-                        duration: '0:00'
+                        duration: '0:00',
+                        source: 'yt'
                     }));
 
-                    // Fetch durations
-                    const ids = results.map(v => v.id).join(',');
-                    const detailsResp = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${currentKey}`);
-                    const detailsData = await detailsResp.json();
-                    if (detailsData.items) {
-                        detailsData.items.forEach(item => {
-                            const video = results.find(v => v.id === item.id);
-                            if (video) video.duration = parseISO8601Duration(item.contentDetails.duration);
+                    // Optional: Fetch durations (non-critical)
+                    try {
+                        const ids = results.map(v => v.id).join(',');
+                        const dResp = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${currentKey}`);
+                        const dData = await dResp.json();
+                        dData.items?.forEach(i => {
+                            const v = results.find(r => r.id === i.id);
+                            if (v) v.duration = parseISO8601Duration(i.contentDetails.duration);
                         });
-                    }
-                } else if (data.error) {
-                    console.warn("Google API error:", data.error.message);
+                    } catch (e) { console.warn("YT Duration fail", e); }
+
+                    debugTrace.push(`YT: Success (${results.length})`);
+                } else {
+                    debugTrace.push("YT: Empty/Error");
                 }
-            } catch (e) {
-                console.warn("Google Search failed, proceeding to fallbacks:", e);
+            } catch (e) { debugTrace.push(`YT: Crash (${e.name})`); }
+        } else {
+            debugTrace.push("YT: Skipped (No key)");
+        }
+
+        // PHASE 2: JIOSAAVN (Global DB)
+        if (results.length === 0 && !pageToken) {
+            debugTrace.push("Jio: Searching mirrors...");
+            const jioResults = await searchJioSaavn(query);
+            if (jioResults.length > 0) {
+                results = jioResults;
+                debugTrace.push(`Jio: Success (${results.length})`);
+                showToast("Buscando en Base de datos global...", "info");
+            } else {
+                debugTrace.push("Jio: Empty results");
             }
         }
 
-        // STAGE 2: JIOSAAVN (If no Google results and it's full search)
+        // PHASE 3: PIPED (Video Mirror)
         if (results.length === 0 && !pageToken) {
-            try {
-                const jioResults = await searchJioSaavn(query);
-                if (jioResults && jioResults.length > 0) {
-                    results = jioResults;
-                    showToast("Buscando en Base de datos global...", "info");
-                }
-            } catch (e) {
-                console.warn("JioSaavn search failed:", e);
+            debugTrace.push("Piped: Searching instances...");
+            const pipedResults = await searchPiped(query);
+            if (pipedResults.length > 0) {
+                results = pipedResults;
+                debugTrace.push(`Piped: Success (${results.length})`);
+                showToast("Usando servidores de respaldo...", "info");
+            } else {
+                debugTrace.push("Piped: Empty results");
             }
         }
 
-        // STAGE 3: PIPED (Desperate fallback)
+        // PHASE 4: INVIDIOUS (Last Resort)
         if (results.length === 0 && !pageToken) {
-            try {
-                results = await searchPiped(query);
-                if (results && results.length > 0) {
-                    showToast("Cargando servidores de respaldo...", "info");
-                }
-            } catch (e) {
-                console.warn("Piped search failed:", e);
+            debugTrace.push("Invidious: Searching...");
+            const invResults = await searchInvidious(query);
+            if (invResults.length > 0) {
+                results = invResults;
+                debugTrace.push(`Inv: Success (${results.length})`);
+            } else {
+                debugTrace.push("Inv: Empty");
             }
         }
+
+        console.log("Search Waterfall Result:", debugTrace.join(" -> "));
 
         if (results.length > 0) {
             renderSearchResults(results);
             updateSearchPagination();
         } else {
-            document.getElementById('errorText').innerText = "Lo sentimos, no hemos podido encontrar resultados para \"" + query + "\" en ninguna fuente.";
+            document.getElementById('errorText').innerText = `No hemos encontrado nada para "${query}".\n[Rastro: ${debugTrace.join(", ")}]`;
             document.getElementById('errorMessage').classList.remove('hidden');
         }
 
-    } catch (globalError) {
-        console.error("Critical search error:", globalError);
-        document.getElementById('errorText').innerText = "Error crítico en la búsqueda. Por favor, reintenta.";
+    } catch (err) {
+        console.error("Search Waterfall Critical Error:", err);
+        document.getElementById('errorText').innerText = "Error crítico de conexión. Por favor, revisa tu internet.";
         document.getElementById('errorMessage').classList.remove('hidden');
     } finally {
         document.getElementById('loading').classList.add('hidden');
     }
 }
 
+async function searchInvidious(query) {
+    const instances = ['invidious.lunar.icu', 'yewtu.be', 'inv.zzls.xyz'];
+    for (const inst of instances) {
+        try {
+            const resp = await fetch(`https://${inst}/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
+            if (!resp.ok) continue;
+            const data = await resp.json();
+            if (Array.isArray(data) && data.length > 0) {
+                return data.map(i => ({
+                    id: i.videoId,
+                    title: i.title,
+                    channel: i.author,
+                    thumbnail: i.videoThumbnails?.[0]?.url || '',
+                    duration: formatPipedDuration(i.lengthSeconds),
+                    source: 'inv'
+                }));
+            }
+        } catch (e) { continue; }
+    }
+    return [];
+}
+
 function renderSearchResults(videos) {
     const grid = document.getElementById('resultsGrid');
     grid.innerHTML = '';
 
-    if (videos.length === 0) {
-        grid.innerHTML = '<div class="p-8 text-center text-gray-400">No se han encontrado resultados</div>';
-    } else {
-        videos.forEach((video, index) => {
-            const inQueue = isSongInQueue(video.id);
-            const inQueueClass = inQueue ? 'in-queue' : 'text-[#b3b3b3]';
-
-            const isCurrent = isMediaPlaying && currentTrack && String(currentTrack.id) === String(video.id);
-            const row = document.createElement('div');
-            row.className = `result-row flex items-center gap-4 p-3 cursor-pointer group ${isCurrent ? 'is-playing' : ''}`;
-            row.dataset.videoId = video.id;
-            row.onclick = () => {
-                currentlyPlayingPlaylistId = null;
-                localStorage.removeItem('amaya_playing_pl_id');
-                renderHomePlaylists();
-                playSong(video, [video]);
-            };
-
-            row.innerHTML = `
-                <div class="w-10 text-center text-sm text-[#b3b3b3] track-number group-hover:hidden">${(currentSearchPage - 1) * 20 + index + 1}</div>
-                <div class="hidden group-hover:block w-10 text-center">
-                    <svg class="w-4 h-4 text-white mx-auto" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                </div>
-                <img src="${video.thumbnail}" class="w-10 h-10 rounded object-cover">
-                <div class="flex-1 min-w-0">
-                    <div class="marquee-container">
-                        <h3 class="text-white font-medium marquee-content">${video.title}${isCurrent ? ' <span class="playing-badge">SONANDO</span>' : ''}</h3>
-                    </div>
-                    <p class="text-[#b3b3b3] text-sm truncate">${video.channel}</p>
-                </div>
-                <div class="flex items-center gap-2 transition-opacity">
-                    <button onclick="event.stopPropagation(); toggleQueue(${JSON.stringify(video).replace(/"/g, '&quot;')})" 
-                        class="queue-btn p-2 hover:text-white ${inQueueClass}" 
-                        data-song-id="${video.id}"
-                        title="Añadir/Quitar de la cola">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/></svg>
-                    </button>
-                    <button onclick="event.stopPropagation(); showAddToPlaylistMenu(event, ${JSON.stringify(video).replace(/"/g, '&quot;')})" 
-                        class="p-2 hover:text-white text-[#b3b3b3]" title="Añadir a la lista">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-                    </button>
-                </div>
-            `;
-            grid.appendChild(row);
-        });
+    if (!videos || videos.length === 0) {
+        grid.innerHTML = '<div class="p-8 text-center text-gray-400">No hay resultados</div>';
+        return;
     }
 
-    document.getElementById('resultsSection').classList.remove('hidden');
-    document.getElementById('searchPagination').classList.toggle('hidden', !nextSearchToken && !prevSearchToken);
+    videos.forEach((video, index) => {
+        const isCurrent = currentTrack && String(currentTrack.id) === String(video.id);
+        const card = document.createElement('div');
+        card.className = `flex items-center gap-4 p-4 bg-white/5 hover:bg-white/10 rounded-2xl cursor-pointer transition-all border border-transparent hover:border-green-500/30 group ${isCurrent ? 'border-green-500/50 bg-green-500/5' : ''}`;
 
-    // Apply marquees to all result rows
-    grid.querySelectorAll('.marquee-content').forEach(el => updateMarquee(el));
+        let thumb = video.thumbnail;
+        if (video.source === 'inv' && !thumb.startsWith('http')) {
+            thumb = 'https://i.ytimg.com/vi/' + video.id + '/mqdefault.jpg';
+        }
+
+        card.innerHTML = `
+            <div class="relative w-16 h-16 flex-shrink-0">
+                <img src="${thumb}" class="w-full h-full object-cover rounded-xl shadow-lg" onerror="this.src='https://via.placeholder.com/150'">
+                <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl">
+                    <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-white truncate text-base">${video.title}</h3>
+                <p class="text-sm text-gray-400 truncate">${video.channel}</p>
+                <div class="flex items-center gap-2 mt-1">
+                    <span class="text-xs text-gray-500">${video.duration}</span>
+                    ${video.source === 'jio' ? '<span class="px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] border border-blue-500/30">Fid. Alta</span>' : ''}
+                </div>
+            </div>
+        `;
+        card.onclick = () => playSong(video, videos);
+        grid.appendChild(card);
+    });
+
+    document.getElementById('resultsSection').classList.remove('hidden');
+    document.getElementById('homeSection').classList.add('hidden');
 }
 
 function searchNextPage() {
@@ -1559,7 +1592,7 @@ function updateSearchPagination() {
     document.getElementById('nextPageBtn').disabled = !nextSearchToken;
     document.getElementById('prevPageBtn').disabled = !prevSearchToken;
     const info = document.getElementById('searchPageInfo');
-    if (info) info.innerText = `Página ${currentSearchPage}`;
+    if (info) info.innerText = `Página ${currentSearchPage} `;
 }
 
 // --- PLAYBACK ---
@@ -1697,7 +1730,7 @@ async function playSong(song, list = [], fromQueue = false) {
         }
     } catch (error) {
         console.error("Error playing song:", error);
-        showToast(`Error al reproducir: ${error.message}`, "error");
+        showToast(`Error al reproducir: ${error.message} `, "error");
         isMediaPlaying = false;
         updatePlayPauseIcons(false);
     }
@@ -1740,11 +1773,11 @@ function toggleQueue(song) {
             currentQueueIndex--;
         }
 
-        showToast(`- ${removedSong.title}`);
+        showToast(`- ${removedSong.title} `);
     } else {
         // Not in queue, add it
         queue.push(song);
-        showToast(`+ ${song.title}`);
+        showToast(`+ ${song.title} `);
     }
 
     // Update visual count
@@ -1795,7 +1828,7 @@ function loadYouTubeIFrame(videoId) {
         nativeAudio.load();
     }
 
-    console.log(`📺 Cargando YouTube IFrame para: ${videoId}`);
+    console.log(`📺 Cargando YouTube IFrame para: ${videoId} `);
     isCurrentlyUsingNative = false;
     updateAdFreeStatus(false);
 
@@ -2082,7 +2115,7 @@ function renderSharedPlaylist(pl) {
         row.className = 'flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer group';
         row.onclick = () => playSong(index);
         row.innerHTML = `
-            <span class="w-8 text-center text-gray-500 group-hover:hidden">${index + 1}</span>
+    < span class="w-8 text-center text-gray-500 group-hover:hidden" > ${index + 1}</span >
             <div class="hidden group-hover:flex w-8 justify-center">
                 <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             </div>
@@ -2886,7 +2919,7 @@ function updateUserUI() {
     if (nameEl) nameEl.innerText = currentUser.name;
 
     const avatarContent = currentUser.avatar
-        ? `< img src = "${currentUser.avatar}" > `
+        ? `<img src="${currentUser.avatar}">`
         : currentUser.name.charAt(0).toUpperCase();
 
     if (avatarEl) avatarEl.innerHTML = avatarContent;
