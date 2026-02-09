@@ -700,16 +700,27 @@ async function getAudioUrl(videoId) {
         }
     }
 
-    // STAGE 3: Emergency Sequential Fallback (The ultimate backup)
-    console.log("🚑 Entrando en modo de búsqueda de emergencia...");
-    const emergencyList = candidates.slice(0, 15); // Try the first 15 again but one by one
+    // STAGE 3: Invidious Fallback (Racing top instances)
+    console.log("⚠️ Piped falló. Cambiando a Invidious (Proxeado)...");
+    const invidiousCandidates = [...INVIDIOUS_INSTANCES].sort(() => 0.5 - Math.random());
+    const invidiousBatch = invidiousCandidates.slice(0, 4);
+    try {
+        const winnerUrl = await Promise.any(invidiousBatch.map(instance =>
+            fetchFromInvidious(instance, videoId, 5000)
+        ));
+        if (winnerUrl) return winnerUrl;
+    } catch (e) {
+        console.warn("Invidious racing failed.");
+    }
+
+    // STAGE 4: Emergency Sequential Fallback
+    console.log("🚑 Búsqueda de emergencia profunda...");
+    const emergencyList = candidates.slice(0, 20);
     for (const instance of emergencyList) {
         try {
-            const url = await fetchFromPiped(instance, videoId, 4000);
+            const url = await fetchFromPiped(instance, videoId, 3000);
             if (url) return url;
-        } catch (e) {
-            continue;
-        }
+        } catch (e) { continue; }
     }
 
     throw new Error('No se pudo encontrar un stream de audio sin publicidad.');
@@ -776,27 +787,40 @@ async function fetchSponsorSegments(videoId) {
 }
 
 function checkSponsorSegments(currentTime) {
-    if (!currentSponsorSegments || currentSponsorSegments.length === 0) return;
+    if (!currentSponsorSegments || currentSponsorSegments.length === 0) return false;
 
-    let skipped = false;
-    for (const segment of currentSponsorSegments) {
-        const [start, end] = segment.segment;
+    let skippedTotal = false;
+    let iteration = 0;
+    let activeTime = currentTime;
 
-        if (currentTime >= start && currentTime < end - 0.1) {
-            console.log(`⏩ SponsorBlock: Saltando segmento ${segment.category} (${start.toFixed(2)}s - ${end.toFixed(2)}s)`);
+    // Recursive search for consecutive segments (multiple ads)
+    while (iteration < 5) { // Protect against infinite loops
+        let jumpFound = false;
+        for (const segment of currentSponsorSegments) {
+            const [start, end] = segment.segment;
 
-            if (isCurrentlyUsingNative && nativeAudio) {
-                nativeAudio.currentTime = end;
-            } else if (player && typeof player.seekTo === 'function') {
-                player.seekTo(end);
+            // If current time is within or slightly before the segment
+            if (activeTime >= start - 0.1 && activeTime < end - 0.1) {
+                console.log(`⏩ SponsorBlock (Skip ${iteration + 1}): ${activeTime.toFixed(2)} -> ${end.toFixed(2)} [${segment.category}]`);
+                activeTime = end;
+                jumpFound = true;
+                skippedTotal = true;
+                break;
             }
-
-            skipped = true;
-            showToast("🛡️ Publicidad saltada automáticamente", "info");
-            // Don't break, check if there's another segment immediately after
         }
+        if (!jumpFound) break;
+        iteration++;
     }
-    return skipped;
+
+    if (skippedTotal) {
+        if (isCurrentlyUsingNative && nativeAudio) {
+            nativeAudio.currentTime = activeTime;
+        } else if (player && typeof player.seekTo === 'function') {
+            player.seekTo(activeTime);
+        }
+        showToast("🛡️ Múltiples anuncios eliminados", "info");
+    }
+    return skippedTotal;
 }
 
 
@@ -816,14 +840,13 @@ async function fetchFromPiped(apiBase, videoId, timeoutMs) {
         const data = await response.json();
         if (!data.audioStreams || data.audioStreams.length === 0) throw new Error("No streams");
 
-        // Prefer Proxied URLs and M4A/MP4
-        const audioStreams = data.audioStreams.sort((a, b) => {
+        // FILTER: Strictly prioritize proxied streams to avoid 403 errors
+        const proxiedStreams = data.audioStreams.filter(s => !s.url.includes('googlevideo.com'));
+        const targetList = proxiedStreams.length > 0 ? proxiedStreams : data.audioStreams;
+
+        const audioStreams = targetList.sort((a, b) => {
             const getScore = (stream) => {
                 let score = 0;
-                // STRENGTH: Prioritize URLs that are proxied through the instance (no googlevideo.com)
-                // These are much more resistant to 403 errors
-                if (!stream.url.includes('googlevideo.com')) score += 5000;
-
                 if (stream.mimeType && stream.mimeType.includes('mp4')) score += 1000;
                 if (stream.bitrate) score += stream.bitrate / 1000;
                 return score;
@@ -832,12 +855,15 @@ async function fetchFromPiped(apiBase, videoId, timeoutMs) {
         });
 
         if (audioStreams.length > 0) {
-            console.log(`✅ Piped winner: ${apiBase}`);
-            showToast(`Conectado a ${apiBase.replace('https://', '').split('.')[0]}`);
+            const winnerUrl = audioStreams[0].url;
+            console.log(`✅ Piped winner: ${apiBase} (${proxiedStreams.length > 0 ? 'PROXIED' : 'DIRECT'})`);
 
-            // Save winner for next time to make startup instant
+            if (proxiedStreams.length === 0) {
+                console.warn(`⚠️ Instance ${apiBase} is returning non-proxied URLs. High risk of 403.`);
+            }
+
             localStorage.setItem('amaya_fastest_server', apiBase);
-            return audioStreams[0].url;
+            return winnerUrl;
         }
         throw new Error("No valid streams");
     } catch (e) {
