@@ -725,6 +725,24 @@ async function getAudioUrl(videoId, excludeInstance = null) {
         }
     }
 
+    // STAGE 4: Invidious "Local Proxy" Tunnel (High Reliability, Slower)
+    // This forces the Invidious server to download and stream the audio to us, bypassing Google.
+    console.log("⚠️ Invidious API agotado. Activando Túnel de Proxy Local (Modo Lento pero Seguro)...");
+    const proxyCandidates = INVIDIOUS_INSTANCES.filter(inst => !FAILED_INSTANCES.has(inst)).sort(() => 0.5 - Math.random());
+    const proxyBatch = proxyCandidates.slice(0, 4);
+
+    try {
+        const winnerUrl = await Promise.any(proxyBatch.map(instance =>
+            fetchFromInvidiousProxy(instance, videoId, 10000)
+        ));
+        if (winnerUrl) {
+            console.log("✅ Servidor Proxy Local Encontrado:", winnerUrl);
+            return winnerUrl;
+        }
+    } catch (e) {
+        console.warn("Fallo en Túnel Proxy.");
+    }
+
     throw new Error("Imposible obtener audio limpio. Red saturada/bloqueada.");
 }
 
@@ -759,6 +777,28 @@ async function fetchFromInvidious(instance, videoId, timeoutMs) {
             return audioFormats[0].url;
         }
         throw new Error("No audio formats");
+    } catch (e) {
+        throw e;
+    }
+}
+
+// Helper for "Local Proxy" (Tunneling)
+async function fetchFromInvidiousProxy(instance, videoId, timeoutMs) {
+    // itag 140 is m4a audio (high quality)
+    const url = `https://${instance}/latest_version?id=${videoId}&itag=140&local=true`;
+
+    // Check if the link is actually alive with a HEAD request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+            return url;
+        }
+        throw new Error("Proxy head failed");
     } catch (e) {
         throw e;
     }
