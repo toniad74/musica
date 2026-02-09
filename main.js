@@ -1248,7 +1248,8 @@ async function searchPiped(query) {
                 title: item.title,
                 channel: item.uploaderName || item.author,
                 thumbnail: item.thumbnail || item.thumbnails?.[0]?.url,
-                duration: item.duration ? formatPipedDuration(item.duration) : '0:00'
+                duration: item.duration ? formatPipedDuration(item.duration) : '0:00',
+                source: 'piped'
             }));
 
         } catch (e) {
@@ -1262,19 +1263,21 @@ async function searchPiped(query) {
 // --- JIOSAAVN SEARCH (HIGH FIDELITY) ---
 async function searchJioSaavn(query) {
     const mirrors = [
-        'https://saavn.me',
         'https://saavn.dev',
+        'https://saavn.me',
         'https://jiosaavn-api-v3.vercel.app',
-        'https://jiosaavn-api-one.vercel.app'
+        'https://jiosaavn-api-one.vercel.app',
+        'https://jiosaavn-api.vercel.app',
+        'https://jiosaavn-api-beta.vercel.app'
     ];
 
-    let lastError = "No mirror tried";
+    let lastError = "Todos los espejos fallaron";
 
     for (const mirror of mirrors) {
         try {
             console.log(`🔍 Intentando JioSaavn espejo: ${mirror}...`);
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout
 
             const response = await fetch(`${mirror}/api/search/songs?query=${encodeURIComponent(query)}`, { signal: controller.signal });
             clearTimeout(timeoutId);
@@ -1294,16 +1297,26 @@ async function searchJioSaavn(query) {
 
             console.log(`✅ ÉXITO: ${rawResults.length} canciones encontradas en ${mirror}`);
 
-            return rawResults.map(item => ({
-                id: `jio_${item.id}`,
-                title: item.name || item.title || 'Unknown Title',
-                channel: item.artists?.primary?.map(a => a.name).join(', ') || item.primary_artists || 'Artist',
-                thumbnail: (item.image?.[item.image.length - 1]?.link || item.image?.[0]?.link || item.image || '').replace('150x150', '500x500'),
-                duration: formatPipedDuration(item.duration),
-                source: 'jio'
-            }));
+            return rawResults.map(item => {
+                // Flexible duration parsing
+                let dur = item.duration;
+                if (typeof dur === 'string' && dur.includes(':')) {
+                    // Already formatted
+                } else {
+                    dur = formatPipedDuration(dur);
+                }
+
+                return {
+                    id: `jio_${item.id}`,
+                    title: item.name || item.title || 'Unknown Title',
+                    channel: item.artists?.primary?.map(a => a.name).join(', ') || item.primary_artists || 'Artist',
+                    thumbnail: (item.image?.[item.image.length - 1]?.link || item.image?.[0]?.link || item.image || '').replace('150x150', '500x500'),
+                    duration: dur || '0:00',
+                    source: 'jio'
+                };
+            });
         } catch (e) {
-            lastError = `Error en ${mirror}: ${e.name}`;
+            lastError = `Error en ${mirror}: ${e.message}`;
             console.warn(lastError);
         }
     }
@@ -1406,6 +1419,11 @@ function clearSearch() {
 
 // --- SEARCH ENGINE: WATERFALL PROTOCOL ---
 async function searchMusic(pageToken = '', retryCount = 0) {
+    // Protection: If called as an event listener, pageToken will be an Event object
+    if (pageToken && typeof pageToken === 'object' && (pageToken.preventDefault || pageToken.target)) {
+        pageToken = '';
+    }
+
     const input = document.getElementById('searchInput');
     const query = input.value.trim();
     if (!query) return;
@@ -1425,8 +1443,8 @@ async function searchMusic(pageToken = '', retryCount = 0) {
         console.log(`[WATERFALL] ${msg}`);
     };
 
+    let results = [];
     try {
-        let results = [];
         const currentKey = getCurrentApiKey();
 
         // PHASE 1: YOUTUBE
