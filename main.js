@@ -44,12 +44,29 @@ let nativeAudio = null;
 let useNativeAudio = true; // Prefer native audio over YouTube IFrame
 let isCurrentlyUsingNative = false; // Track engine active for CURRENT track
 
-// SINGLE RELIABLE SERVER (User-specified)
-const SINGLE_SERVER = 'invidious.nerdvpn.de';
+// MULTIPLE SERVERS WITH ROTATION (Anti-rate-limit strategy)
+const INVIDIOUS_SERVERS = [
+    'invidious.nerdvpn.de',
+    'yewtu.be',
+    'inv.tux.pizza',
+    'vid.puffyan.us',
+    'invidious.privacyredirect.com'
+];
+
+let currentServerIndex = 0;
+let SINGLE_SERVER = INVIDIOUS_SERVERS[0];
+
+// Rotate to next server when one fails
+function rotateServer() {
+    currentServerIndex = (currentServerIndex + 1) % INVIDIOUS_SERVERS.length;
+    SINGLE_SERVER = INVIDIOUS_SERVERS[currentServerIndex];
+    console.log(`🔄 Rotando a servidor: ${SINGLE_SERVER}`);
+    return SINGLE_SERVER;
+}
 
 // Legacy arrays kept for compatibility (not used)
 const PIPED_INSTANCES = [];
-const INVIDIOUS_INSTANCES = [SINGLE_SERVER];
+const INVIDIOUS_INSTANCES = INVIDIOUS_SERVERS;
 
 let isMediaPlaying = false;
 
