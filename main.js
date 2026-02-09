@@ -442,43 +442,45 @@ function setupNativeAudioHandlers() {
         const err = e.target.error;
         console.error('❌ Error en audio nativo:', err);
 
-        // Detailed error logging for debugging
         let errorMsg = 'Error desconocido';
         if (err) {
             switch (err.code) {
                 case err.MEDIA_ERR_ABORTED: errorMsg = 'Abortado'; break;
-                case err.MEDIA_ERR_NETWORK: errorMsg = 'Red (403/Link expirado)'; break;
-                case err.MEDIA_ERR_DECODE: errorMsg = 'Decodificación'; break;
-                case err.MEDIA_ERR_SRC_NOT_SUPPORTED: errorMsg = 'No soportado / 403'; break;
+                case err.MEDIA_ERR_NETWORK: errorMsg = 'Error de Red'; break;
+                case err.MEDIA_ERR_DECODE: errorMsg = 'Error de Decodificación'; break;
+                case err.MEDIA_ERR_SRC_NOT_SUPPORTED: errorMsg = '403 / Fuente no soportada'; break;
                 default: errorMsg = `Código: ${err.code}`;
             }
         }
 
-        // Anti-Ad Logic: If it's a network/src error, it usually means the link expired or was blocked.
-        // Instead of giving up and showing ads in YT, we'll try to get a FRESH link from another server.
-        if (currentTrack && (err && (err.code === err.MEDIA_ERR_NETWORK || err.code === err.MEDIA_ERR_SRC_NOT_SUPPORTED))) {
-            console.log('🔄 Reintentando obtener un link limpio de otro servidor...');
-            showToast("Buscando fuente de respaldo sin anuncios...", "info");
+        // --- NEW TOUGH ANTI-AD LOGIC ---
+        // If we get a network or src error (like 403), DO NOT GO TO YOUTUBE YET.
+        // Try to get a fresh URL from a DIFFERENT Piped instance first.
+        if (currentTrack && err && (err.code === err.MEDIA_ERR_NETWORK || err.code === err.MEDIA_ERR_SRC_NOT_SUPPORTED)) {
+            console.log('🔄 Error detectado (403/Red). Reintentando con otro servidor...');
+            showToast("Error de conexión. Buscando servidor nuevo...", "warning");
 
             const savedTime = nativeAudio.currentTime;
-            localStorage.removeItem('amaya_fastest_server'); // Ensure we don't use the same failed server
+            localStorage.removeItem('amaya_fastest_server'); // Invalida el servidor actual
 
             try {
                 const newUrl = await getAudioUrl(currentTrack.id);
                 if (newUrl) {
                     nativeAudio.src = newUrl;
                     nativeAudio.currentTime = savedTime;
-                    nativeAudio.play().catch(e => console.error("Retry play failed:", e));
-                    return; // Successfully recovered without Ads!
+                    // Reset the error listener and try again
+                    await nativeAudio.play();
+                    console.log('✅ Recuperado con éxito de otro servidor.');
+                    return;
                 }
             } catch (retryError) {
-                console.error("No se pudo recuperar stream limpio:", retryError);
+                console.error("Reintento fallido:", retryError);
             }
         }
 
-        showToast(`Error: ${errorMsg}. Reintentando con YT...`, 'error');
-        localStorage.removeItem('amaya_fastest_server');
-
+        // Final fallback if all native attempts fail
+        console.log('📡 Fallback final a YouTube por fallo crítico de audio nativo');
+        showToast(`Cambiando a reproductor secundario (${errorMsg})`, 'error');
         if (currentTrack) {
             loadYouTubeIFrame(currentTrack.id);
         }
@@ -698,18 +700,13 @@ async function getAudioUrl(videoId) {
         }
     }
 
-    // STAGE 3: Invidious Racing (Fallback)
-    console.log("⚠️ Piped falló. Iniciando carrera en Invidious...");
-    showToast("Probando fuentes de respaldo...");
-
-    const invidiousBatchSize = 4;
-    for (let i = 0; i < INVIDIOUS_INSTANCES.length; i += invidiousBatchSize) {
-        const batch = INVIDIOUS_INSTANCES.slice(i, i + invidiousBatchSize);
+    // STAGE 3: Emergency Sequential Fallback (The ultimate backup)
+    console.log("🚑 Entrando en modo de búsqueda de emergencia...");
+    const emergencyList = candidates.slice(0, 15); // Try the first 15 again but one by one
+    for (const instance of emergencyList) {
         try {
-            const winnerUrl = await Promise.any(batch.map(instance =>
-                fetchFromInvidious(instance, videoId, 4000)
-            ));
-            if (winnerUrl) return winnerUrl;
+            const url = await fetchFromPiped(instance, videoId, 4000);
+            if (url) return url;
         } catch (e) {
             continue;
         }
@@ -781,12 +778,11 @@ async function fetchSponsorSegments(videoId) {
 function checkSponsorSegments(currentTime) {
     if (!currentSponsorSegments || currentSponsorSegments.length === 0) return;
 
+    let skipped = false;
     for (const segment of currentSponsorSegments) {
         const [start, end] = segment.segment;
 
-        // If current time is within the segment (with a small buffer)
-        // We skip if we are between start and end
-        if (currentTime >= start && currentTime < end - 0.5) {
+        if (currentTime >= start && currentTime < end - 0.1) {
             console.log(`⏩ SponsorBlock: Saltando segmento ${segment.category} (${start.toFixed(2)}s - ${end.toFixed(2)}s)`);
 
             if (isCurrentlyUsingNative && nativeAudio) {
@@ -795,10 +791,12 @@ function checkSponsorSegments(currentTime) {
                 player.seekTo(end);
             }
 
-            showToast("Saltando publicidad incorporada...", "info");
-            break; // Skip only one segment at a time
+            skipped = true;
+            showToast("🛡️ Publicidad saltada automáticamente", "info");
+            // Don't break, check if there's another segment immediately after
         }
     }
+    return skipped;
 }
 
 
@@ -818,10 +816,14 @@ async function fetchFromPiped(apiBase, videoId, timeoutMs) {
         const data = await response.json();
         if (!data.audioStreams || data.audioStreams.length === 0) throw new Error("No streams");
 
-        // Prefer M4A/MP4
+        // Prefer Proxied URLs and M4A/MP4
         const audioStreams = data.audioStreams.sort((a, b) => {
             const getScore = (stream) => {
                 let score = 0;
+                // STRENGTH: Prioritize URLs that are proxied through the instance (no googlevideo.com)
+                // These are much more resistant to 403 errors
+                if (!stream.url.includes('googlevideo.com')) score += 5000;
+
                 if (stream.mimeType && stream.mimeType.includes('mp4')) score += 1000;
                 if (stream.bitrate) score += stream.bitrate / 1000;
                 return score;
@@ -2479,7 +2481,8 @@ function updateProgressBar() {
     if (!duration || isNaN(duration)) return;
 
     // --- SponsorBlock ---
-    checkSponsorSegments(currentTime);
+    const wasSkipped = checkSponsorSegments(currentTime);
+    if (wasSkipped) return; // Skip the rest of this frame to avoid visual glitches
 
     const progress = (currentTime / duration) * 100;
 
