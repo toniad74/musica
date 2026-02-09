@@ -1259,6 +1259,7 @@ async function searchPiped(query) {
 }
 
 // --- JIOSAAVN SEARCH (HIGH FIDELITY) ---
+// --- JIOSAAVN SEARCH (HIGH FIDELITY) ---
 async function searchJioSaavn(query) {
     const mirrors = [
         'https://saavn.me',
@@ -1267,21 +1268,31 @@ async function searchJioSaavn(query) {
         'https://jiosaavn-api-one.vercel.app'
     ];
 
+    let lastError = "No mirror tried";
+
     for (const mirror of mirrors) {
         try {
+            console.log(`🔍 Intentando JioSaavn espejo: ${mirror}...`);
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s per mirror
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
 
             const response = await fetch(`${mirror}/api/search/songs?query=${encodeURIComponent(query)}`, { signal: controller.signal });
             clearTimeout(timeoutId);
-            if (!response.ok) continue;
+
+            if (!response.ok) {
+                lastError = `Status ${response.status} en ${mirror}`;
+                continue;
+            }
 
             const data = await response.json();
-            // Flexible result extraction
             let rawResults = data.data?.results || data.data || data.results || (Array.isArray(data) ? data : null);
-            if (!rawResults || !Array.isArray(rawResults) || rawResults.length === 0) continue;
 
-            console.log(`✅ JioSaavn results found from: ${mirror}`);
+            if (!rawResults || !Array.isArray(rawResults) || rawResults.length === 0) {
+                lastError = `0 resultados en ${mirror}`;
+                continue;
+            }
+
+            console.log(`✅ ÉXITO: ${rawResults.length} canciones encontradas en ${mirror}`);
 
             return rawResults.map(item => ({
                 id: `jio_${item.id}`,
@@ -1292,10 +1303,11 @@ async function searchJioSaavn(query) {
                 source: 'jio'
             }));
         } catch (e) {
-            console.warn(`JioSaavn mirror ${mirror} failed:`, e.name);
+            lastError = `Error en ${mirror}: ${e.name}`;
+            console.warn(lastError);
         }
     }
-    return [];
+    throw new Error(lastError);
 }
 
 function formatPipedDuration(seconds) {
@@ -1398,7 +1410,6 @@ async function searchMusic(pageToken = '', retryCount = 0) {
     const query = input.value.trim();
     if (!query) return;
 
-    // UI Feedback
     input.blur();
     currentSearchQuery = query;
     if (!pageToken) currentSearchPage = 1;
@@ -1407,16 +1418,20 @@ async function searchMusic(pageToken = '', retryCount = 0) {
     document.getElementById('loading').classList.remove('hidden');
     document.getElementById('errorMessage').classList.add('hidden');
 
-    // Debug HUD
-    const debugTrace = [];
+    // Debug HUD - Track detail of every single call
+    let debugSummary = [];
+    const addLog = (msg) => {
+        debugSummary.push(msg);
+        console.log(`[WATERFALL] ${msg}`);
+    };
 
     try {
         let results = [];
         const currentKey = getCurrentApiKey();
 
-        // PHASE 1: YOUTUBE (Only with valid key)
+        // PHASE 1: YOUTUBE
         if (currentKey) {
-            debugTrace.push("YT: Searching...");
+            addLog("YT: Iniciando buscador principal...");
             try {
                 const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&key=${currentKey}${pageToken ? `&pageToken=${pageToken}` : ''}`);
                 const data = await response.json();
@@ -1425,91 +1440,88 @@ async function searchMusic(pageToken = '', retryCount = 0) {
                     nextSearchToken = data.nextPageToken || '';
                     prevSearchToken = data.prevPageToken || '';
                     results = data.items.map(item => ({
-                        id: item.id.videoId,
-                        title: decodeHtml(item.snippet.title),
-                        channel: decodeHtml(item.snippet.channelTitle),
-                        thumbnail: item.snippet.thumbnails.medium.url,
+                        id: item.id?.videoId || '',
+                        title: decodeHtml(item.snippet?.title || 'Unknown Title'),
+                        channel: decodeHtml(item.snippet?.channelTitle || 'Unknown Artist'),
+                        thumbnail: item.snippet?.thumbnails?.medium?.url || '',
                         duration: '0:00',
                         source: 'yt'
                     }));
-
-                    // Optional: Fetch durations (non-critical)
-                    try {
-                        const ids = results.map(v => v.id).join(',');
-                        const dResp = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${currentKey}`);
-                        const dData = await dResp.json();
-                        dData.items?.forEach(i => {
-                            const v = results.find(r => r.id === i.id);
-                            if (v) v.duration = parseISO8601Duration(i.contentDetails.duration);
-                        });
-                    } catch (e) { console.warn("YT Duration fail", e); }
-
-                    debugTrace.push(`YT: Success (${results.length})`);
+                    addLog(`YT: ¡Éxito! (${results.length} vids)`);
                 } else {
-                    debugTrace.push("YT: Empty/Error");
+                    const errorMsg = data.error?.message || "Vacío";
+                    addLog(`YT: Sin resultados (${errorMsg})`);
                 }
-            } catch (e) { debugTrace.push(`YT: Crash (${e.name})`); }
+            } catch (e) {
+                addLog(`YT: Bloqueado/Error (${e.name})`);
+            }
         } else {
-            debugTrace.push("YT: Skipped (No key)");
+            addLog("YT: Saltado (Sin clave API)");
         }
 
-        // PHASE 2: JIOSAAVN (Global DB)
+        // PHASE 2: JIOSAAVN (GLOBAL DB)
         if (results.length === 0 && !pageToken) {
-            debugTrace.push("Jio: Searching mirrors...");
-            const jioResults = await searchJioSaavn(query);
-            if (jioResults.length > 0) {
-                results = jioResults;
-                debugTrace.push(`Jio: Success (${results.length})`);
-                showToast("Buscando en Base de datos global...", "info");
-            } else {
-                debugTrace.push("Jio: Empty results");
+            addLog("Jio: Intentando Base de Datos Global...");
+            try {
+                const jioResults = await searchJioSaavn(query);
+                if (jioResults.length > 0) {
+                    results = jioResults;
+                    addLog(`Jio: ¡Éxito! (${results.length} tracks)`);
+                    showToast("Encontrado en Base de Datos Global", "info");
+                }
+            } catch (e) {
+                addLog(`Jio: Fallaron todos los espejos. (${e.message})`);
             }
         }
 
-        // PHASE 3: PIPED (Video Mirror)
+        // PHASE 3: PIPED
         if (results.length === 0 && !pageToken) {
-            debugTrace.push("Piped: Searching instances...");
-            const pipedResults = await searchPiped(query);
-            if (pipedResults.length > 0) {
-                results = pipedResults;
-                debugTrace.push(`Piped: Success (${results.length})`);
-                showToast("Usando servidores de respaldo...", "info");
-            } else {
-                debugTrace.push("Piped: Empty results");
+            addLog("Piped: Intentando Servidores de Respaldo...");
+            try {
+                const pipedResults = await searchPiped(query);
+                if (pipedResults.length > 0) {
+                    results = pipedResults;
+                    addLog(`Piped: ¡Éxito! (${results.length} resultados)`);
+                    showToast("Cargando servidores de respaldo...", "info");
+                } else {
+                    addLog("Piped: No se encontró nada.");
+                }
+            } catch (e) {
+                addLog(`Piped: Error crítico (${e.name})`);
             }
         }
 
-        // PHASE 4: INVIDIOUS (Last Resort)
+        // PHASE 4: INVIDIOUS
         if (results.length === 0 && !pageToken) {
-            debugTrace.push("Invidious: Searching...");
-            const invResults = await searchInvidious(query);
-            if (invResults.length > 0) {
-                results = invResults;
-                debugTrace.push(`Inv: Success (${results.length})`);
-            } else {
-                debugTrace.push("Inv: Empty");
+            addLog("Inv: Último recurso...");
+            try {
+                const invResults = await searchInvidious(query);
+                if (invResults.length > 0) {
+                    results = invResults;
+                    addLog(`Inv: Éxito final (${results.length})`);
+                } else {
+                    addLog("Inv: También vacío.");
+                }
+            } catch (e) {
+                addLog(`Inv: Fallo (${e.name})`);
             }
-        }
-
-        console.log("Search Waterfall Result:", debugTrace.join(" -> "));
-
-        if (results.length > 0) {
-            renderSearchResults(results);
-            updateSearchPagination();
-        } else {
-            document.getElementById('errorText').innerText = `No hemos encontrado nada para "${query}".\n[Rastro: ${debugTrace.join(", ")}]`;
-            document.getElementById('errorMessage').classList.remove('hidden');
         }
 
     } catch (err) {
-        console.error("Search Waterfall Critical Error:", err);
-        document.getElementById('errorText').innerText = "Error crítico de conexión. Por favor, revisa tu internet.";
-        document.getElementById('errorMessage').classList.remove('hidden');
+        addLog(`ERROR CRÍTICO: ${err.message}`);
     } finally {
         document.getElementById('loading').classList.add('hidden');
     }
-}
 
+    if (results.length > 0) {
+        renderSearchResults(results);
+        updateSearchPagination();
+    } else {
+        const finalRastro = debugSummary.join("\n   ➔ ");
+        document.getElementById('errorText').innerText = `No hemos encontrado resultados para "${query}".\n\n🔍 Rastro de búsqueda:\n   ➔ ${finalRastro}`;
+        document.getElementById('errorMessage').classList.remove('hidden');
+    }
+}
 async function searchInvidious(query) {
     const instances = ['invidious.lunar.icu', 'yewtu.be', 'inv.zzls.xyz'];
     for (const inst of instances) {
