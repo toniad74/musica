@@ -487,10 +487,9 @@ function setupNativeAudioHandlers() {
                     return;
                 }
             } catch (retryError) {
-                console.error("❌ Falló la recuperación instantánea. Reintentando ciclo completo...", retryError);
-                // If even the immediate retry fails, force a full reload of the track (which triggers the main playSong logic again)
-                // allowing a full fresh start.
-                playSong(currentTrack, queue, true);
+                console.error("❌ Falló la recuperación. Saltando canción...", retryError);
+                showToast("Audio no disponible. Saltando...", "error");
+                setTimeout(() => playNext(), 1500);
                 return;
             }
         }
@@ -683,39 +682,47 @@ function updateAdFreeStatus(active) {
 // --- INVIDIOUS & PIPED INTEGRATION (INFINITE RETRY ENGINE) ---
 // --- JIOSAAVN INTEGRATION (PRIMARY SOURCE: NO ADS, NO 403) ---
 async function fetchFromJioSaavn(query) {
-    try {
-        const cleanQuery = query.replace(/\s+/g, ' ').trim();
-        console.log(`🎵 Buscando en Base de Datos Global (JioSaavn): "${cleanQuery}"`);
+    const endpoints = [
+        `https://saavn.dev/api/search/songs?query=${encodeURIComponent(query)}`,
+        `https://saavn.me/search/songs?query=${encodeURIComponent(query)}`
+    ];
 
-        const response = await fetch(`https://saavn.dev/api/search/songs?query=${encodeURIComponent(cleanQuery)}`);
-        if (!response.ok) throw new Error("JioSaavn API Error");
+    for (const endpoint of endpoints) {
+        try {
+            const cleanQuery = query.replace(/\s+/g, ' ').trim();
+            console.log(`🎵 Buscando en Base de Datos Global (JioSaavn) [${new URL(endpoint).hostname}]: "${cleanQuery}"`);
 
-        const data = await response.json();
-        if (!data.data || !data.data.results || data.data.results.length === 0) {
-            console.log("⚠️ No encontrado en JioSaavn.");
-            return null;
+            const response = await fetch(endpoint);
+            if (!response.ok) continue;
+
+            const data = await response.json();
+            const results = data.data?.results || data.results; // Handle structure diffs
+
+            if (!results || results.length === 0) {
+                continue;
+            }
+
+            // Pick the most relevant result
+            const song = results[0];
+
+            // Extract highest quality download URL
+            const downloadLinks = song.downloadUrl;
+            if (!downloadLinks || downloadLinks.length === 0) continue;
+
+            // Sort by quality (descending)
+            const bestLink = downloadLinks.find(l => l.quality === "320kbps") ||
+                downloadLinks.find(l => l.quality === "160kbps") ||
+                downloadLinks[downloadLinks.length - 1];
+
+            if (bestLink && bestLink.link) {
+                console.log(`🎉 ¡ÉXITO! Audio nativo encontrado en JioSaavn (${bestLink.quality})`);
+                return bestLink.link;
+            }
+        } catch (e) {
+            console.warn(`Error consultando ${endpoint}:`, e);
         }
-
-        // Pick the most relevant result (usually the first one)
-        const song = data.data.results[0];
-
-        // Extract highest quality download URL (320kbps > 160kbps > 96kbps)
-        const downloadLinks = song.downloadUrl;
-        if (!downloadLinks || downloadLinks.length === 0) return null;
-
-        // Sort by quality (descending)
-        // Link objects are like { quality: "320kbps", link: "..." }
-        const bestLink = downloadLinks.find(l => l.quality === "320kbps") ||
-            downloadLinks.find(l => l.quality === "160kbps") ||
-            downloadLinks[downloadLinks.length - 1]; // Fallback to last (usually highest in some APIs, but find is safer)
-
-        if (bestLink && bestLink.link) {
-            console.log(`🎉 ¡ÉXITO! Audio nativo encontrado en JioSaavn (${bestLink.quality})`);
-            return bestLink.link;
-        }
-    } catch (e) {
-        console.warn("Error consultando JioSaavn:", e);
     }
+    console.log("⚠️ No encontrado en JioSaavn (Todos los endpoints).");
     return null;
 }
 
@@ -739,17 +746,17 @@ function cleanSongTitle(title) {
 }
 
 // --- INVIDIOUS & PIPED INTEGRATION (INFINITE RETRY ENGINE) ---
-async function getAudioUrl(videoId, excludeInstance = null) {
+async function getAudioUrl(videoId, excludeInstance = null, retryCount = 0) {
 
     // PRIORITY 1: GLOBAL DATABASE (JioSaavn)
-    // If we have track info, try to find the pristine audio first
-    if (currentTrack && currentTrack.id === videoId) {
+    // Only try JioSaavn on the first attempt to avoid spamming it on internal retries
+    if (retryCount === 0 && currentTrack && currentTrack.id === videoId) {
         const query = `${cleanSongTitle(currentTrack.title)} ${currentTrack.channel || ''}`;
         const jioUrl = await fetchFromJioSaavn(query);
         if (jioUrl) return jioUrl;
     }
 
-    console.log("⚠️ JioSaavn falló. Activando Motores de Búsqueda Proxy (Piped/Invidious)...");
+    if (retryCount === 0) console.log("⚠️ JioSaavn falló. Activando Motores de Búsqueda Proxy (Piped/Invidious)...");
 
     if (excludeInstance) FAILED_INSTANCES.add(excludeInstance);
 
@@ -760,10 +767,12 @@ async function getAudioUrl(videoId, excludeInstance = null) {
     ].sort(() => 0.5 - Math.random());
 
     if (allCandidates.length === 0) {
+        if (retryCount >= 1) throw new Error("Ciclo de reintentos agotado.");
+
         // If we ran out, clear blacklist and try one more desperate loop
         console.warn("⚠️ Lista de servidores agotada. Reiniciando blacklist...");
         FAILED_INSTANCES.clear();
-        return getAudioUrl(videoId); // Recursive retry once
+        return getAudioUrl(videoId, null, retryCount + 1); // Recursive retry once
     }
 
     // Try EVERY candidate one by one (or in small parallel batches) until success
