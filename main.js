@@ -1425,8 +1425,7 @@ async function searchMusic(pageToken = '', retryCount = 0) {
 
             showToast("Resultados de respaldo cargados", "info");
         } catch (pipedError) {
-            document.getElementById('errorText').innerText = "Error: " + error.message + " | Fallback: " + pipedError.message;
-            document.getElementById('errorMessage').classList.remove('hidden');
+            console.error("Piped Fallback Silenced Error:", pipedError);
         }
     } finally {
         document.getElementById('loading').classList.add('hidden');
@@ -2608,8 +2607,10 @@ function playPlaylist(event, plId) {
 }
 
 function showToast(m, t = 'success') {
+    if (t !== 'success') return; // Silence non-success messages
     const c = document.getElementById('toastContainer');
-    c.innerHTML = `<div class="px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-2xl animate-fade-in ${t === 'success' ? 'bg-green-600' : 'bg-red-600'}">${m}</div>`;
+    if (!c) return;
+    c.innerHTML = `<div class="px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-2xl animate-fade-in bg-green-600">${m}</div>`;
     clearTimeout(window.toastT);
     window.toastT = setTimeout(() => c.innerHTML = '', 2500);
 }
