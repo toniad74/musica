@@ -1,4 +1,4 @@
-const CACHE_NAME = 'amaya-music-v3'; // FORCE REFRESH - V9.2
+const CACHE_NAME = 'amaya-music-v1';
 const urlsToCache = [
     './',
     './index.html',

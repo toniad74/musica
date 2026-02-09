@@ -43,39 +43,54 @@ let isUserPaused = false;
 let nativeAudio = null;
 let useNativeAudio = true; // Prefer native audio over YouTube IFrame
 let isCurrentlyUsingNative = false; // Track engine active for CURRENT track
-
-// MULTIPLE SERVERS WITH ROTATION (Anti-rate-limit strategy)
-const INVIDIOUS_SERVERS = [
-    'invidious.nerdvpn.de',
-    'yewtu.be',
-    'inv.tux.pizza',
-    'vid.puffyan.us',
-    'invidious.privacyredirect.com'
-];
-
-let currentServerIndex = 0;
-let SINGLE_SERVER = INVIDIOUS_SERVERS[0];
-
-// Rotate to next server when one fails
-function rotateServer() {
-    currentServerIndex = (currentServerIndex + 1) % INVIDIOUS_SERVERS.length;
-    SINGLE_SERVER = INVIDIOUS_SERVERS[currentServerIndex];
-    console.log(`🔄 Rotando a servidor: ${SINGLE_SERVER}`);
-    return SINGLE_SERVER;
-}
-
-// Legacy arrays kept for compatibility (not used)
-const PIPED_INSTANCES = [];
-const INVIDIOUS_INSTANCES = INVIDIOUS_SERVERS;
-
 let isMediaPlaying = false;
 
 // SponsorBlock data
 let currentSponsorSegments = [];
-let sponsorFetchFinished = true; // Track if current fetch completed
+let pendingSponsorFetch = null; // Promise tracker for sync
 
 // Instance Blacklist for current session
 const FAILED_INSTANCES = new Set();
+
+// Invidious instances (fallback if one fails)
+// Prioritize instances known for speed and M4A support
+const INVIDIOUS_INSTANCES = [
+    'invidious.lunar.icu',
+    'invidious.projectsegfau.lt',
+    'invidious.asir.dev',
+    'invidious.privacydev.net',
+    'invidious.drgns.space',
+    'inv.tux.pizza',
+    'invidious.fdn.fr',
+    'yewtu.be',
+    'vid.puffyan.us',
+    'invidious.perennialte.ch',
+    'invidious.jing.rocks',
+    'invidious.nohost.network',
+    'invidious.nixnet.social',
+    'invidious.silkky.cloud'
+];
+
+const PIPED_INSTANCES = [
+    'https://pipedapi.kavin.rocks',
+    'https://api.piped.privacydev.net',
+    'https://pipedapi.projectsegfau.lt',
+    'https://pipedapi.mha.fi',
+    'https://api.piped.li',
+    'https://pipedapi.privacy.com.de',
+    'https://pipedapi.hostux.net',
+    'https://pipedapi.artemislena.eu',
+    'https://pipedapi.mint.lgbt',
+    'https://pipedapi.silkky.cloud',
+    'https://pipedapi.sync-tube.de',
+    'https://piped-api.garudalinux.org',
+    'https://piped-api.lunar.icu',
+    'https://pipedapi.moe.xyz',
+    'https://pipedapi.astartes.nl',
+    'https://pipedapi.vube.app',
+    'https://pipedapi.hostux.net',
+    'https://api.piped.video'
+];
 
 // --- INITIALIZATION ---
 window.onload = () => {
@@ -442,44 +457,33 @@ function setupNativeAudioHandlers() {
         // If we get a network or src error (like 403), DO NOT GO TO YOUTUBE YET.
         // Try to get a fresh URL from a DIFFERENT Piped instance first.
         if (currentTrack && err && (err.code === err.MEDIA_ERR_NETWORK || err.code === err.MEDIA_ERR_SRC_NOT_SUPPORTED)) {
-            console.log('🔄 Error crítico de audio nativo. Iniciando protocolo de recuperación infinita...');
-            showToast("⚠️ Conexión perdida. Buscando servidor alternativo...", "warning");
+            console.log('🔄 Error detectado (403/Red). Reintentando con otro servidor...');
+            showToast("Error de conexión. Buscando servidor nuevo...", "warning");
 
             const savedTime = nativeAudio.currentTime;
-            const currentInstance = localStorage.getItem('amaya_fastest_server');
+            localStorage.removeItem('amaya_fastest_server'); // Invalida el servidor actual
 
-            if (currentInstance) {
-                console.log(`🚫 Bloqueando instancia defectuosa: ${currentInstance}`);
-                FAILED_INSTANCES.add(currentInstance);
-                localStorage.removeItem('amaya_fastest_server');
-            }
-
-            // Retry with explicit exclusion of the failed server
-            // DO NOT FALLBACK TO YOUTUBE. RETRY.
             try {
-                // Determine if we need to completely reset standard instance list too? 
-                // getAudioUrl handles rotation.
-                const newUrl = await getAudioUrl(currentTrack.id, currentInstance);
+                const newUrl = await getAudioUrl(currentTrack.id);
                 if (newUrl) {
                     nativeAudio.src = newUrl;
-                    nativeAudio.load();
                     nativeAudio.currentTime = savedTime;
+                    // Reset the error listener and try again
                     await nativeAudio.play();
-                    console.log('✅ Recuperado exitosamente en nuevo servidor.');
+                    console.log('✅ Recuperado con éxito de otro servidor.');
                     return;
                 }
             } catch (retryError) {
-                console.error("❌ Falló la recuperación. Saltando canción...", retryError);
-                showToast("Audio no disponible. Saltando...", "error");
-                setTimeout(() => playNext(), 1500);
-                return;
+                console.error("Reintento fallido:", retryError);
             }
         }
 
-        // Final catch-all: NEVER use YouTube.
-        console.error("❌ Audio nativo irrecuperable por el momento.");
-        showToast("Error de fuente. Saltando canción...", "error");
-        setTimeout(playNext, 2000); // Skip to next song instead of showing ads
+        // Final fallback if all native attempts fail
+        console.log('📡 Fallback final a YouTube por fallo crítico de audio nativo');
+        showToast(`Cambiando a reproductor secundario (${errorMsg})`, 'error');
+        if (currentTrack) {
+            loadYouTubeIFrame(currentTrack.id);
+        }
     });
 
     nativeAudio.addEventListener('loadstart', () => console.log('⏳ Cargando audio...'));
@@ -504,10 +508,6 @@ function playNativeAudio(url) {
     }
 
     nativeAudio.src = url;
-    // SponsorBlock Timing: Ensure checkSponsorSegments is called immediately after nativeAudio.src is set.
-    if (currentTrack) {
-        fetchSponsorSegments(currentTrack.id);
-    }
     nativeAudio.play().then(() => {
         console.log("✅ Native playback started");
         isUserPaused = false;
@@ -661,89 +661,55 @@ function updateAdFreeStatus(active) {
     });
 }
 
-// --- INVIDIOUS & PIPED INTEGRATION (INFINITE RETRY ENGINE) ---
-// --- JIOSAAVN INTEGRATION (PRIMARY SOURCE: NO ADS, NO 403) ---
-async function fetchFromJioSaavn(query) {
-    const endpoints = [
-        `https://saavn.dev/api/search/songs?query=${encodeURIComponent(query)}`,
-        `https://saavn.me/search/songs?query=${encodeURIComponent(query)}`
-    ];
+// --- INVIDIOUS & PIPED INTEGRATION (ULTRA-FAST PARALLEL RACING) ---
+async function getAudioUrl(videoId) {
+    console.log(`🔍 Buscando audio proxeado (Anti-403) para: ${videoId}`);
 
-    for (const endpoint of endpoints) {
+    // 1. Try Cached Instance First
+    const cachedInstance = localStorage.getItem('amaya_fastest_server');
+    if (cachedInstance && !FAILED_INSTANCES.has(cachedInstance)) {
         try {
-            const cleanQuery = query.replace(/\s+/g, ' ').trim();
-            console.log(`🎵 Buscando en Base de Datos Global (JioSaavn) [${new URL(endpoint).hostname}]: "${cleanQuery}"`);
-
-            const response = await fetch(endpoint);
-            if (!response.ok) continue;
-
-            const data = await response.json();
-            const results = data.data?.results || data.results; // Handle structure diffs
-
-            if (!results || results.length === 0) {
-                continue;
-            }
-
-            // Pick the most relevant result
-            const song = results[0];
-
-            // Extract highest quality download URL
-            const downloadLinks = song.downloadUrl;
-            if (!downloadLinks || downloadLinks.length === 0) continue;
-
-            // Sort by quality (descending)
-            const bestLink = downloadLinks.find(l => l.quality === "320kbps") ||
-                downloadLinks.find(l => l.quality === "160kbps") ||
-                downloadLinks[downloadLinks.length - 1];
-
-            if (bestLink && bestLink.link) {
-                console.log(`🎉 ¡ÉXITO! Audio nativo encontrado en JioSaavn (${bestLink.quality})`);
-                return bestLink.link;
-            }
+            const url = await fetchFromPiped(cachedInstance, videoId, 2000);
+            if (url) return url;
         } catch (e) {
-            console.warn(`Error consultando ${endpoint}:`, e);
+            localStorage.removeItem('amaya_fastest_server');
+            FAILED_INSTANCES.add(cachedInstance);
         }
     }
-    console.log("⚠️ No encontrado en JioSaavn (Todos los endpoints).");
-    return null;
-}
 
-function cleanSongTitle(title) {
-    if (!title) return "";
-    return title
-        .replace(/[\(\[]official video[\)\]]/gi, "")
-        .replace(/[\(\[]official music video[\)\]]/gi, "")
-        .replace(/[\(\[]video official[\)\]]/gi, "")
-        .replace(/[\(\[]official audio[\)\]]/gi, "")
-        .replace(/[\(\[]lyrics[\)\]]/gi, "")
-        .replace(/[\(\[]letra[\)\]]/gi, "")
-        .replace(/[\(\[]hd[\)\]]/gi, "")
-        .replace(/[\(\[]hq[\)\]]/gi, "")
-        .replace(/[\(\[]4k[\)\]]/gi, "")
-        .replace(/ft\./gi, "")
-        .replace(/feat\./gi, "")
-        .replace(/live/gi, "") // Optional: remove 'live' if we want studio versions
-        .replace(/[\(\[][^\)\]]*[\)\]]/g, "") // Remove anything else in brackets (often noise)
-        .trim();
-}
+    // 2. Parallel Racing Strategy
+    const candidates = PIPED_INSTANCES
+        .filter(inst => !FAILED_INSTANCES.has(inst))
+        .sort(() => 0.5 - Math.random());
 
-// --- INVIDIOUS & PIPED INTEGRATION (V7.0 - Motor Fénix) ---
-async function getAudioUrl(videoId, excludeInstance = null, retryCount = 0) {
-    console.log(`🎵 Obteniendo audio para: ${videoId}`);
+    const batchSize = 12; // Maximum speed coverage
 
-    // Use ONLY the single reliable server
+    for (let i = 0; i < candidates.length; i += batchSize) {
+        const batch = candidates.slice(i, i + batchSize);
+        console.log(`🚀 Racing Piped Batch ${Math.floor(i / batchSize) + 1}...`);
+
+        try {
+            const winnerUrl = await Promise.any(batch.map(instance =>
+                fetchFromPiped(instance, videoId, 6000)
+            ));
+            if (winnerUrl) return winnerUrl;
+        } catch (e) {
+            batch.forEach(inst => FAILED_INSTANCES.add(inst));
+            console.warn("Batch failed, trying next set...");
+        }
+    }
+
+    // STAGE 3: Invidious Fallback (Proxied)
+    console.log("⚠️ Piped falló. Intentando Invidious Proxeado...");
+    const invidiousBatch = INVIDIOUS_INSTANCES.slice(0, 5);
     try {
-        showToast("Conectando música...", "success", SINGLE_SERVER);
-        const url = await fetchFromInvidious(SINGLE_SERVER, videoId, 8000);
-        if (url) {
-            showToast("¡Reproduciendo!", "success");
-            return url;
-        }
-    } catch (e) {
-        console.error(`Error con ${SINGLE_SERVER}:`, e);
-    }
+        const winnerUrl = await Promise.any(invidiousBatch.map(instance =>
+            fetchFromInvidious(instance, videoId, 6000)
+        ));
+        if (winnerUrl) return winnerUrl;
+    } catch (e) { }
 
-    throw new Error(`No se pudo conectar con ${SINGLE_SERVER}`);
+    throw new Error('No se encontró audio proxeado compatible.');
 }
 
 // Dedicated helper for Invidious Fetch with Scoring
@@ -760,8 +726,7 @@ async function fetchFromInvidious(instance, videoId, timeoutMs) {
         const data = await response.json();
         if (!data.adaptiveFormats || data.adaptiveFormats.length === 0) throw new Error("No formats");
 
-        const audioFormats = data.adaptiveFormats
-            .filter(f => f.type && f.type.includes('audio') && !f.url.includes('googlevideo.com'))
+        const audioFormats = data.adaptiveFormats.filter(f => f.type && f.type.includes('audio'))
             .sort((a, b) => {
                 const getScore = (format) => {
                     let score = 0;
@@ -782,54 +747,32 @@ async function fetchFromInvidious(instance, videoId, timeoutMs) {
     }
 }
 
-// Helper for "Local Proxy" (Tunneling)
-async function fetchFromInvidiousProxy(instance, videoId, timeoutMs) {
-    // itag 140 is m4a audio (high quality)
-    const url = `https://${instance}/latest_version?id=${videoId}&itag=140&local=true`;
-
-    // Check if the link is actually alive with a HEAD request
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-        const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
-        clearTimeout(timeoutId);
-
-        if (response.ok) {
-            return url;
-        }
-        throw new Error("Proxy head failed");
-    } catch (e) {
-        throw e;
-    }
-}
-
 // --- SPONSORBLOCK INTEGRATION ---
 async function fetchSponsorSegments(videoId) {
     currentSponsorSegments = [];
-    sponsorFetchFinished = false;
-    try {
-        const categories = ["sponsor", "intro", "outro", "interaction", "selfpromo", "music_offtopic", "preview", "filler"];
-        const response = await fetch(`https://sponsor.ajay.app/api/skipSegments?videoID=${videoId}&categories=${JSON.stringify(categories)}`);
+    pendingSponsorFetch = (async () => {
+        try {
+            const categories = ["sponsor", "intro", "outro", "interaction", "selfpromo", "music_offtopic", "preview", "filler"];
+            const response = await fetch(`https://sponsor.ajay.app/api/skipSegments?videoID=${videoId}&categories=${JSON.stringify(categories)}`);
 
-        if (response.ok) {
-            const data = await response.json();
-            currentSponsorSegments = data;
-            console.log(`🛡️ SponsorBlock: ${data.length} segmentos activos`);
+            if (response.ok) {
+                const data = await response.json();
+                currentSponsorSegments = data;
+                console.log(`🛡️ SponsorBlock: ${data.length} segmentos activos`);
 
-            // Ultra-aggressive check for first 5 seconds (catch ads everywhere)
-            for (let delay of [0, 50, 150, 300, 600, 1200, 2500, 5000]) {
-                setTimeout(() => {
-                    const time = isCurrentlyUsingNative ? (nativeAudio ? nativeAudio.currentTime : 0) : (player && typeof player.getCurrentTime === 'function' ? player.getCurrentTime() : 0);
-                    if (time !== undefined) checkSponsorSegments(time);
-                }, delay);
+                // Ultra-aggressive check for first 3 seconds
+                for (let delay of [0, 50, 150, 400, 800, 1500, 3000]) {
+                    setTimeout(() => {
+                        const time = isCurrentlyUsingNative ? (nativeAudio ? nativeAudio.currentTime : 0) : (player ? player.getCurrentTime() : 0);
+                        checkSponsorSegments(time || 0);
+                    }, delay);
+                }
             }
+        } catch (e) {
+            console.log("ℹ️ SponsorBlock: Offline or no ads.");
         }
-    } catch (e) {
-        console.log("ℹ️ SponsorBlock: Offline or no ads.");
-    } finally {
-        sponsorFetchFinished = true;
-    }
+    })();
+    return pendingSponsorFetch;
 }
 
 function checkSponsorSegments(currentTime) {
@@ -886,9 +829,9 @@ async function fetchFromPiped(apiBase, videoId, timeoutMs) {
         const data = await response.json();
         if (!data.audioStreams || data.audioStreams.length === 0) throw new Error("No streams");
 
-        // FILTER: STRICTLY PROXIED ONLY. No direct googlevideo links.
+        // FILTER: Strictly EXCLUDE direct googlevideo.com links to avoid Error 403
         const proxiedStreams = data.audioStreams.filter(s => !s.url.includes('googlevideo.com'));
-        if (proxiedStreams.length === 0) throw new Error("No proxied streams found (Strict Mode)");
+        if (proxiedStreams.length === 0) throw new Error("No proxied streams found");
         const targetList = proxiedStreams;
 
         const audioStreams = targetList.sort((a, b) => {
@@ -1142,158 +1085,45 @@ async function onPlayerError(event) {
 
 // --- PIPED SEARCH FALLBACK ---
 async function searchPiped(query) {
-    console.log("🕵️ Iniciando búsqueda de respaldo en Piped...");
+    console.log("🕵️ Iniciando búsqueda de respaldo en Piped para:", query);
+    showToast("Usando buscador alternativo...");
 
-    // First try with music_videos filter
-    let results = await performPipedSearch(query, true);
-
-    // If NO results found across any instance, try WITHOUT filter (Deep Hunt)
-    if (results.length === 0) {
-        console.log("⚠️ No se encontraron vídeos musicales. Intentando búsqueda GLOBAL...");
-        results = await performPipedSearch(query, false);
-    }
-
-    return results;
-}
-
-async function performPipedSearch(query, useFilter) {
+    // Try multiple instances until one works
+    // We reuse the PIPED_INSTANCES list
+    // Shuffle slightly to distribute load, but keep "heroes" often
     const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
-    const filterParam = useFilter ? '&filter=music_videos' : '';
 
     for (let instance of candidates) {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 4000);
+            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
 
-            const url = `${instance}/search?q=${encodeURIComponent(query)}${filterParam}`;
-            const response = await fetch(url, { signal: controller.signal });
+            const response = await fetch(`${instance}/search?q=${encodeURIComponent(query)}&filter=music_videos`, {
+                signal: controller.signal
+            });
             clearTimeout(timeoutId);
 
             if (!response.ok) continue;
 
             const data = await response.json();
-            const items = data.items || data;
+            if (!data.items || data.items.length === 0) continue;
 
-            if (!items || !Array.isArray(items) || items.length === 0) continue;
+            console.log(`✅ Búsqueda Piped exitosa en: ${instance}`);
 
-            console.log(`✅ Piped (${useFilter ? 'FILTRADO' : 'GLOBAL'}): Éxito en ${instance}`);
-
-            return items
-                .filter(i => i.type === 'stream' || i.type === 'video' || i.type === 'MusicVideo')
-                .map(item => ({
-                    id: (item.url || '').split('v=')[1] || item.id || item.videoId,
-                    title: item.title,
-                    channel: item.uploaderName || item.author,
-                    thumbnail: item.thumbnail || item.thumbnails?.[0]?.url || '',
-                    duration: item.duration ? formatPipedDuration(item.duration) : '0:00',
-                    source: 'piped'
-                }));
+            // Map Piped format to our internal format
+            return data.items.map(item => ({
+                id: item.url.split('/watch?v=')[1],
+                title: item.title,
+                channel: item.uploaderName,
+                thumbnail: item.thumbnail,
+                duration: item.duration ? formatPipedDuration(item.duration) : '0:00'
+            }));
 
         } catch (e) {
             continue;
         }
     }
-    return [];
-}
-
-// --- JIOSAAVN SEARCH (HIGH FIDELITY) ---
-// --- JIOSAAVN SEARCH (HIGH FIDELITY) ---
-async function searchJioSaavn(query) {
-    const mirrors = [
-        'https://saavn.dev',
-        'https://saavn.me',
-        'https://jiosaavn-api-v3.vercel.app',
-        'https://jiosaavn-api-one.vercel.app',
-        'https://jiosaavn-api.vercel.app',
-        'https://jiosaavn-api-beta.vercel.app'
-    ];
-
-    const paths = [
-        '/api/search/songs',
-        '/search/songs'
-    ];
-
-    let lastError = "Todos los servidores fallaron";
-
-    for (const mirror of mirrors) {
-        for (const path of paths) {
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 4000);
-
-                const response = await fetch(`${mirror}${path}?query=${encodeURIComponent(query)}&limit=15`, {
-                    signal: controller.signal,
-                    headers: { 'Accept': 'application/json' }
-                });
-                clearTimeout(timeoutId);
-
-                if (!response.ok) continue;
-
-                const data = await response.json();
-                let rawResults = data.data?.results || data.data || data.results || (Array.isArray(data) ? data : null);
-
-                if (!rawResults || !Array.isArray(rawResults) || rawResults.length === 0) continue;
-
-                return rawResults
-                    .filter(item => {
-                        // SOFT Filter: Only reject obvious karaoke/covers
-                        const titleLower = (item.name || item.title || '').toLowerCase();
-                        const searchLower = query.toLowerCase();
-
-                        // Reject karaoke and covers ONLY if NOT explicitly searched
-                        if (!searchLower.includes('karaoke') && titleLower.includes('karaoke')) return false;
-                        if (!searchLower.includes('cover') && titleLower.includes('cover')) return false;
-
-                        // Accept everything else
-                        return true;
-                    })
-                    .map(item => {
-                        let dur = item.duration;
-                        if (!(typeof dur === 'string' && dur.includes(':'))) {
-                            dur = formatPipedDuration(dur);
-                        }
-                        // High Res thumbnail
-                        let thumb = (item.image?.[item.image.length - 1]?.link || item.image?.[0]?.link || item.image || '');
-                        thumb = thumb.replace('150x150', '500x500').replace('50x50', '500x500');
-
-                        return {
-                            id: `jio_${item.id}`,
-                            title: item.name || item.title || 'Unknown Title',
-                            channel: item.artists?.primary?.map(a => a.name).join(', ') || item.primary_artists || 'Artist',
-                            thumbnail: thumb,
-                            duration: dur || '0:00',
-                            source: 'jio'
-                        };
-                    });
-            } catch (e) {
-                lastError = e.message;
-            }
-        }
-    }
-    throw new Error(lastError);
-}
-
-// Fetch direct audio from JioSaavn by ID
-async function fetchJioAudioById(id) {
-    const rawId = id.replace('jio_', '');
-    const mirrors = ['https://saavn.dev', 'https://saavn.me', 'https://jiosaavn-api-v3.vercel.app'];
-
-    for (const mirror of mirrors) {
-        try {
-            const resp = await fetch(`${mirror}/api/songs?ids=${rawId}`);
-            if (!resp.ok) continue;
-            const data = await resp.json();
-            const song = data.data?.[0] || data?.[0];
-            if (!song || !song.downloadUrl) continue;
-
-            const best = song.downloadUrl.find(l => l.quality === "320kbps") ||
-                song.downloadUrl.find(l => l.quality === "160kbps") ||
-                song.downloadUrl[song.downloadUrl.length - 1];
-
-            return best?.link || null;
-        } catch (e) { continue; }
-    }
-    return null;
+    throw new Error("Piped search failed on all instances");
 }
 
 function formatPipedDuration(seconds) {
@@ -1351,9 +1181,7 @@ function rotateApiKey() {
 }
 
 function getCurrentApiKey() {
-    const key = apiKeys[currentKeyIndex] || '';
-    // Basic validation: YT keys are usually ~39 chars. If shorter than 20, it's likely invalid/placeholder.
-    return key.length > 20 ? key : null;
+    return apiKeys[currentKeyIndex] || '';
 }
 
 function toggleApiKeySection() {
@@ -1390,141 +1218,152 @@ function clearSearch() {
     showHome();
 }
 
-// --- SEARCH ENGINE: SINGLE-SERVER (V9.0 - Simplified) ---
+// --- SEARCH ---
 async function searchMusic(pageToken = '', retryCount = 0) {
-    if (pageToken && typeof pageToken === 'object') pageToken = '';
-
     const input = document.getElementById('searchInput');
     const query = input.value.trim();
     if (!query) return;
 
+    // Robust keyboard closing: Multiple blurs and focus shift
     input.blur();
+    setTimeout(() => input.blur(), 50);
+    window.focus();
+
+    const currentKey = getCurrentApiKey();
+    // Allow search even if no key - go straight to fallback
+    if (!currentKey) {
+        console.warn("No API Key. Attempting Piped fallback directly.");
+    }
+
     currentSearchQuery = query;
     if (!pageToken) currentSearchPage = 1;
 
     switchTab('search');
     document.getElementById('loading').classList.remove('hidden');
-    document.getElementById('errorMessage').classList.add('hidden');
-
-    console.log(`[SEARCH] Buscando "${query}" en ${SINGLE_SERVER}...`);
 
     try {
-        showToast("Buscando música...", "success", SINGLE_SERVER);
-        const results = await searchInvidious(query);
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&key=${currentKey}${pageToken ? `&pageToken=${pageToken}` : ''}`);
+        const data = await response.json();
 
-        if (results && results.length > 0) {
-            playlist = results;
-            renderSearchResults(results);
-            console.log(`✅ Encontrados ${results.length} resultados`);
-            showToast(`${results.length} resultados encontrados`, "success");
-        } else {
-            document.getElementById('errorMessage').textContent = `No se encontraron resultados para "${query}"`;
-            document.getElementById('errorMessage').classList.remove('hidden');
-            showToast("Sin resultados", "error");
+        if (data.error) {
+            // Check for quota error
+            if (data.error.errors && data.error.errors.some(e => e.reason === 'quotaExceeded')) {
+                if (rotateApiKey() && retryCount < apiKeys.length) {
+                    showToast("Límite de cuota superado. Rotando clave...", "warning");
+                    return searchMusic(pageToken, retryCount + 1);
+                }
+            }
+            throw new Error(data.error.message);
         }
-    } catch (err) {
-        console.error('Error en búsqueda:', err);
-        document.getElementById('errorMessage').textContent = `Error: ${err.message}`;
-        document.getElementById('errorMessage').classList.remove('hidden');
-        showToast("Error de conexión", "error");
+
+        nextSearchToken = data.nextPageToken || '';
+        prevSearchToken = data.prevPageToken || '';
+
+        const videos = data.items.map(item => ({
+            id: item.id.videoId,
+            title: decodeHtml(item.snippet.title),
+            channel: decodeHtml(item.snippet.channelTitle),
+            thumbnail: item.snippet.thumbnails.medium.url,
+            duration: '0:00'
+        }));
+
+        // Fetch durations
+        const ids = videos.map(v => v.id).join(',');
+        const detailsResp = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${getCurrentApiKey()}`);
+        const detailsData = await detailsResp.json();
+
+        if (detailsData.items) {
+            detailsData.items.forEach(item => {
+                const video = videos.find(v => v.id === item.id);
+                if (video) {
+                    video.duration = parseISO8601Duration(item.contentDetails.duration);
+                }
+            });
+        }
+
+        renderSearchResults(videos);
+        updateSearchPagination();
+    } catch (error) {
+        console.warn("Google API failed. Trying Piped Fallback...", error);
+
+        // Hide API error message if we are trying fallback
+        document.getElementById('errorMessage').classList.add('hidden');
+
+        try {
+            const pipedResults = await searchPiped(query);
+            renderSearchResults(pipedResults);
+
+            // Disable pagination buttons for Piped (shim)
+            nextSearchToken = '';
+            prevSearchToken = '';
+            updateSearchPagination();
+
+            showToast("Resultados de respaldo cargados", "info");
+        } catch (pipedError) {
+            document.getElementById('errorText').innerText = "Error: " + error.message + " | Fallback: " + pipedError.message;
+            document.getElementById('errorMessage').classList.remove('hidden');
+        }
     } finally {
         document.getElementById('loading').classList.add('hidden');
     }
 }
 
-async function searchInvidious(query) {
-    let lastError = null;
-
-    // Try all servers in rotation
-    for (let attempt = 0; attempt < INVIDIOUS_SERVERS.length; attempt++) {
-        try {
-            console.log(`🔍 Intento ${attempt + 1}/${INVIDIOUS_SERVERS.length}: ${SINGLE_SERVER}...`);
-
-            const url = `https://${SINGLE_SERVER}/api/v1/search?q=${encodeURIComponent(query)}&type=video&sort=relevance`;
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: { 'Accept': 'application/json' }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            const data = await response.json();
-            if (data && data.length > 0) {
-                console.log(`✅ ${data.length} resultados desde ${SINGLE_SERVER}`);
-
-                // Filter out shorts
-                const filteredResults = data.filter(item => {
-                    if (item.lengthSeconds && item.lengthSeconds < 60) return false;
-                    if (!item.videoId) return false;
-                    return true;
-                });
-
-                console.log(`✅ ${filteredResults.length} resultados después del filtro`);
-
-                return filteredResults.map(item => ({
-                    id: item.videoId,
-                    title: item.title || 'Unknown Title',
-                    channel: item.author || 'Unknown Artist',
-                    thumbnail: item.videoThumbnails?.[0]?.url || `https://${SINGLE_SERVER}/vi/${item.videoId}/mqdefault.jpg`,
-                    duration: formatPipedDuration(item.lengthSeconds),
-                    source: 'inv'
-                }));
-            }
-
-            throw new Error('No results');
-
-        } catch (e) {
-            lastError = e;
-            console.error(`❌ ${SINGLE_SERVER}: ${e.message}`);
-            rotateServer();
-        }
-    }
-
-    throw new Error(`Todos los servidores fallaron: ${lastError?.message || 'Unknown'}`);
-}
 function renderSearchResults(videos) {
     const grid = document.getElementById('resultsGrid');
     grid.innerHTML = '';
 
-    if (!videos || videos.length === 0) {
-        grid.innerHTML = '<div class="p-8 text-center text-gray-400">No hay resultados</div>';
-        return;
+    if (videos.length === 0) {
+        grid.innerHTML = '<div class="p-8 text-center text-gray-400">No se han encontrado resultados</div>';
+    } else {
+        videos.forEach((video, index) => {
+            const inQueue = isSongInQueue(video.id);
+            const inQueueClass = inQueue ? 'in-queue' : 'text-[#b3b3b3]';
+
+            const isCurrent = isMediaPlaying && currentTrack && String(currentTrack.id) === String(video.id);
+            const row = document.createElement('div');
+            row.className = `result-row flex items-center gap-4 p-3 cursor-pointer group ${isCurrent ? 'is-playing' : ''}`;
+            row.dataset.videoId = video.id;
+            row.onclick = () => {
+                currentlyPlayingPlaylistId = null;
+                localStorage.removeItem('amaya_playing_pl_id');
+                renderHomePlaylists();
+                playSong(video, [video]);
+            };
+
+            row.innerHTML = `
+                <div class="w-10 text-center text-sm text-[#b3b3b3] track-number group-hover:hidden">${(currentSearchPage - 1) * 20 + index + 1}</div>
+                <div class="hidden group-hover:block w-10 text-center">
+                    <svg class="w-4 h-4 text-white mx-auto" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+                <img src="${video.thumbnail}" class="w-10 h-10 rounded object-cover">
+                <div class="flex-1 min-w-0">
+                    <div class="marquee-container">
+                        <h3 class="text-white font-medium marquee-content">${video.title}${isCurrent ? ' <span class="playing-badge">SONANDO</span>' : ''}</h3>
+                    </div>
+                    <p class="text-[#b3b3b3] text-sm truncate">${video.channel}</p>
+                </div>
+                <div class="flex items-center gap-2 transition-opacity">
+                    <button onclick="event.stopPropagation(); toggleQueue(${JSON.stringify(video).replace(/"/g, '&quot;')})" 
+                        class="queue-btn p-2 hover:text-white ${inQueueClass}" 
+                        data-song-id="${video.id}"
+                        title="Añadir/Quitar de la cola">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/></svg>
+                    </button>
+                    <button onclick="event.stopPropagation(); showAddToPlaylistMenu(event, ${JSON.stringify(video).replace(/"/g, '&quot;')})" 
+                        class="p-2 hover:text-white text-[#b3b3b3]" title="Añadir a la lista">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    </button>
+                </div>
+            `;
+            grid.appendChild(row);
+        });
     }
 
-    videos.forEach((video, index) => {
-        const isCurrent = currentTrack && String(currentTrack.id) === String(video.id);
-        const card = document.createElement('div');
-        card.className = `flex items-center gap-4 p-4 bg-white/5 hover:bg-white/10 rounded-2xl cursor-pointer transition-all border border-transparent hover:border-green-500/30 group ${isCurrent ? 'border-green-500/50 bg-green-500/5' : ''}`;
-
-        let thumb = video.thumbnail;
-        if (video.source === 'inv' && !thumb.startsWith('http')) {
-            thumb = 'https://i.ytimg.com/vi/' + video.id + '/mqdefault.jpg';
-        }
-
-        card.innerHTML = `
-            <div class="relative w-16 h-16 flex-shrink-0">
-                <img src="${thumb}" class="w-full h-full object-cover rounded-xl shadow-lg" onerror="this.src='https://via.placeholder.com/150'">
-                <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl">
-                    <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                </div>
-            </div>
-            <div class="flex-1 min-w-0">
-                <h3 class="font-semibold text-white truncate text-base">${video.title}</h3>
-                <p class="text-sm text-gray-400 truncate">${video.channel}</p>
-                <div class="flex items-center gap-2 mt-1">
-                    <span class="text-xs text-gray-500">${video.duration}</span>
-                    ${video.source === 'jio' ? '<span class="px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] border border-blue-500/30">Fid. Alta</span>' : ''}
-                </div>
-            </div>
-        `;
-        card.onclick = () => playSong(video, videos);
-        grid.appendChild(card);
-    });
-
     document.getElementById('resultsSection').classList.remove('hidden');
-    document.getElementById('homeSection').classList.add('hidden');
+    document.getElementById('searchPagination').classList.toggle('hidden', !nextSearchToken && !prevSearchToken);
+
+    // Apply marquees to all result rows
+    grid.querySelectorAll('.marquee-content').forEach(el => updateMarquee(el));
 }
 
 function searchNextPage() {
@@ -1544,7 +1383,7 @@ function updateSearchPagination() {
     document.getElementById('nextPageBtn').disabled = !nextSearchToken;
     document.getElementById('prevPageBtn').disabled = !prevSearchToken;
     const info = document.getElementById('searchPageInfo');
-    if (info) info.innerText = `Página ${currentSearchPage} `;
+    if (info) info.innerText = `Página ${currentSearchPage}`;
 }
 
 // --- PLAYBACK ---
@@ -1558,6 +1397,8 @@ async function playSong(song, list = [], fromQueue = false) {
             currentQueueIndex = list.findIndex(s => String(s.id) === String(song.id));
             if (currentQueueIndex === -1) currentQueueIndex = 0;
         }
+
+        currentTrack = song;
         isMediaPlaying = true;
         isUserPaused = false;
 
@@ -1628,10 +1469,8 @@ async function playSong(song, list = [], fromQueue = false) {
             navigator.mediaSession.playbackState = 'playing';
         }
 
-        // Fetch SponsorBlock segments (only if not already fetching/fetched for this song)
-        if (!currentTrack || currentTrack.id !== song.id || currentSponsorSegments.length === 0) {
-            fetchSponsorSegments(song.id);
-        }
+        // Fetch SponsorBlock segments
+        fetchSponsorSegments(song.id);
 
         // Primary Execution (PROXIED AUDIO + ADS SYNC)
         if (useNativeAudio && nativeAudio) {
@@ -1639,14 +1478,17 @@ async function playSong(song, list = [], fromQueue = false) {
             try {
                 showToast("Sincronizando protección anti-anuncios...");
 
-                // Fetch URL first
+                // Fetch segments and URL in parallel, but wait for BOTH
+                const sponsorPromise = fetchSponsorSegments(song.id);
                 const audioPromise = getAudioUrl(song.id);
+
+                // Wait for URL first as it's the bottleneck
                 const audioUrl = await audioPromise;
                 if (!audioUrl) throw new Error('No audio URL found');
 
-                // Wait briefly for SponsorBlock if it's still fetching (max 1.2s total)
+                // Wait briefly for SponsorBlock if it hasn't returned yet (max 1.2s total)
                 const startWait = Date.now();
-                while (!sponsorFetchFinished && (Date.now() - startWait < 1200)) {
+                while (currentSponsorSegments.length === 0 && (Date.now() - startWait < 1200)) {
                     await new Promise(r => setTimeout(r, 50));
                 }
 
@@ -1663,17 +1505,18 @@ async function playSong(song, list = [], fromQueue = false) {
                 updatePlayPauseIcons(true);
                 console.log('✅ Reproducción limpia iniciada');
             } catch (error) {
-                console.error('❌ Error fatal en audio:', error);
+                console.error('❌ Error con audio nativo:', error);
 
-                // If "NotAllowed", pause. If anything else, SKIP or RETRY. Never YouTube.
+                // Handle "NotAllowedError" (Autoplay blocked)
                 if (error.name === 'NotAllowedError') {
                     showToast("⚠️ Toca 'Play' para iniciar", "warning");
                     return;
                 }
 
-                showToast("Fuente no disponible. Probando siguiente...", "error");
-                // Auto-skip to next song if this one is truly unplayable
-                setTimeout(() => playNext(), 1500);
+                console.log('📡 Fallback final a YouTube Player (Puede contener anuncios)...');
+                showToast('Usando reproductor de reserva...', 'info');
+                isCurrentlyUsingNative = false;
+                loadYouTubeIFrame(song.id);
             }
         } else {
             console.log('📡 Usando YouTube Player directamente');
@@ -1682,7 +1525,7 @@ async function playSong(song, list = [], fromQueue = false) {
         }
     } catch (error) {
         console.error("Error playing song:", error);
-        showToast(`Error al reproducir: ${error.message} `, "error");
+        showToast(`Error al reproducir: ${error.message}`, "error");
         isMediaPlaying = false;
         updatePlayPauseIcons(false);
     }
@@ -1725,11 +1568,11 @@ function toggleQueue(song) {
             currentQueueIndex--;
         }
 
-        showToast(`- ${removedSong.title} `);
+        showToast(`- ${removedSong.title}`);
     } else {
         // Not in queue, add it
         queue.push(song);
-        showToast(`+ ${song.title} `);
+        showToast(`+ ${song.title}`);
     }
 
     // Update visual count
@@ -1780,7 +1623,7 @@ function loadYouTubeIFrame(videoId) {
         nativeAudio.load();
     }
 
-    console.log(`📺 Cargando YouTube IFrame para: ${videoId} `);
+    console.log(`📺 Cargando YouTube IFrame para: ${videoId}`);
     isCurrentlyUsingNative = false;
     updateAdFreeStatus(false);
 
@@ -2067,7 +1910,7 @@ function renderSharedPlaylist(pl) {
         row.className = 'flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer group';
         row.onclick = () => playSong(index);
         row.innerHTML = `
-    < span class="w-8 text-center text-gray-500 group-hover:hidden" > ${index + 1}</span >
+            <span class="w-8 text-center text-gray-500 group-hover:hidden">${index + 1}</span>
             <div class="hidden group-hover:flex w-8 justify-center">
                 <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             </div>
@@ -2629,19 +2472,11 @@ function playPlaylist(event, plId) {
     }
 }
 
-function showToast(m, t = 'success', detail = '') {
+function showToast(m, t = 'success') {
     const c = document.getElementById('toastContainer');
-    if (!c) return;
-
-    // V8.0 Enhanced Toast: Multi-line support for diagnostics
-    c.innerHTML = `
-        <div class="px-4 py-2 rounded-2xl text-white text-xs font-bold shadow-2xl animate-fade-in flex flex-col items-center gap-1 ${t === 'success' ? 'bg-green-600' : 'bg-red-600'}">
-            <span>${m}</span>
-            ${detail ? `<span class="text-[9px] opacity-70 font-mono">${detail}</span>` : ''}
-        </div>
-    `;
+    c.innerHTML = `<div class="px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-2xl animate-fade-in ${t === 'success' ? 'bg-green-600' : 'bg-red-600'}">${m}</div>`;
     clearTimeout(window.toastT);
-    window.toastT = setTimeout(() => c.innerHTML = '', 3500);
+    window.toastT = setTimeout(() => c.innerHTML = '', 2500);
 }
 
 let progressUpdaterInterval; // Renamed from progressInterval to avoid conflict and be more descriptive
@@ -2879,7 +2714,7 @@ function updateUserUI() {
     if (nameEl) nameEl.innerText = currentUser.name;
 
     const avatarContent = currentUser.avatar
-        ? `<img src="${currentUser.avatar}">`
+        ? `< img src = "${currentUser.avatar}" > `
         : currentUser.name.charAt(0).toUpperCase();
 
     if (avatarEl) avatarEl.innerHTML = avatarContent;
