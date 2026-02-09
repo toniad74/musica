@@ -1341,7 +1341,6 @@ function clearSearch() {
     toggleClearButton();
     document.getElementById('resultsGrid').innerHTML = '';
     document.getElementById('resultsSection').classList.add('hidden');
-    showHome();
 }
 
 // --- SEARCH ---
