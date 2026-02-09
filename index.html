@@ -477,8 +477,16 @@
                 <div class="marquee-container">
                     <h3 id="currentTitle" class="marquee-content text-white font-medium text-sm"></h3>
                 </div>
-                <div class="marquee-container mt-0.5">
-                    <p id="currentChannel" class="marquee-content text-[#b3b3b3] text-xs"></p>
+                <div class="flex items-center gap-2 mt-0.5">
+                    <p id="currentChannel" class="marquee-content text-[#b3b3b3] text-xs truncate"></p>
+                    <span id="adFreeBadge"
+                        class="hidden flex items-center gap-1 text-[9px] font-bold text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/20">
+                        <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
+                            <path
+                                d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" />
+                        </svg>
+                        SIN PUBLICIDAD
+                    </span>
                 </div>
             </div>
             <button id="addToPlaylistBtn" onclick="showAddToPlaylistMenu(event)"
@@ -707,8 +715,16 @@
             <div class="marquee-container">
                 <h2 id="mobileFullTitle" class="marquee-content text-xl font-bold text-white"></h2>
             </div>
-            <div class="marquee-container mt-1">
+            <div class="flex flex-col items-center gap-1 mt-1">
                 <p id="mobileFullChannel" class="marquee-content text-gray-400 text-sm"></p>
+                <span id="mobileAdFreeBadge"
+                    class="hidden flex items-center gap-1 text-[9px] font-bold text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/20 w-fit">
+                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" />
+                    </svg>
+                    SIN PUBLICIDAD
+                </span>
             </div>
         </div>
         <div class="px-4 mb-4">

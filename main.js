@@ -51,30 +51,45 @@ let currentSponsorSegments = [];
 // Invidious instances (fallback if one fails)
 // Prioritize instances known for speed and M4A support
 const INVIDIOUS_INSTANCES = [
-    'inv.tux.pizza',             // Reliable
-    'invidious.drgns.space',     // Fast
-    'invidious.privacydev.net',  // Stable
-    'invidious.fdn.fr',          // Good fallback
-    'yewtu.be',                  // High traffic but reliable
-    'vid.puffyan.us',            // US based
-    'invidious.perennialte.ch'
+    'invidious.io.lol',
+    'invidious.lunar.icu',
+    'invidious.projectsegfau.lt',
+    'invidious.asir.dev',
+    'invidious.privacydev.net',
+    'invidious.drgns.space',
+    'inv.tux.pizza',
+    'invidious.fdn.fr',
+    'yewtu.be',
+    'vid.puffyan.us',
+    'invidious.perennialte.ch',
+    'invidious.nerdvpn.de',
+    'invidious.flokinet.to',
+    'invidious.000.gg'
 ];
 
 // Piped instances (Secondary fallback)
 const PIPED_INSTANCES = [
-    'https://pipedapi.kavin.rocks',      // Official
-    'https://api.piped.privacydev.net',  // Reliable
-    'https://pipedapi.drgns.space',
-    'https://api.piped.projectsegfau.lt',
-    'https://pipedapi.tokhmi.xyz',
+    'https://pipedapi.kavin.rocks',
+    'https://api.piped.privacydev.net',
+    'https://pipedapi.projectsegfau.lt',
+    'https://pipedapi.mha.fi',
+    'https://api.piped.li',
+    'https://pipedapi.privacy.com.de',
+    'https://pipedapi.hostux.net',
+    'https://pipedapi.artemislena.eu',
+    'https://pipedapi.mint.lgbt',
+    'https://pipedapi.silkky.cloud',
+    'https://pipedapi.sync-tube.de',
+    'https://piped-api.garudalinux.org',
     'https://piped-api.lunar.icu',
-    'https://api.piped.kotatsu.org',
-    'https://piped.smnz.de/api',
-    'https://pipedapi.r4fo.com',
+    'https://pipedapi.dk.2nd.io',
+    'https://pipedapi.moe',
+    'https://pipedapi.tokhmi.xyz',
     'https://api.piped.yt',
     'https://pa.il.ax',
-    'https://pipedapi.system41.cl',
-    'https://piped-api.garudalinux.org'
+    'https://piped-api.no-logs.com',
+    'https://pipedapi.tapthebox.net',
+    'https://api.piped.victr.me'
 ];
 
 // --- INITIALIZATION ---
@@ -423,7 +438,7 @@ function setupNativeAudioHandlers() {
 
     nativeAudio.addEventListener('timeupdate', updateProgressBar);
 
-    nativeAudio.addEventListener('error', (e) => {
+    nativeAudio.addEventListener('error', async (e) => {
         const err = e.target.error;
         console.error('❌ Error en audio nativo:', err);
 
@@ -431,22 +446,40 @@ function setupNativeAudioHandlers() {
         let errorMsg = 'Error desconocido';
         if (err) {
             switch (err.code) {
-                case err.MEDIA_ERR_ABORTED: errorMsg = 'Abortado por el usuario'; break;
-                case err.MEDIA_ERR_NETWORK: errorMsg = 'Error de red (posible bloqueo 403)'; break;
-                case err.MEDIA_ERR_DECODE: errorMsg = 'Error de decodificación (formato no soportado)'; break;
-                case err.MEDIA_ERR_SRC_NOT_SUPPORTED: errorMsg = 'Formato no soportado / 403 Forbidden'; break;
+                case err.MEDIA_ERR_ABORTED: errorMsg = 'Abortado'; break;
+                case err.MEDIA_ERR_NETWORK: errorMsg = 'Red (403/Link expirado)'; break;
+                case err.MEDIA_ERR_DECODE: errorMsg = 'Decodificación'; break;
+                case err.MEDIA_ERR_SRC_NOT_SUPPORTED: errorMsg = 'No soportado / 403'; break;
                 default: errorMsg = `Código: ${err.code}`;
             }
         }
-        showToast(`Error de audio: ${errorMsg}`, 'error');
 
-        // Clear cached server as it might be the cause
+        // Anti-Ad Logic: If it's a network/src error, it usually means the link expired or was blocked.
+        // Instead of giving up and showing ads in YT, we'll try to get a FRESH link from another server.
+        if (currentTrack && (err && (err.code === err.MEDIA_ERR_NETWORK || err.code === err.MEDIA_ERR_SRC_NOT_SUPPORTED))) {
+            console.log('🔄 Reintentando obtener un link limpio de otro servidor...');
+            showToast("Buscando fuente de respaldo sin anuncios...", "info");
+
+            const savedTime = nativeAudio.currentTime;
+            localStorage.removeItem('amaya_fastest_server'); // Ensure we don't use the same failed server
+
+            try {
+                const newUrl = await getAudioUrl(currentTrack.id);
+                if (newUrl) {
+                    nativeAudio.src = newUrl;
+                    nativeAudio.currentTime = savedTime;
+                    nativeAudio.play().catch(e => console.error("Retry play failed:", e));
+                    return; // Successfully recovered without Ads!
+                }
+            } catch (retryError) {
+                console.error("No se pudo recuperar stream limpio:", retryError);
+            }
+        }
+
+        showToast(`Error: ${errorMsg}. Reintentando con YT...`, 'error');
         localStorage.removeItem('amaya_fastest_server');
 
         if (currentTrack) {
-            console.log('Intento de fallback temporal a YouTube IFrame...');
-            showToast('Reiniciando con YouTube Player...', 'info');
-            // NO desactivamos useNativeAudio globalmente para que la siguiente canción vuelva a intentar modo sin anuncios
             loadYouTubeIFrame(currentTrack.id);
         }
     });
@@ -609,93 +642,114 @@ function updatePlayPauseIcons(isPlaying) {
         }
     }
 
+    // Update Ad-Free UI status based on current engine
+    updateAdFreeStatus(isCurrentlyUsingNative);
+
     // Refresh UI highlights
     refreshUIHighlights();
 }
 
+function updateAdFreeStatus(active) {
+    const badges = [document.getElementById('adFreeBadge'), document.getElementById('mobileAdFreeBadge')];
+    badges.forEach(b => {
+        if (b) {
+            if (active) b.classList.remove('hidden');
+            else b.classList.add('hidden');
+        }
+    });
+}
+
 // --- INVIDIOUS & PIPED INTEGRATION ---
-// --- INVIDIOUS & PIPED INTEGRATION (ROBUST SEQUENTIAL) ---
+// --- INVIDIOUS & PIPED INTEGRATION (ULTRA-FAST PARALLEL RACING) ---
 async function getAudioUrl(videoId) {
+    console.log(`🔍 Obteniendo URL de audio (Sin Publicidad) para: ${videoId}`);
+    showToast("Buscando audio limpio...");
+
+    // 1. Try Cached Instance First (Instant)
+    const cachedInstance = localStorage.getItem('amaya_fastest_server');
+    if (cachedInstance) {
+        try {
+            const url = await fetchFromPiped(cachedInstance, videoId, 2500);
+            if (url) return url;
+        } catch (e) {
+            localStorage.removeItem('amaya_fastest_server');
+        }
+    }
+
+    // 2. Parallel Racing Strategy
+    // We race the top batches of servers to find the first one that responds
+    const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
+    const batchSize = 6; // Try 6 at a time for maximum speed
+
+    for (let i = 0; i < candidates.length; i += batchSize) {
+        const batch = candidates.slice(i, i + batchSize);
+        console.log(`🚀 Racing Piped Batch ${Math.floor(i / batchSize) + 1}...`);
+
+        try {
+            // Promise.any returns the FIRST one that succeeds
+            const winnerUrl = await Promise.any(batch.map(instance =>
+                fetchFromPiped(instance, videoId, 5000)
+            ));
+
+            if (winnerUrl) return winnerUrl;
+        } catch (e) {
+            // Current batch failed, continue to next batch
+            console.warn("Batch failed, trying next set of servers...");
+        }
+    }
+
+    // STAGE 3: Invidious Racing (Fallback)
+    console.log("⚠️ Piped falló. Iniciando carrera en Invidious...");
+    showToast("Probando fuentes de respaldo...");
+
+    const invidiousBatchSize = 4;
+    for (let i = 0; i < INVIDIOUS_INSTANCES.length; i += invidiousBatchSize) {
+        const batch = INVIDIOUS_INSTANCES.slice(i, i + invidiousBatchSize);
+        try {
+            const winnerUrl = await Promise.any(batch.map(instance =>
+                fetchFromInvidious(instance, videoId, 4000)
+            ));
+            if (winnerUrl) return winnerUrl;
+        } catch (e) {
+            continue;
+        }
+    }
+
+    throw new Error('No se pudo encontrar un stream de audio sin publicidad.');
+}
+
+// Dedicated helper for Invidious Fetch with Scoring
+async function fetchFromInvidious(instance, videoId, timeoutMs) {
+    const url = `https://${instance}/api/v1/videos/${videoId}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
-        console.log(`🔍 Obteniendo URL de audio para: ${videoId}`);
-        showToast("Buscando audio...");
+        const response = await fetch(url, { method: 'GET', signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!response.ok) throw new Error("Invidious error");
 
-        // 1. Try Cached Instance First
-        const cachedInstance = localStorage.getItem('amaya_fastest_server');
-        if (cachedInstance) {
-            console.log(`⚡ Usando servidor rápido guardado: ${cachedInstance}`);
-            try {
-                const url = await fetchFromPiped(cachedInstance, videoId, 3000);
-                if (url) return url;
-            } catch (e) {
-                console.warn("Servidor guardado falló, probando otros...");
-                localStorage.removeItem('amaya_fastest_server');
-            }
+        const data = await response.json();
+        if (!data.adaptiveFormats || data.adaptiveFormats.length === 0) throw new Error("No formats");
+
+        const audioFormats = data.adaptiveFormats.filter(f => f.type && f.type.includes('audio'))
+            .sort((a, b) => {
+                const getScore = (format) => {
+                    let score = 0;
+                    if (format.type && (format.type.includes('mp4') || format.type.includes('m4a'))) score += 1000;
+                    if (format.bitrate) score += parseInt(format.bitrate) / 1000;
+                    return score;
+                };
+                return getScore(b) - getScore(a);
+            });
+
+        if (audioFormats.length > 0) {
+            console.log(`✅ Invidious winner: ${instance}`);
+            return audioFormats[0].url;
         }
-
-        // 2. Sequential Exhaustive Search
-        // Shuffle to load balance, but keep it deterministic per session to avoid re-trying same failed ones too often
-        const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
-
-        let attempt = 0;
-        for (const instance of candidates) {
-            attempt++;
-            try {
-                const shortName = instance.replace('https://', '').split('.')[0];
-                if (attempt % 3 === 0) showToast(`Probando fuente ${attempt}/${candidates.length}...`);
-
-                console.log(`Trying Piped: ${instance}`);
-                const url = await fetchFromPiped(instance, videoId, 4000); // 4s timeout per server
-                if (url) {
-                    console.log(`✅ Éxito en: ${instance}`);
-                    localStorage.setItem('amaya_fastest_server', instance);
-                    return url;
-                }
-            } catch (e) {
-                // Continúa al siguiente
-            }
-        }
-
-        // STAGE 2: Try Invidious Instances (Fallback)
-        console.log("⚠️ Piped falló. Intentando Invidious (Fallback)...");
-        showToast("Probando servidores de seguridad...");
-
-        for (let instance of INVIDIOUS_INSTANCES) {
-            try {
-                const url = `https://${instance}/api/v1/videos/${videoId}`;
-
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-                const response = await fetch(url, { method: 'GET', signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (!response.ok) continue;
-
-                const data = await response.json();
-                if (!data.adaptiveFormats || data.adaptiveFormats.length === 0) continue;
-
-                const audioFormats = data.adaptiveFormats.filter(f => f.type && f.type.includes('audio'))
-                    .sort((a, b) => {
-                        const getScore = (format) => {
-                            let score = 0;
-                            if (format.type && (format.type.includes('mp4') || format.type.includes('m4a'))) score += 1000;
-                            if (format.bitrate) score += parseInt(format.bitrate) / 1000;
-                            return score;
-                        };
-                        return getScore(b) - getScore(a);
-                    });
-
-                if (audioFormats.length > 0) {
-                    console.log(`✅ Audio Invidious: ${instance}`);
-                    return audioFormats[0].url;
-                }
-            } catch (error) { continue; }
-        }
-
-        throw new Error('No se pudo obtener audio de ninguna fuente.');
-    } catch (finalError) {
-        showToast(`Error CRÍTICO de audio: ${finalError.message}`, "error");
-        throw finalError;
+        throw new Error("No audio formats");
+    } catch (e) {
+        throw e;
     }
 }
 
@@ -1406,13 +1460,7 @@ async function playSong(song, list = [], fromQueue = false) {
             try {
                 console.log(`🎵 Intentando reproducir con audio nativo: ${song.title}`);
 
-                const audioUrlPromise = getAudioUrl(song.id);
-                // Increased timeout to 60s to allow exhaustive search of all servers
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Audio URL timeout')), 60000)
-                );
-
-                const audioUrl = await Promise.race([audioUrlPromise, timeoutPromise]);
+                const audioUrl = await getAudioUrl(song.id);
 
                 if (!audioUrl) {
                     throw new Error('No audio URL returned');
@@ -1423,22 +1471,19 @@ async function playSong(song, list = [], fromQueue = false) {
 
                 isMediaPlaying = true;
                 updatePlayPauseIcons(true);
-                console.log('✅ Reproducción nativa exitosa');
+                console.log('✅ Reproducción nativa exitosa (Sin Publicidad)');
             } catch (error) {
                 console.error('❌ Error con audio nativo:', error);
 
                 // Handle "NotAllowedError" (Autoplay blocked)
                 if (error.name === 'NotAllowedError') {
                     showToast("⚠️ Toca 'Play' para iniciar", "warning");
-                    // The user interaction requirement was lost during the async fetch.
-                    // We leave the player in "paused" state but with src loaded.
-                    // The user just needs to hit the main play button now.
                     return;
                 }
-                console.log('📡 Fallback temporal a YouTube Player...');
-                showToast('Cargando reproductor...', 'info');
+
+                console.log('📡 Fallback final a YouTube Player (Puede contener anuncios)...');
+                showToast('Usando reproductor de reserva...', 'info');
                 isCurrentlyUsingNative = false;
-                // No desactivamos el motor nativo para permitir que la siguiente canción lo intente de nuevo
                 loadYouTubeIFrame(song.id);
             }
         } else {
@@ -1538,6 +1583,8 @@ function updateQueueCount() {
 // Function to load YouTube IFrame as fallback
 function loadYouTubeIFrame(videoId) {
     console.log(`📺 Cargando YouTube IFrame para: ${videoId}`);
+    isCurrentlyUsingNative = false;
+    updateAdFreeStatus(false);
 
     if (isVideoReady && player && player.loadVideoById) {
         player.loadVideoById(videoId);
