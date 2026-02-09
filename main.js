@@ -681,9 +681,77 @@ function updateAdFreeStatus(active) {
 }
 
 // --- INVIDIOUS & PIPED INTEGRATION (INFINITE RETRY ENGINE) ---
+// --- JIOSAAVN INTEGRATION (PRIMARY SOURCE: NO ADS, NO 403) ---
+async function fetchFromJioSaavn(query) {
+    try {
+        const cleanQuery = query.replace(/\s+/g, ' ').trim();
+        console.log(`🎵 Buscando en Base de Datos Global (JioSaavn): "${cleanQuery}"`);
+
+        const response = await fetch(`https://saavn.dev/api/search/songs?query=${encodeURIComponent(cleanQuery)}`);
+        if (!response.ok) throw new Error("JioSaavn API Error");
+
+        const data = await response.json();
+        if (!data.data || !data.data.results || data.data.results.length === 0) {
+            console.log("⚠️ No encontrado en JioSaavn.");
+            return null;
+        }
+
+        // Pick the most relevant result (usually the first one)
+        const song = data.data.results[0];
+
+        // Extract highest quality download URL (320kbps > 160kbps > 96kbps)
+        const downloadLinks = song.downloadUrl;
+        if (!downloadLinks || downloadLinks.length === 0) return null;
+
+        // Sort by quality (descending)
+        // Link objects are like { quality: "320kbps", link: "..." }
+        const bestLink = downloadLinks.find(l => l.quality === "320kbps") ||
+            downloadLinks.find(l => l.quality === "160kbps") ||
+            downloadLinks[downloadLinks.length - 1]; // Fallback to last (usually highest in some APIs, but find is safer)
+
+        if (bestLink && bestLink.link) {
+            console.log(`🎉 ¡ÉXITO! Audio nativo encontrado en JioSaavn (${bestLink.quality})`);
+            return bestLink.link;
+        }
+    } catch (e) {
+        console.warn("Error consultando JioSaavn:", e);
+    }
+    return null;
+}
+
+function cleanSongTitle(title) {
+    if (!title) return "";
+    return title
+        .replace(/[\(\[]official video[\)\]]/gi, "")
+        .replace(/[\(\[]official music video[\)\]]/gi, "")
+        .replace(/[\(\[]video official[\)\]]/gi, "")
+        .replace(/[\(\[]official audio[\)\]]/gi, "")
+        .replace(/[\(\[]lyrics[\)\]]/gi, "")
+        .replace(/[\(\[]letra[\)\]]/gi, "")
+        .replace(/[\(\[]hd[\)\]]/gi, "")
+        .replace(/[\(\[]hq[\)\]]/gi, "")
+        .replace(/[\(\[]4k[\)\]]/gi, "")
+        .replace(/ft\./gi, "")
+        .replace(/feat\./gi, "")
+        .replace(/live/gi, "") // Optional: remove 'live' if we want studio versions
+        .replace(/[\(\[][^\)\]]*[\)\]]/g, "") // Remove anything else in brackets (often noise)
+        .trim();
+}
+
+// --- INVIDIOUS & PIPED INTEGRATION (INFINITE RETRY ENGINE) ---
 async function getAudioUrl(videoId, excludeInstance = null) {
+
+    // PRIORITY 1: GLOBAL DATABASE (JioSaavn)
+    // If we have track info, try to find the pristine audio first
+    if (currentTrack && currentTrack.id === videoId) {
+        const query = `${cleanSongTitle(currentTrack.title)} ${currentTrack.channel || ''}`;
+        const jioUrl = await fetchFromJioSaavn(query);
+        if (jioUrl) return jioUrl;
+    }
+
+    console.log("⚠️ JioSaavn falló. Activando Motores de Búsqueda Proxy (Piped/Invidious)...");
+
     if (excludeInstance) FAILED_INSTANCES.add(excludeInstance);
-    console.log(`🔍 Iniciando búsqueda estricta de audio (Sin Ads) para: ${videoId}`);
 
     // Combined list of all candidates
     const allCandidates = [
