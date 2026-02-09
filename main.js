@@ -728,66 +728,60 @@ function cleanSongTitle(title) {
         .trim();
 }
 
-// --- INVIDIOUS & PIPED INTEGRATION (INFINITE RETRY ENGINE) ---
+// --- INVIDIOUS & PIPED INTEGRATION (V7.0 - Motor Fénix) ---
 async function getAudioUrl(videoId, excludeInstance = null, retryCount = 0) {
-
-    // PRIORITY 1: GLOBAL DATABASE (JioSaavn)
-    // Only try JioSaavn on the first attempt to avoid spamming it on internal retries
-    if (retryCount === 0 && currentTrack && currentTrack.id === videoId) {
-        const query = `${cleanSongTitle(currentTrack.title)} ${currentTrack.channel || ''}`;
-        const jioUrl = await fetchFromJioSaavn(query);
+    // Detect JioSaavn IDs
+    if (videoId && String(videoId).startsWith('jio_')) {
+        console.log("🎵 Resolviendo ID de Base de Datos Global...");
+        const jioUrl = await fetchJioAudioById(videoId);
         if (jioUrl) return jioUrl;
-    }
 
-    if (retryCount === 0) console.log("⚠️ JioSaavn falló. Activando Motores de Búsqueda Proxy (Piped/Invidious)...");
+        // AUTO-FALLBACK: If jio playback fails, search the title on Piped
+        if (currentTrack) {
+            console.log("⚠️ Jio playback falló. Buscando alternativa por título...");
+            const query = cleanSongTitle(currentTrack.title);
+            const altResults = await searchPiped(query);
+            if (altResults && altResults.length > 0) {
+                // Return the first playable ID from piped
+                return getAudioUrl(altResults[0].id);
+            }
+        }
+        throw new Error("No se pudo resolver el audio de JioSaavn.");
+    }
 
     if (excludeInstance) FAILED_INSTANCES.add(excludeInstance);
 
-    // Combined list of all candidates
+    // YouTube IDs go through the proxy waterfall
     const allCandidates = [
         ...PIPED_INSTANCES.filter(i => !FAILED_INSTANCES.has(i)),
         ...INVIDIOUS_INSTANCES.filter(i => !FAILED_INSTANCES.has(i))
     ].sort(() => 0.5 - Math.random());
 
     if (allCandidates.length === 0) {
-        if (retryCount >= 1) throw new Error("Ciclo de reintentos agotado.");
-
-        // If we ran out, clear blacklist and try one more desperate loop
-        console.warn("⚠️ Lista de servidores agotada. Reiniciando blacklist...");
+        if (retryCount >= 1) throw new Error("Servidores saturados. Prueba en unos minutos.");
         FAILED_INSTANCES.clear();
-        return getAudioUrl(videoId, null, retryCount + 1); // Recursive retry once
+        return getAudioUrl(videoId, null, retryCount + 1);
     }
 
-    // Try EVERY candidate one by one (or in small parallel batches) until success
-    const batchSize = 3; // Smaller batches to save resources but move fast
-
+    const batchSize = 3;
     for (let i = 0; i < allCandidates.length; i += batchSize) {
         const batch = allCandidates.slice(i, i + batchSize);
-        showToast(`Probando servidores ${i + 1}-${Math.min(i + batchSize, allCandidates.length)}...`, 'info');
-        console.log(`🚀 Probando bloque ${i / batchSize + 1}:`, batch);
+        console.log(`🚀 Intentando bloque ${i / batchSize + 1}...`);
 
         try {
-            // Mix of Piped and Invidious handlers based on URL structure
             const promises = batch.map(inst => {
                 if (inst.includes('piped')) return fetchFromPiped(inst, videoId, 5000);
                 return fetchFromInvidious(inst, videoId, 5000);
             });
 
             const winner = await Promise.any(promises);
-            if (winner) {
-                console.log("✅ Servidor Encontrado:", winner);
-                return winner;
-            }
+            if (winner) return winner;
         } catch (e) {
-            // Batch failed. Mark these as failed for this song attempt.
             batch.forEach(inst => FAILED_INSTANCES.add(inst));
-            console.warn("Bloque fallido. Continuando...");
         }
     }
 
-    // STAGE 4: Invidious "Local Proxy" Tunnel (High Reliability, Slower)
-    // This forces the Invidious server to download and stream the audio to us, bypassing Google.
-    console.log("⚠️ Invidious API agotado. Activando Túnel de Proxy Local (Modo Lento pero Seguro)...");
+    // FINAL STAGE: Invidious Proxy Tunnel
     const proxyCandidates = INVIDIOUS_INSTANCES.filter(inst => !FAILED_INSTANCES.has(inst)).sort(() => 0.5 - Math.random());
     const proxyBatch = proxyCandidates.slice(0, 4);
 
@@ -795,15 +789,10 @@ async function getAudioUrl(videoId, excludeInstance = null, retryCount = 0) {
         const winnerUrl = await Promise.any(proxyBatch.map(instance =>
             fetchFromInvidiousProxy(instance, videoId, 10000)
         ));
-        if (winnerUrl) {
-            console.log("✅ Servidor Proxy Local Encontrado:", winnerUrl);
-            return winnerUrl;
-        }
-    } catch (e) {
-        console.warn("Fallo en Túnel Proxy.");
-    }
+        if (winnerUrl) return winnerUrl;
+    } catch (e) { }
 
-    throw new Error("Imposible obtener audio limpio. Red saturada/bloqueada.");
+    throw new Error("Imposible conectar con servidores de audio seguros.");
 }
 
 // Dedicated helper for Invidious Fetch with Scoring
@@ -1270,8 +1259,7 @@ async function searchJioSaavn(query) {
 
     const paths = [
         '/api/search/songs',
-        '/search/songs',
-        '/api/search'
+        '/search/songs'
     ];
 
     let lastError = "Todos los servidores fallaron";
@@ -1279,50 +1267,69 @@ async function searchJioSaavn(query) {
     for (const mirror of mirrors) {
         for (const path of paths) {
             try {
-                console.log(`🔍 Probando JioSaavn: ${mirror}${path}...`);
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-                const response = await fetch(`${mirror}${path}?query=${encodeURIComponent(query)}`, {
+                const response = await fetch(`${mirror}${path}?query=${encodeURIComponent(query)}&limit=15`, {
                     signal: controller.signal,
                     headers: { 'Accept': 'application/json' }
                 });
                 clearTimeout(timeoutId);
 
-                if (!response.ok) {
-                    lastError = `Status ${response.status} en ${mirror}${path}`;
-                    continue; // Probar siguiente ruta o espejo
-                }
+                if (!response.ok) continue;
 
                 const data = await response.json();
                 let rawResults = data.data?.results || data.data || data.results || (Array.isArray(data) ? data : null);
 
-                if (!rawResults || !Array.isArray(rawResults) || rawResults.length === 0) {
-                    lastError = `0 resultados en ${mirror}${path}`;
-                    continue;
-                }
+                if (!rawResults || !Array.isArray(rawResults) || rawResults.length === 0) continue;
 
-                console.log(`✅ ¡ÉXITO! ${rawResults.length} temas en ${mirror}${path}`);
                 return rawResults.map(item => {
                     let dur = item.duration;
                     if (!(typeof dur === 'string' && dur.includes(':'))) {
                         dur = formatPipedDuration(dur);
                     }
+                    // High Res thumbnail
+                    let thumb = (item.image?.[item.image.length - 1]?.link || item.image?.[0]?.link || item.image || '');
+                    thumb = thumb.replace('150x150', '500x500').replace('50x50', '500x500');
+
                     return {
                         id: `jio_${item.id}`,
                         title: item.name || item.title || 'Unknown Title',
                         channel: item.artists?.primary?.map(a => a.name).join(', ') || item.primary_artists || 'Artist',
-                        thumbnail: (item.image?.[item.image.length - 1]?.link || item.image?.[0]?.link || item.image || '').replace('150x150', '500x500'),
+                        thumbnail: thumb,
                         duration: dur || '0:00',
                         source: 'jio'
                     };
                 });
             } catch (e) {
-                lastError = `Fallo en ${mirror}${path}: ${e.message}`;
+                lastError = e.message;
             }
         }
     }
     throw new Error(lastError);
+}
+
+// Fetch direct audio from JioSaavn by ID
+async function fetchJioAudioById(id) {
+    const rawId = id.replace('jio_', '');
+    const mirrors = ['https://saavn.dev', 'https://saavn.me', 'https://jiosaavn-api-v3.vercel.app'];
+
+    for (const mirror of mirrors) {
+        try {
+            const resp = await fetch(`${mirror}/api/songs?ids=${rawId}`);
+            if (!resp.ok) continue;
+            const data = await resp.json();
+            const song = data.data?.[0] || data?.[0];
+            if (!song || !song.downloadUrl) continue;
+
+            const best = song.downloadUrl.find(l => l.quality === "320kbps") ||
+                song.downloadUrl.find(l => l.quality === "160kbps") ||
+                song.downloadUrl[song.downloadUrl.length - 1];
+
+            return best?.link || null;
+        } catch (e) { continue; }
+    }
+    return null;
 }
 
 function formatPipedDuration(seconds) {
@@ -1419,12 +1426,9 @@ function clearSearch() {
     showHome();
 }
 
-// --- SEARCH ENGINE: WATERFALL PROTOCOL ---
+// --- SEARCH ENGINE: WATERFALL PROTOCOL (V7.0 - Deep Hunt) ---
 async function searchMusic(pageToken = '', retryCount = 0) {
-    // Protection: If called as an event listener, pageToken will be an Event object
-    if (pageToken && typeof pageToken === 'object' && (pageToken.preventDefault || pageToken.target)) {
-        pageToken = '';
-    }
+    if (pageToken && typeof pageToken === 'object') pageToken = '';
 
     const input = document.getElementById('searchInput');
     const query = input.value.trim();
@@ -1438,28 +1442,28 @@ async function searchMusic(pageToken = '', retryCount = 0) {
     document.getElementById('loading').classList.remove('hidden');
     document.getElementById('errorMessage').classList.add('hidden');
 
-    // Debug HUD - Track detail of every single call
     let debugSummary = [];
     const addLog = (msg) => {
         debugSummary.push(msg);
-        console.log(`[WATERFALL] ${msg}`);
+        console.log(`[DEEP-HUNT] ${msg}`);
     };
 
-    let results = [];
+    let allResults = [];
+    const minThreshold = 12;
+
     try {
         const currentKey = getCurrentApiKey();
 
         // PHASE 1: YOUTUBE
         if (currentKey) {
-            addLog("YT: Iniciando buscador principal...");
+            addLog("Buscando en YouTube...");
             try {
                 const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&key=${currentKey}${pageToken ? `&pageToken=${pageToken}` : ''}`);
                 const data = await response.json();
-
-                if (data.items && data.items.length > 0) {
+                if (data.items?.length > 0) {
                     nextSearchToken = data.nextPageToken || '';
                     prevSearchToken = data.prevPageToken || '';
-                    results = data.items.map(item => ({
+                    const yt = data.items.map(item => ({
                         id: item.id?.videoId || '',
                         title: decodeHtml(item.snippet?.title || 'Unknown Title'),
                         channel: decodeHtml(item.snippet?.channelTitle || 'Unknown Artist'),
@@ -1467,64 +1471,50 @@ async function searchMusic(pageToken = '', retryCount = 0) {
                         duration: '0:00',
                         source: 'yt'
                     }));
-                    addLog(`YT: ¡Éxito! (${results.length} vids)`);
-                } else {
-                    const errorMsg = data.error?.message || "Vacío";
-                    addLog(`YT: Sin resultados (${errorMsg})`);
+                    allResults = [...allResults, ...yt];
+                    addLog(`YT: +${yt.length} resultados`);
                 }
-            } catch (e) {
-                addLog(`YT: Bloqueado/Error (${e.name})`);
-            }
-        } else {
-            addLog("YT: Saltado (Sin clave API)");
+            } catch (e) { addLog(`YT: Error (${e.name})`); }
         }
 
-        // PHASE 2: JIOSAAVN (GLOBAL DB) - Path-Adaptive
-        if (results.length === 0 && !pageToken) {
-            addLog("Jio: Intentando búsqueda profunda (Multi-Ruta)...");
+        // PHASE 2: JIOSAAVN (GLOBAL DB) - DEEP HUNT
+        if (allResults.length < minThreshold && !pageToken) {
+            addLog("Jio: Realizando búsqueda profunda global...");
             try {
-                const jioResults = await searchJioSaavn(query);
-                if (jioResults.length > 0) {
-                    results = jioResults;
-                    addLog(`Jio: ¡Éxito! (${results.length} temas)`);
-                    showToast("Encontrado en Base de Datos Global", "info");
+                const jio = await searchJioSaavn(query);
+                if (jio?.length > 0) {
+                    const existingIds = new Set(allResults.map(r => r.id));
+                    const newJio = jio.filter(r => !existingIds.has(r.id));
+                    allResults = [...allResults, ...newJio];
+                    addLog(`Jio: +${newJio.length} temas globales`);
                 }
-            } catch (e) {
-                addLog(`Jio: Falló tras agotar todas las rutas y espejos. (${e.message})`);
-            }
+            } catch (e) { addLog(`Jio: Fallo (${e.message})`); }
         }
 
-        // PHASE 3: PIPED - Multi-Pass
-        if (results.length === 0 && !pageToken) {
-            addLog("Piped: Intentando Servidores de Respaldo (Multi-Pase)...");
+        // PHASE 3: PIPED - DEEP HUNT
+        if (allResults.length < minThreshold && !pageToken) {
+            addLog("Piped: Consultando servidores de respaldo...");
             try {
-                const pipedResults = await searchPiped(query);
-                if (pipedResults.length > 0) {
-                    results = pipedResults;
-                    addLog(`Piped: ¡Éxito! (${results.length} resultados)`);
-                    showToast("Cargando servidores de respaldo...", "info");
-                } else {
-                    addLog("Piped: No se encontró nada tras búsqueda global.");
+                const piped = await searchPiped(query);
+                if (piped?.length > 0) {
+                    const existingTitles = new Set(allResults.map(r => r.title.toLowerCase()));
+                    const newPiped = piped.filter(r => !existingTitles.has(r.title.toLowerCase()));
+                    allResults = [...allResults, ...newPiped];
+                    addLog(`Piped: +${newPiped.length} vídeos de respaldo`);
                 }
-            } catch (e) {
-                addLog(`Piped: Error crítico (${e.message})`);
-            }
+            } catch (e) { addLog(`Piped: Fallo (${e.message})`); }
         }
 
-        // PHASE 4: INVIDIOUS
-        if (results.length === 0 && !pageToken) {
-            addLog("Inv: Último recurso (Servidores alternativos)...");
+        // PHASE 4: INVIDIOUS - FINAL APPEND
+        if (allResults.length < 5 && !pageToken) {
+            addLog("Inv: Último recurso...");
             try {
-                const invResults = await searchInvidious(query);
-                if (invResults.length > 0) {
-                    results = invResults;
-                    addLog(`Inv: Éxito final (${results.length})`);
-                } else {
-                    addLog("Inv: Sin resultados.");
+                const inv = await searchInvidious(query);
+                if (inv?.length > 0) {
+                    allResults = [...allResults, ...inv.slice(0, 10)];
+                    addLog(`Inv: +${inv.length} resultados extra`);
                 }
-            } catch (e) {
-                addLog(`Inv: Fallo (${e.message})`);
-            }
+            } catch (e) { addLog(`Inv: Fallo (${e.message})`); }
         }
 
     } catch (err) {
@@ -1533,13 +1523,32 @@ async function searchMusic(pageToken = '', retryCount = 0) {
         document.getElementById('loading').classList.add('hidden');
     }
 
-    if (results.length > 0) {
-        renderSearchResults(results);
+    if (allResults.length > 0) {
+        // Simple deduplication by title/channel fuzzy
+        const seen = new Set();
+        const finalResults = allResults.filter(song => {
+            const key = `${song.title.toLowerCase()}|${song.channel.toLowerCase()}`.substring(0, 50);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+
+        playlist = finalResults;
+        renderSearchResults(finalResults);
         updateSearchPagination();
+        document.getElementById('errorMessage').classList.add('hidden');
     } else {
-        const finalRastro = debugSummary.join("\n   ➔ ");
-        document.getElementById('errorText').innerText = `No hemos encontrado resultados para "${query}".\n\n🔍 Rastro de búsqueda:\n   ➔ ${finalRastro}`;
-        document.getElementById('errorMessage').classList.remove('hidden');
+        renderSearchResults([]);
+        const errorMsg = document.getElementById('errorMessage');
+        errorMsg.innerHTML = `
+            <div class="bg-red-500/10 border border-red-500/30 p-8 rounded-3xl text-center">
+                <p class="text-xl font-bold text-white mb-4">No se encontró nada para "${query}"</p>
+                <div class="text-sm text-gray-400 space-y-1">
+                    ${debugSummary.map(m => `<div>→ ${m}</div>`).join('')}
+                </div>
+            </div>
+        `;
+        errorMsg.classList.remove('hidden');
     }
 }
 async function searchInvidious(query) {
