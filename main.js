@@ -55,6 +55,7 @@ const FAILED_INSTANCES = new Set();
 // Invidious instances (fallback if one fails)
 // Prioritize instances known for speed and M4A support
 const INVIDIOUS_INSTANCES = [
+    'inv.nadeko.net',
     'invidious.lunar.icu',
     'invidious.projectsegfau.lt',
     'invidious.asir.dev',
@@ -90,6 +91,15 @@ const PIPED_INSTANCES = [
     'https://pipedapi.vube.app',
     'https://pipedapi.hostux.net',
     'https://api.piped.video'
+];
+
+// Cobalt instances (Primary alternatives in 2025)
+const COBALT_INSTANCES = [
+    'https://cobalt.canine.tools',
+    'https://cobalt.meowing.de',
+    'https://api.cobalt.tools', // Official (has ratelimit, but good fallback)
+    'https://cobalt.perennialte.ch',
+    'https://cobalt.asir.dev'
 ];
 
 // --- INITIALIZATION ---
@@ -681,44 +691,69 @@ function updateAdFreeStatus(active) {
 
 // --- INVIDIOUS & PIPED INTEGRATION (ULTRA-FAST PARALLEL RACING) ---
 async function getAudioUrl(videoId) {
-    console.log(`🔍 Buscando audio proxeado (Anti-403) para: ${videoId}`);
+    console.log(`🔍 Buscando audio proxeado (Cobalt/Piped/Invidious) para: ${videoId}`);
 
     // 1. Try Cached Instance First
     const cachedInstance = localStorage.getItem('amaya_fastest_server');
+    const cachedType = localStorage.getItem('amaya_fastest_server_type'); // 'piped' or 'cobalt'
+
     if (cachedInstance && !FAILED_INSTANCES.has(cachedInstance)) {
         try {
-            const url = await fetchFromPiped(cachedInstance, videoId, 2000);
+            let url = null;
+            if (cachedType === 'cobalt') {
+                url = await fetchFromCobalt(cachedInstance, videoId, 2500);
+            } else {
+                url = await fetchFromPiped(cachedInstance, videoId, 2000);
+            }
             if (url) return url;
         } catch (e) {
             localStorage.removeItem('amaya_fastest_server');
+            localStorage.removeItem('amaya_fastest_server_type');
             FAILED_INSTANCES.add(cachedInstance);
         }
     }
 
-    // 2. Parallel Racing Strategy
-    const candidates = PIPED_INSTANCES
+    // 2. Parallel Racing Strategy (Cobalt + Piped)
+    const pipedCandidates = PIPED_INSTANCES
         .filter(inst => !FAILED_INSTANCES.has(inst))
+        .map(inst => ({ url: inst, type: 'piped' }));
+
+    const cobaltCandidates = COBALT_INSTANCES
+        .filter(inst => !FAILED_INSTANCES.has(inst))
+        .map(inst => ({ url: inst, type: 'cobalt' }));
+
+    // Prioritize Cobalt in 2025
+    const candidates = [...cobaltCandidates, ...pipedCandidates]
         .sort(() => 0.5 - Math.random());
 
-    const batchSize = 12; // Maximum speed coverage
+    const batchSize = 10;
 
     for (let i = 0; i < candidates.length; i += batchSize) {
         const batch = candidates.slice(i, i + batchSize);
-        console.log(`🚀 Racing Piped Batch ${Math.floor(i / batchSize) + 1}...`);
+        console.log(`🚀 Racing Batch ${Math.floor(i / batchSize) + 1} (${batch.map(c => c.type).join(', ')})...`);
 
         try {
-            const winnerUrl = await Promise.any(batch.map(instance =>
-                fetchFromPiped(instance, videoId, 6000)
-            ));
-            if (winnerUrl) return winnerUrl;
+            const winner = await Promise.any(batch.map(item => {
+                if (item.type === 'cobalt') {
+                    return fetchFromCobalt(item.url, videoId, 6000).then(url => ({ url, instance: item.url, type: 'cobalt' }));
+                } else {
+                    return fetchFromPiped(item.url, videoId, 6000).then(url => ({ url, instance: item.url, type: 'piped' }));
+                }
+            }));
+
+            if (winner && winner.url) {
+                localStorage.setItem('amaya_fastest_server', winner.instance);
+                localStorage.setItem('amaya_fastest_server_type', winner.type);
+                return winner.url;
+            }
         } catch (e) {
-            batch.forEach(inst => FAILED_INSTANCES.add(inst));
+            batch.forEach(item => FAILED_INSTANCES.add(item.url));
             console.warn("Batch failed, trying next set...");
         }
     }
 
     // STAGE 3: Invidious Fallback (Proxied)
-    console.log("⚠️ Piped falló. Intentando Invidious Proxeado...");
+    console.log("⚠️ Cobalt/Piped fallaron. Intentando Invidious Proxeado...");
     const invidiousBatch = INVIDIOUS_INSTANCES.slice(0, 5);
     try {
         const winnerUrl = await Promise.any(invidiousBatch.map(instance =>
@@ -728,6 +763,44 @@ async function getAudioUrl(videoId) {
     } catch (e) { }
 
     throw new Error('No se encontró audio proxeado compatible.');
+}
+
+// Dedicated helper for Cobalt Fetch
+async function fetchFromCobalt(apiBase, videoId, timeoutMs) {
+    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        const response = await fetch(apiBase, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                url: videoUrl,
+                videoQuality: '720', // Doesn't matter for audio-only but required by some instances
+                audioFormat: 'opus', // Best quality for YouTube
+                downloadMode: 'audio',
+                isAudioOnly: true
+            }),
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) throw new Error(`Cobalt status ${response.status}`);
+
+        const data = await response.json();
+        if (data.status === 'redirect' || data.status === 'stream') {
+            const streamUrl = data.url;
+            console.log(`✅ Cobalt winner: ${apiBase}`);
+            return streamUrl;
+        }
+        throw new Error(`Cobalt returned status: ${data.status}`);
+    } catch (e) {
+        throw e;
+    }
 }
 
 // Dedicated helper for Invidious Fetch with Scoring
