@@ -1418,15 +1418,30 @@ async function searchMusic(pageToken = '', retryCount = 0) {
 async function searchInvidious(query) {
     try {
         console.log(`🔍 Buscando en ${SINGLE_SERVER}...`);
-        const url = `https://${SINGLE_SERVER}/api/v1/search?q=${encodeURIComponent(query)}&type=video`;
+
+        // Use the same parameters as Invidious web search for consistency
+        const url = `https://${SINGLE_SERVER}/api/v1/search?q=${encodeURIComponent(query)}&type=video&sort=relevance`;
         const response = await fetch(url);
 
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         const data = await response.json();
         if (data && data.length > 0) {
-            console.log(`✅ ${data.length} resultados desde ${SINGLE_SERVER}`);
-            return data.slice(0, 30).map(item => ({
+            console.log(`✅ ${data.length} resultados totales desde ${SINGLE_SERVER}`);
+
+            // Filter out shorts, playlists, and very short videos
+            const filteredResults = data.filter(item => {
+                // Skip if it's a short (usually < 60 seconds)
+                if (item.lengthSeconds && item.lengthSeconds < 60) return false;
+                // Skip if no video ID
+                if (!item.videoId) return false;
+                return true;
+            });
+
+            console.log(`✅ ${filteredResults.length} resultados después del filtro`);
+
+            // Return all results, not just 30
+            return filteredResults.map(item => ({
                 id: item.videoId,
                 title: item.title || 'Unknown Title',
                 channel: item.author || 'Unknown Artist',
