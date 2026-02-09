@@ -436,7 +436,16 @@ function setupNativeAudioHandlers() {
         handleTrackEnded();
     });
 
-    nativeAudio.addEventListener('timeupdate', updateProgressBar);
+    // Monitoreo continuo de anuncios durante la reproducción
+    nativeAudio.addEventListener('timeupdate', () => {
+        // Verificar anuncios cada vez que se actualiza el tiempo
+        if (currentSponsorSegments && currentSponsorSegments.length > 0) {
+            const skipped = checkSponsorSegments(nativeAudio.currentTime);
+            if (skipped) {
+                console.log('🛡️ Anuncio detectado y saltado durante reproducción');
+            }
+        }
+    });
 
     nativeAudio.addEventListener('error', async (e) => {
         const err = e.target.error;
@@ -752,13 +761,18 @@ async function fetchSponsorSegments(videoId) {
     currentSponsorSegments = [];
     pendingSponsorFetch = (async () => {
         try {
-            const categories = ["sponsor", "intro", "outro", "interaction", "selfpromo", "music_offtopic", "preview", "filler"];
+            // Expandir categorías para capturar TODOS los tipos de anuncios
+            const categories = [
+                "sponsor", "intro", "outro", "interaction",
+                "selfpromo", "music_offtopic", "preview", "filler",
+                "poi_highlight", "exclusive_access"
+            ];
             const response = await fetch(`https://sponsor.ajay.app/api/skipSegments?videoID=${videoId}&categories=${JSON.stringify(categories)}`);
 
             if (response.ok) {
                 const data = await response.json();
                 currentSponsorSegments = data;
-                console.log(`🛡️ SponsorBlock: ${data.length} segmentos activos`);
+                console.log(`🛡️ SponsorBlock: ${data.length} segmento(s) detectado(s)`);
 
                 // Ultra-aggressive check for first 3 seconds
                 for (let delay of [0, 50, 150, 400, 800, 1500, 3000]) {
@@ -769,7 +783,7 @@ async function fetchSponsorSegments(videoId) {
                 }
             }
         } catch (e) {
-            console.log("ℹ️ SponsorBlock: Offline or no ads.");
+            console.log("ℹ️ SponsorBlock: Servidor no disponible");
         }
     })();
     return pendingSponsorFetch;
@@ -1476,7 +1490,7 @@ async function playSong(song, list = [], fromQueue = false) {
         if (useNativeAudio && nativeAudio) {
             isCurrentlyUsingNative = true;
             try {
-                showToast("Sincronizando protección anti-anuncios...");
+                showToast("⏳ Verificando anuncios...", "info");
 
                 // Fetch segments and URL in parallel, but wait for BOTH
                 const sponsorPromise = fetchSponsorSegments(song.id);
@@ -1486,10 +1500,20 @@ async function playSong(song, list = [], fromQueue = false) {
                 const audioUrl = await audioPromise;
                 if (!audioUrl) throw new Error('No audio URL found');
 
-                // Wait briefly for SponsorBlock if it hasn't returned yet (max 1.2s total)
+                // Wait for SponsorBlock data (aumentado a 3 segundos para mayor efectividad)
                 const startWait = Date.now();
-                while (currentSponsorSegments.length === 0 && (Date.now() - startWait < 1200)) {
-                    await new Promise(r => setTimeout(r, 50));
+                const MAX_WAIT = 3000; // Aumentado de 1.2s a 3s
+
+                while (currentSponsorSegments.length === 0 && (Date.now() - startWait < MAX_WAIT)) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+
+                // Feedback sobre protección
+                if (currentSponsorSegments.length > 0) {
+                    showToast(`🛡️ ${currentSponsorSegments.length} segmento(s) bloqueado(s)`, "success");
+                    console.log(`🛡️ Protección activa: ${currentSponsorSegments.length} anuncio(s) detectado(s)`);
+                } else {
+                    console.log("ℹ️ SponsorBlock: No se detectaron anuncios o servidor no disponible");
                 }
 
                 nativeAudio.src = audioUrl;
