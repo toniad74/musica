@@ -1433,45 +1433,56 @@ async function searchMusic(pageToken = '', retryCount = 0) {
 }
 
 async function searchInvidious(query) {
-    try {
-        console.log(`🔍 Buscando en ${SINGLE_SERVER}...`);
+    let lastError = null;
 
-        // Use the same parameters as Invidious web search for consistency
-        const url = `https://${SINGLE_SERVER}/api/v1/search?q=${encodeURIComponent(query)}&type=video&sort=relevance`;
-        const response = await fetch(url);
+    // Try all servers in rotation
+    for (let attempt = 0; attempt < INVIDIOUS_SERVERS.length; attempt++) {
+        try {
+            console.log(`🔍 Intento ${attempt + 1}/${INVIDIOUS_SERVERS.length}: ${SINGLE_SERVER}...`);
 
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        const data = await response.json();
-        if (data && data.length > 0) {
-            console.log(`✅ ${data.length} resultados totales desde ${SINGLE_SERVER}`);
-
-            // Filter out shorts, playlists, and very short videos
-            const filteredResults = data.filter(item => {
-                // Skip if it's a short (usually < 60 seconds)
-                if (item.lengthSeconds && item.lengthSeconds < 60) return false;
-                // Skip if no video ID
-                if (!item.videoId) return false;
-                return true;
+            const url = `https://${SINGLE_SERVER}/api/v1/search?q=${encodeURIComponent(query)}&type=video&sort=relevance`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
             });
 
-            console.log(`✅ ${filteredResults.length} resultados después del filtro`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
 
-            // Return all results, not just 30
-            return filteredResults.map(item => ({
-                id: item.videoId,
-                title: item.title || 'Unknown Title',
-                channel: item.author || 'Unknown Artist',
-                thumbnail: item.videoThumbnails?.[0]?.url || `https://${SINGLE_SERVER}/vi/${item.videoId}/mqdefault.jpg`,
-                duration: formatPipedDuration(item.lengthSeconds),
-                source: 'inv'
-            }));
+            const data = await response.json();
+            if (data && data.length > 0) {
+                console.log(`✅ ${data.length} resultados desde ${SINGLE_SERVER}`);
+
+                // Filter out shorts
+                const filteredResults = data.filter(item => {
+                    if (item.lengthSeconds && item.lengthSeconds < 60) return false;
+                    if (!item.videoId) return false;
+                    return true;
+                });
+
+                console.log(`✅ ${filteredResults.length} resultados después del filtro`);
+
+                return filteredResults.map(item => ({
+                    id: item.videoId,
+                    title: item.title || 'Unknown Title',
+                    channel: item.author || 'Unknown Artist',
+                    thumbnail: item.videoThumbnails?.[0]?.url || `https://${SINGLE_SERVER}/vi/${item.videoId}/mqdefault.jpg`,
+                    duration: formatPipedDuration(item.lengthSeconds),
+                    source: 'inv'
+                }));
+            }
+
+            throw new Error('No results');
+
+        } catch (e) {
+            lastError = e;
+            console.error(`❌ ${SINGLE_SERVER}: ${e.message}`);
+            rotateServer();
         }
-        return [];
-    } catch (e) {
-        console.error(`Error en ${SINGLE_SERVER}:`, e);
-        throw new Error(`No se pudo conectar con ${SINGLE_SERVER}: ${e.message}`);
     }
+
+    throw new Error(`Todos los servidores fallaron: ${lastError?.message || 'Unknown'}`);
 }
 function renderSearchResults(videos) {
     const grid = document.getElementById('resultsGrid');
