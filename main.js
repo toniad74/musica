@@ -35,7 +35,6 @@ let nextSearchToken = '';
 let prevSearchToken = '';
 let currentSearchQuery = '';
 let currentSearchPage = 1;
-let currentSegments = []; // Store SponsorBlock segments
 
 // Track user intent to distinguish between unwanted background pauses and clicks
 let isUserPaused = false;
@@ -46,26 +45,25 @@ let useNativeAudio = true; // Prefer native audio over YouTube IFrame
 let isCurrentlyUsingNative = false; // Track engine active for CURRENT track
 let isMediaPlaying = false;
 
-// Invidious instances (fallback if one fails)
-// Prioritize instances known for speed and M4A support
+// SponsorBlock data
+let currentSponsorSegments = [];
+
 // Invidious instances (fallback if one fails)
 // Prioritize instances known for speed and M4A support
 const INVIDIOUS_INSTANCES = [
-    'https://inv.tux.pizza',
-    'https://invidious.drgns.space',
-    'https://invidious.privacydev.net',
-    'https://invidious.fdn.fr',
-    'https://invidious.perennialte.ch',
-    'https://yt.artemislena.eu',
-    'https://invidious.protokolla.fi',
-    'https://iv.ggtyler.dev'
+    'inv.tux.pizza',             // Reliable
+    'invidious.drgns.space',     // Fast
+    'invidious.privacydev.net',  // Stable
+    'invidious.fdn.fr',          // Good fallback
+    'yewtu.be',                  // High traffic but reliable
+    'vid.puffyan.us',            // US based
+    'invidious.perennialte.ch'
 ];
 
-// Piped instances (Main Engine)
-// These are usually faster and support SponsorBlock natively
+// Piped instances (Secondary fallback)
 const PIPED_INSTANCES = [
-    'https://pipedapi.kavin.rocks',
-    'https://api.piped.privacydev.net',
+    'https://pipedapi.kavin.rocks',      // Official
+    'https://api.piped.privacydev.net',  // Reliable
     'https://pipedapi.drgns.space',
     'https://api.piped.projectsegfau.lt',
     'https://pipedapi.tokhmi.xyz',
@@ -76,9 +74,7 @@ const PIPED_INSTANCES = [
     'https://api.piped.yt',
     'https://pa.il.ax',
     'https://pipedapi.system41.cl',
-    'https://piped-api.garudalinux.org',
-    'https://api.piped.adminforge.de',
-    'https://pipedapi.mole.bet'
+    'https://piped-api.garudalinux.org'
 ];
 
 // --- INITIALIZATION ---
@@ -250,12 +246,32 @@ function startServiceWorkerKeepAlive() {
 function stopServiceWorkerKeepAlive() {
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'KEEP_ALIVE_STOP' });
-
         console.log('⏹️ Service Worker keep-alive detenido');
     }
 }
 
-// onYouTubeIframeAPIReady removed (Duplicate / Disabled)
+function onYouTubeIframeAPIReady() {
+    const origin = window.location.protocol === 'file:' ? '*' : window.location.origin;
+    player = new YT.Player('youtubePlayer', {
+        height: '100%',
+        width: '100%',
+        videoId: '',
+        playerVars: {
+            'autoplay': 1,
+            'controls': 1,
+            'modestbranding': 1,
+            'rel': 0,
+            'playsinline': 1,
+            'origin': origin,
+            'widget_referrer': origin
+        },
+        events: {
+            'onReady': onPlayerReady,
+            'onStateChange': onPlayerStateChange,
+            'onError': onPlayerError
+        }
+    });
+}
 
 function onPlayerReady(event) {
     isVideoReady = true;
@@ -288,7 +304,54 @@ function onPlayerReady(event) {
     console.log("✅ Watchdog activated - monitoring playback state");
 }
 
-// onPlayerStateChange removed (Duplicate / Disabled)
+function onPlayerStateChange(event) {
+    const playPauseIcon = document.getElementById('playPauseIcon');
+    const mobilePlayPauseIcon = document.getElementById('mobilePlayPauseIcon');
+    const mobileMainPlayIcon = document.getElementById('mobileMainPlayIcon');
+
+    if (event.data === YT.PlayerState.PLAYING) {
+        if (!isCurrentlyUsingNative) isUserPaused = false; // Only reset if YT is the active engine
+        isMediaPlaying = true;
+
+        const path = "M6 4h4v16H6zm8 0h4v16h-4z"; // Pause icon
+        playPauseIconsUpdate(path, true);
+
+        if (navigator.mediaSession) {
+            navigator.mediaSession.playbackState = 'playing';
+            updateMediaSessionPosition();
+        }
+
+        startSilentAudio();
+        startProgressUpdater();
+        refreshUIHighlights();
+    } else {
+        const path = "M8 5v14l11-7z"; // Play icon
+
+        if (event.data === YT.PlayerState.PAUSED) {
+            // --- PROTECTION AGAINST UNWANTED BACKGROUND PAUSES ---
+            if (!isUserPaused && !isCurrentlyUsingNative) {
+                console.log("Unwanted YT pause detected! Force resuming...");
+                player.playVideo();
+                return; // Exit early, don't update UI to paused state
+            }
+            isMediaPlaying = false;
+            playPauseIconsUpdate(path, false);
+            if (navigator.mediaSession) {
+                navigator.mediaSession.playbackState = 'paused';
+            }
+            stopSilentAudio();
+            refreshUIHighlights();
+        } else if (event.data === YT.PlayerState.ENDED) {
+            isMediaPlaying = false;
+            playPauseIconsUpdate(path, false);
+            refreshUIHighlights();
+            if (!isCurrentlyUsingNative) handleTrackEnded();
+        } else {
+            playPauseIconsUpdate(path, false);
+            document.getElementById('equalizer').classList.add('hidden');
+        }
+    }
+}
 
 function refreshUIHighlights() {
     renderHomePlaylists();
@@ -372,19 +435,19 @@ function setupNativeAudioHandlers() {
                 case err.MEDIA_ERR_NETWORK: errorMsg = 'Error de red (posible bloqueo 403)'; break;
                 case err.MEDIA_ERR_DECODE: errorMsg = 'Error de decodificación (formato no soportado)'; break;
                 case err.MEDIA_ERR_SRC_NOT_SUPPORTED: errorMsg = 'Formato no soportado / 403 Forbidden'; break;
-                default: errorMsg = `Código: ${err.code} `;
+                default: errorMsg = `Código: ${err.code}`;
             }
         }
-        showToast(`Error de audio: ${errorMsg} `, 'error');
+        showToast(`Error de audio: ${errorMsg}`, 'error');
 
         // Clear cached server as it might be the cause
         localStorage.removeItem('amaya_fastest_server');
 
         if (currentTrack) {
-            console.warn('❌ Clean audio failed. Skipping song instead of using IFrame (Nuclear Option).');
-            showToast('Audio limpio no disponible. Saltando canción...', 'error');
+            console.log('Intento de fallback temporal a YouTube IFrame...');
+            showToast('Reiniciando con YouTube Player...', 'info');
             // NO desactivamos useNativeAudio globalmente para que la siguiente canción vuelva a intentar modo sin anuncios
-            setTimeout(() => playNext(), 1500);
+            loadYouTubeIFrame(currentTrack.id);
         }
     });
 
@@ -423,30 +486,9 @@ function playNativeAudio(url) {
         if (error.name === 'NotAllowedError') {
             showToast("⚠️ Toca 'Play' para iniciar", "warning");
         } else {
-            if (currentTrack) {
-                // If native audio fails, DO NOT immediately fallback to IFrame (which has ads).
-                // Retry with a different server/source.
-                console.warn("⚠️ Native Audio Error - Retrying with different source...");
-
-                // Avoid infinite loop loops
-                if (!currentTrack.retryCount) currentTrack.retryCount = 0;
-
-                if (currentTrack.retryCount < 4) { // Increased to 4 retries
-                    currentTrack.retryCount++;
-                    showToast(`Buscando otra fuente(${currentTrack.retryCount} / 4)...`);
-
-                    // Force a fresh fetch (ignoring cache if needed)
-                    localStorage.removeItem('amaya_fastest_server');
-
-                    setTimeout(() => {
-                        playSong(currentTrack, queue, true);
-                    }, 1000);
-                } else {
-                    // STRICT MODE: Skip instead of IFrame
-                    showToast("No se encontró audio sin anuncios. Pasando a la siguiente.", "error");
-                    setTimeout(() => playNext(), 1500);
-                }
-            }
+            showToast("Error de audio. Reintentando con YouTube...", "info");
+            // SOLO fallback para esta canción, no desactivamos el motor globalmente
+            if (currentTrack) loadYouTubeIFrame(currentTrack.id);
         }
     });
 }
@@ -553,8 +595,8 @@ function updatePlayPauseIcons(isPlaying) {
     const mobileMainPlayIcon = document.getElementById('mobileMainPlayIcon');
 
     if (playPauseIcon) playPauseIcon.setAttribute('d', path);
-    if (mobilePlayPauseIcon) mobilePlayPauseIcon.innerHTML = `< path d = "${path}" /> `;
-    if (mobileMainPlayIcon) mobileMainPlayIcon.innerHTML = `< path d = "${path}" /> `;
+    if (mobilePlayPauseIcon) mobilePlayPauseIcon.innerHTML = `<path d="${path}"/>`;
+    if (mobileMainPlayIcon) mobileMainPlayIcon.innerHTML = `<path d="${path}"/>`;
 
     const equalizer = document.getElementById('equalizer');
     const equalizerBars = document.querySelector('.equalizer-bars');
@@ -575,20 +617,16 @@ function updatePlayPauseIcons(isPlaying) {
 // --- INVIDIOUS & PIPED INTEGRATION (ROBUST SEQUENTIAL) ---
 async function getAudioUrl(videoId) {
     try {
-        console.log(`🔍 Obteniendo URL de audio para: ${videoId} `);
+        console.log(`🔍 Obteniendo URL de audio para: ${videoId}`);
         showToast("Buscando audio...");
 
         // 1. Try Cached Instance First
         const cachedInstance = localStorage.getItem('amaya_fastest_server');
         if (cachedInstance) {
-            console.log(`⚡ Usando servidor rápido guardado: ${cachedInstance} `);
+            console.log(`⚡ Usando servidor rápido guardado: ${cachedInstance}`);
             try {
-                const result = await fetchFromPiped(cachedInstance, videoId, 3000);
-                if (result && result.url) {
-                    // Start SponsorBlock search in parallel/background
-                    fetchSponsorBlockSegments(videoId);
-                    return result.url;
-                }
+                const url = await fetchFromPiped(cachedInstance, videoId, 3000);
+                if (url) return url;
             } catch (e) {
                 console.warn("Servidor guardado falló, probando otros...");
                 localStorage.removeItem('amaya_fastest_server');
@@ -607,15 +645,11 @@ async function getAudioUrl(videoId) {
                 if (attempt % 3 === 0) showToast(`Probando fuente ${attempt}/${candidates.length}...`);
 
                 console.log(`Trying Piped: ${instance}`);
-                const result = await fetchFromPiped(instance, videoId, 5000); // Increased to 5s to be more patient
-                if (result && result.url) {
+                const url = await fetchFromPiped(instance, videoId, 4000); // 4s timeout per server
+                if (url) {
                     console.log(`✅ Éxito en: ${instance}`);
                     localStorage.setItem('amaya_fastest_server', instance);
-
-                    // Fetch SponsorBlock independently
-                    fetchSponsorBlockSegments(videoId);
-
-                    return result.url;
+                    return url;
                 }
             } catch (e) {
                 // Continúa al siguiente
@@ -626,20 +660,14 @@ async function getAudioUrl(videoId) {
         console.log("⚠️ Piped falló. Intentando Invidious (Fallback)...");
         showToast("Probando servidores de seguridad...");
 
-        // Even with Invidious, we try to fetch segments
-        fetchSponsorBlockSegments(videoId);
-
         for (let instance of INVIDIOUS_INSTANCES) {
             try {
-                const url = `${instance}/api/v1/videos/${videoId}`;
+                const url = `https://${instance}/api/v1/videos/${videoId}`;
 
                 const controller = new AbortController();
-                // Normalized URL handling (some instances in list might miss https://)
-                const fetchUrl = url.startsWith('http') ? url : `https://${url}`;
+                const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-                const timeoutId = setTimeout(() => controller.abort(), 4000);
-
-                const response = await fetch(fetchUrl, { method: 'GET', signal: controller.signal });
+                const response = await fetch(url, { method: 'GET', signal: controller.signal });
                 clearTimeout(timeoutId);
                 if (!response.ok) continue;
 
@@ -650,8 +678,6 @@ async function getAudioUrl(videoId) {
                     .sort((a, b) => {
                         const getScore = (format) => {
                             let score = 0;
-                            // Prioritize WebM/Opus (more reliable on Piped/Invidious) AND MP4
-                            if (format.type && (format.type.includes('webm') || format.type.includes('opus'))) score += 1200;
                             if (format.type && (format.type.includes('mp4') || format.type.includes('m4a'))) score += 1000;
                             if (format.bitrate) score += parseInt(format.bitrate) / 1000;
                             return score;
@@ -668,8 +694,56 @@ async function getAudioUrl(videoId) {
 
         throw new Error('No se pudo obtener audio de ninguna fuente.');
     } catch (finalError) {
-        console.error("Audio fetch failed:", finalError);
+        showToast(`Error CRÍTICO de audio: ${finalError.message}`, "error");
         throw finalError;
+    }
+}
+
+// --- SPONSORBLOCK INTEGRATION ---
+async function fetchSponsorSegments(videoId) {
+    currentSponsorSegments = [];
+    try {
+        // We look for categories that usually contain "ads" or non-music content
+        const categories = ["sponsor", "intro", "outro", "interaction", "selfpromo", "music_offtopic"];
+        const response = await fetch(`https://sponsor.ajay.app/api/skipSegments?videoID=${videoId}&categories=${JSON.stringify(categories)}`);
+
+        if (response.ok) {
+            const data = await response.json();
+            currentSponsorSegments = data;
+            console.log(`🛡️ SponsorBlock: ${data.length} segmentos encontrados para skip`);
+
+            // Check if there's a segment right at the start and skip it immediately if possible
+            if (data.length > 0) {
+                // Short delay to ensure player has started or is ready
+                setTimeout(() => checkSponsorSegments(0), 1000);
+            }
+        }
+    } catch (e) {
+        // Silently fail if no segments found or network error
+        console.log("ℹ️ SponsorBlock: No se encontraron segmentos para este video o error de red.");
+    }
+}
+
+function checkSponsorSegments(currentTime) {
+    if (!currentSponsorSegments || currentSponsorSegments.length === 0) return;
+
+    for (const segment of currentSponsorSegments) {
+        const [start, end] = segment.segment;
+
+        // If current time is within the segment (with a small buffer)
+        // We skip if we are between start and end
+        if (currentTime >= start && currentTime < end - 0.5) {
+            console.log(`⏩ SponsorBlock: Saltando segmento ${segment.category} (${start.toFixed(2)}s - ${end.toFixed(2)}s)`);
+
+            if (isCurrentlyUsingNative && nativeAudio) {
+                nativeAudio.currentTime = end;
+            } else if (player && typeof player.seekTo === 'function') {
+                player.seekTo(end);
+            }
+
+            showToast("Saltando publicidad incorporada...", "info");
+            break; // Skip only one segment at a time
+        }
     }
 }
 
@@ -690,15 +764,10 @@ async function fetchFromPiped(apiBase, videoId, timeoutMs) {
         const data = await response.json();
         if (!data.audioStreams || data.audioStreams.length === 0) throw new Error("No streams");
 
-        // Extract SponsorBlock segments
-        const segments = data.sponsorblock || [];
-
-        // Prefer WebM/Opus AND MP4/M4A
+        // Prefer M4A/MP4
         const audioStreams = data.audioStreams.sort((a, b) => {
             const getScore = (stream) => {
                 let score = 0;
-                // WebM/Opus is often unthrottled and more available
-                if (stream.mimeType && (stream.mimeType.includes('webm') || stream.mimeType.includes('opus'))) score += 1200;
                 if (stream.mimeType && stream.mimeType.includes('mp4')) score += 1000;
                 if (stream.bitrate) score += stream.bitrate / 1000;
                 return score;
@@ -712,73 +781,11 @@ async function fetchFromPiped(apiBase, videoId, timeoutMs) {
 
             // Save winner for next time to make startup instant
             localStorage.setItem('amaya_fastest_server', apiBase);
-
-            // Return object with URL
-            return {
-                url: audioStreams[0].url
-                // segments: segments // DEPRECATED: We fetch independently now
-            };
+            return audioStreams[0].url;
         }
         throw new Error("No valid streams");
     } catch (e) {
         throw e;
-    }
-}
-
-// --- SPONSORBLOCK DIRECT API ---
-async function fetchSponsorBlockSegments(videoId) {
-    currentSegments = []; // Reset first
-
-    // Categories to skip (Aggressive Mode)
-    // sponsor: Paid promotion
-    // intro: Animation/intermission before video
-    // outro: End credits/intermission
-    // interaction: "Like and subscribe"
-    // selfpromo: Unpaid promotion
-    // music_offtopic: Non-music sections in music videos
-    // preview: Recaps
-    // filler: Filler content
-    const categories = ['sponsor', 'intro', 'outro', 'interaction', 'selfpromo', 'music_offtopic', 'preview', 'filler'];
-
-    try {
-        console.log(`🛡️ Consultando SponsorBlock API para: ${videoId}`);
-        // categories parameter needs to be repeated: ?category=sponsor&category=intro...
-        const categoryParams = categories.map(c => `category=${c}`).join('&');
-        const url = `https://sponsor.ajay.app/api/skipSegments?videoID=${videoId}&${categoryParams}`;
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout is enough
-
-        const response = await fetch(url, { signal: controller.signal });
-        clearTimeout(timeoutId);
-
-        if (response.status === 404) {
-            console.log("ℹ️ No hay segmentos SponsorBlock para este video.");
-            return;
-        }
-
-        if (!response.ok) throw new Error("API returned " + response.status);
-
-        const data = await response.json();
-
-        // Transform standard API response to our simpler format if needed, 
-        // but the API returns [{category, segment: [start, end], UUID}, ...]
-        // Piped returned { category, start, end }
-
-        currentSegments = data.map(item => ({
-            category: item.category,
-            start: item.segment[0],
-            end: item.segment[1]
-        }));
-
-        console.log(`✅ ${currentSegments.length} segmentos de publicidad detectados y listos para saltar.`);
-        if (currentSegments.length > 0) {
-            showToast(`🛡️ Bloqueo de anuncios activado (${currentSegments.length} cortes)`, 'success');
-        }
-
-    } catch (e) {
-        // Silent fail is fine, we just won't skip
-        console.warn("SponsorBlock API fetch failed (non-critical):", e);
     }
 }
 
@@ -1390,6 +1397,9 @@ async function playSong(song, list = [], fromQueue = false) {
             navigator.mediaSession.playbackState = 'playing';
         }
 
+        // Fetch SponsorBlock segments
+        fetchSponsorSegments(song.id);
+
         // Try native audio first
         if (useNativeAudio && nativeAudio) {
             isCurrentlyUsingNative = true;
@@ -1425,17 +1435,16 @@ async function playSong(song, list = [], fromQueue = false) {
                     // The user just needs to hit the main play button now.
                     return;
                 }
-                // Fallback to YouTube IFrame REMOVED (Strict No-Ad Policy)
-                console.warn("❌ Clean audio failed. Skipping song instead of using IFrame with ads.");
-                showToast("Audio limpio no disponible. Saltando canción...", "error");
-                setTimeout(() => playNext(), 1500);
+                console.log('📡 Fallback temporal a YouTube Player...');
+                showToast('Cargando reproductor...', 'info');
+                isCurrentlyUsingNative = false;
+                // No desactivamos el motor nativo para permitir que la siguiente canción lo intente de nuevo
+                loadYouTubeIFrame(song.id);
             }
         } else {
-            // STRICT MODE: FORCE NATIVE AUDIO ALWAYS
-            // If we ended up here, it means useNativeAudio was false. We fix that.
-            console.warn("⚠️ Intentando forzar audio nativo.");
-            useNativeAudio = true;
-            playSong(song, list, fromQueue);
+            console.log('📡 Usando YouTube Player directamente');
+            isCurrentlyUsingNative = false;
+            loadYouTubeIFrame(song.id);
         }
     } catch (error) {
         console.error("Error playing song:", error);
@@ -1526,28 +1535,17 @@ function updateQueueCount() {
     }
 }
 
-// --- YOUTUBE IFRAME (EXTERMINATED) ---
-// This function is kept as a stub to prevent crashes if called,
-// but it will NEVER load the player (and thus never load ads).
+// Function to load YouTube IFrame as fallback
 function loadYouTubeIFrame(videoId) {
-    console.error(`⛔ BLOQUEADO: Intento de cargar YouTube IFrame para: ${videoId}`);
-    showToast("🚫 Publicidad bloqueada. Saltando canción...", "error");
+    console.log(`📺 Cargando YouTube IFrame para: ${videoId}`);
 
-    // Skip to next song immediately
-    setTimeout(() => playNext(), 1000);
-}
-
-function onYouTubeIframeAPIReady() {
-    // Disabled
-    console.log("YouTube API Ready but disabled for ad-free experience.");
-}
-
-function onPlayerReady(event) {
-    // Disabled
-}
-
-function onPlayerStateChange(event) {
-    // Disabled
+    if (isVideoReady && player && player.loadVideoById) {
+        player.loadVideoById(videoId);
+        player.playVideo();
+    } else {
+        console.log("Player not ready, retrying in 500ms...");
+        setTimeout(() => loadYouTubeIFrame(videoId), 500);
+    }
 }
 
 async function resumePlaybackBruteForce() {
@@ -2395,31 +2393,6 @@ function showToast(m, t = 'success') {
 
 let progressUpdaterInterval; // Renamed from progressInterval to avoid conflict and be more descriptive
 
-function checkSkipping(currentTime) {
-    if (!currentSegments || currentSegments.length === 0) return;
-
-    // Categories to skip: sponsor, intro, outro, selfpromo, interaction, music_offtopic, preview, filler
-    const skipCategories = ['sponsor', 'intro', 'outro', 'selfpromo', 'interaction', 'music_offtopic', 'preview', 'filler'];
-
-    for (const segment of currentSegments) {
-        if (skipCategories.includes(segment.category)) {
-            // Add a small buffer (0.5s) to start to avoid skipping if we just seeked there
-            if (currentTime >= segment.start + 0.2 && currentTime < segment.end) {
-                console.log(`⏭️ Saltando segmento (${segment.category}): ${segment.start} -> ${segment.end}`);
-                showToast(`Saltando ${segment.category}...`, 'info');
-
-                // Seek to end of segment
-                if (isCurrentlyUsingNative && nativeAudio) {
-                    nativeAudio.currentTime = segment.end;
-                } else if (player && typeof player.seekTo === 'function') {
-                    player.seekTo(segment.end);
-                }
-                break; // Only skip one at a time per check
-            }
-        }
-    }
-}
-
 // --- PROGRESS BAR ---
 function updateProgressBar() {
     let currentTime, duration;
@@ -2435,6 +2408,9 @@ function updateProgressBar() {
     }
 
     if (!duration || isNaN(duration)) return;
+
+    // --- SponsorBlock ---
+    checkSponsorSegments(currentTime);
 
     const progress = (currentTime / duration) * 100;
 
@@ -2455,9 +2431,6 @@ function updateProgressBar() {
     if (mobileProgressBar) mobileProgressBar.value = progress;
     if (mobileProgressFill) mobileProgressFill.style.width = progress + '%';
     if (progressFillMini) progressFillMini.style.width = progress + '%';
-
-    // Check for SponsorBlock segments
-    checkSkipping(currentTime);
 
     // Update time labels
     document.getElementById('currentTime').textContent = formatTime(currentTime);
