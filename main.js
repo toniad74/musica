@@ -757,24 +757,24 @@ async function fetchFromInvidious(instance, videoId, timeoutMs) {
 async function fetchSponsorSegments(videoId) {
     currentSponsorSegments = [];
     try {
-        // We look for categories that usually contain "ads" or non-music content
-        const categories = ["sponsor", "intro", "outro", "interaction", "selfpromo", "music_offtopic"];
+        const categories = ["sponsor", "intro", "outro", "interaction", "selfpromo", "music_offtopic", "preview", "filler"];
         const response = await fetch(`https://sponsor.ajay.app/api/skipSegments?videoID=${videoId}&categories=${JSON.stringify(categories)}`);
 
         if (response.ok) {
             const data = await response.json();
             currentSponsorSegments = data;
-            console.log(`🛡️ SponsorBlock: ${data.length} segmentos encontrados para skip`);
+            console.log(`🛡️ SponsorBlock: ${data.length} segmentos encontrados`);
 
-            // Check if there's a segment right at the start and skip it immediately if possible
-            if (data.length > 0) {
-                // Short delay to ensure player has started or is ready
-                setTimeout(() => checkSponsorSegments(0), 1000);
+            // Check immediately and frequently for the first 3 seconds to catch starting ads
+            for (let delay of [0, 100, 300, 700, 1500, 3000]) {
+                setTimeout(() => {
+                    const time = isCurrentlyUsingNative ? nativeAudio.currentTime : (player ? player.getCurrentTime() : 0);
+                    checkSponsorSegments(time || 0);
+                }, delay);
             }
         }
     } catch (e) {
-        // Silently fail if no segments found or network error
-        console.log("ℹ️ SponsorBlock: No se encontraron segmentos para este video o error de red.");
+        console.log("ℹ️ SponsorBlock: No segments or network error.");
     }
 }
 
@@ -1467,6 +1467,28 @@ async function playSong(song, list = [], fromQueue = false) {
                 }
 
                 nativeAudio.src = audioUrl;
+
+                // Wait briefly for SponsorBlock to return (max 1.5s)
+                // This prevents the 'flash' of ad at the start
+                let waitCount = 0;
+                while (currentSponsorSegments.length === 0 && waitCount < 15) {
+                    await new Promise(r => setTimeout(r, 100));
+                    waitCount++;
+                }
+
+                // Initial check: if there's a segment at the very start, skip it BEFORE playing
+                if (currentSponsorSegments.length > 0) {
+                    for (const segment of currentSponsorSegments) {
+                        const [start, end] = segment.segment;
+                        if (start <= 1.0) { // If ad starts in first second
+                            console.log(`🛡️ Evitando anuncio inicial: Saltando a ${end}s`);
+                            nativeAudio.currentTime = end;
+                            showToast("🛡️ Publicidad inicial eliminada automáticamente", "success");
+                            break;
+                        }
+                    }
+                }
+
                 await nativeAudio.play();
 
                 isMediaPlaying = true;
@@ -2524,7 +2546,7 @@ function updateMediaSessionPosition() {
 
 function startProgressUpdater() {
     if (progressUpdaterInterval) clearInterval(progressUpdaterInterval);
-    progressUpdaterInterval = setInterval(updateProgressBar, 500);
+    progressUpdaterInterval = setInterval(updateProgressBar, 150);
 }
 
 function formatTime(seconds) {
