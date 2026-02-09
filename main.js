@@ -44,7 +44,7 @@ let nativeAudio = null;
 let useNativeAudio = true; // Prefer native audio over YouTube IFrame
 let isCurrentlyUsingNative = false; // Track engine active for CURRENT track
 
-// STRICTLY VERIFIED PROXIED INSTANCES (2025 HIGH QUALITY)
+// STRICTLY VERIFIED PROXIED INSTANCES (2025/2026 HIGH QUALITY)
 const PIPED_INSTANCES = [
     'https://pipedapi.kavin.rocks',
     'https://api.piped.privacydev.net',
@@ -54,17 +54,8 @@ const PIPED_INSTANCES = [
     'https://pipedapi.privacy.com.de',
     'https://pipedapi.hostux.net',
     'https://pipedapi.artemislena.eu',
-    'https://pipedapi.mint.lgbt',
-    'https://pipedapi.silkky.cloud',
-    'https://pipedapi.sync-tube.de',
-    'https://piped-api.garudalinux.org',
     'https://piped-api.lunar.icu',
-    'https://pipedapi.moe.xyz',
-    'https://pipedapi.astartes.nl',
-    'https://pipedapi.vube.app',
-    'https://api.piped.video',
-    'https://pipedapi.leptons.xyz',
-    'https://pipedapi.rivo.cf'
+    'https://pipedapi.cat.xyz'
 ];
 
 const INVIDIOUS_INSTANCES = [
@@ -74,16 +65,8 @@ const INVIDIOUS_INSTANCES = [
     'invidious.privacydev.net',
     'invidious.drgns.space',
     'inv.tux.pizza',
-    'invidious.fdn.fr',
     'yewtu.be',
-    'vid.puffyan.us',
-    'invidious.perennialte.ch',
-    'invidious.jing.rocks',
-    'invidious.nohost.network',
-    'invidious.nixnet.social',
-    'invidious.silkky.cloud',
-    'inv.nadeko.net',
-    'invidious.snopyta.org'
+    'inv.zzls.xyz'
 ];
 
 let isMediaPlaying = false;
@@ -1219,38 +1202,52 @@ async function onPlayerError(event) {
 
 // --- PIPED SEARCH FALLBACK ---
 async function searchPiped(query) {
-    console.log("🕵️ Iniciando búsqueda de respaldo en Piped para:", query);
-    showToast("Usando buscador alternativo...");
+    console.log("🕵️ Iniciando búsqueda de respaldo en Piped...");
 
+    // First try with music_videos filter
+    let results = await performPipedSearch(query, true);
+
+    // If NO results found across any instance, try WITHOUT filter (Deep Hunt)
+    if (results.length === 0) {
+        console.log("⚠️ No se encontraron vídeos musicales. Intentando búsqueda GLOBAL...");
+        results = await performPipedSearch(query, false);
+    }
+
+    return results;
+}
+
+async function performPipedSearch(query, useFilter) {
     const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
+    const filterParam = useFilter ? '&filter=music_videos' : '';
 
     for (let instance of candidates) {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000);
+            const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-            const response = await fetch(`${instance}/search?q=${encodeURIComponent(query)}&filter=music_videos`, {
-                signal: controller.signal
-            });
+            const url = `${instance}/search?q=${encodeURIComponent(query)}${filterParam}`;
+            const response = await fetch(url, { signal: controller.signal });
             clearTimeout(timeoutId);
 
             if (!response.ok) continue;
 
             const data = await response.json();
-            const items = data.items || data; // Handle different API responses
+            const items = data.items || data;
 
-            if (!items || items.length === 0) continue;
+            if (!items || !Array.isArray(items) || items.length === 0) continue;
 
-            console.log(`✅ Búsqueda Piped exitosa en: ${instance}`);
+            console.log(`✅ Piped (${useFilter ? 'FILTRADO' : 'GLOBAL'}): Éxito en ${instance}`);
 
-            return items.filter(i => i.type === 'stream' || i.type === 'video').map(item => ({
-                id: item.url.split('v=')[1] || item.id,
-                title: item.title,
-                channel: item.uploaderName || item.author,
-                thumbnail: item.thumbnail || item.thumbnails?.[0]?.url,
-                duration: item.duration ? formatPipedDuration(item.duration) : '0:00',
-                source: 'piped'
-            }));
+            return items
+                .filter(i => i.type === 'stream' || i.type === 'video' || i.type === 'MusicVideo')
+                .map(item => ({
+                    id: (item.url || '').split('v=')[1] || item.id || item.videoId,
+                    title: item.title,
+                    channel: item.uploaderName || item.author,
+                    thumbnail: item.thumbnail || item.thumbnails?.[0]?.url || '',
+                    duration: item.duration ? formatPipedDuration(item.duration) : '0:00',
+                    source: 'piped'
+                }));
 
         } catch (e) {
             continue;
@@ -1271,53 +1268,58 @@ async function searchJioSaavn(query) {
         'https://jiosaavn-api-beta.vercel.app'
     ];
 
-    let lastError = "Todos los espejos fallaron";
+    const paths = [
+        '/api/search/songs',
+        '/search/songs',
+        '/api/search'
+    ];
+
+    let lastError = "Todos los servidores fallaron";
 
     for (const mirror of mirrors) {
-        try {
-            console.log(`🔍 Intentando JioSaavn espejo: ${mirror}...`);
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout
+        for (const path of paths) {
+            try {
+                console.log(`🔍 Probando JioSaavn: ${mirror}${path}...`);
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-            const response = await fetch(`${mirror}/api/search/songs?query=${encodeURIComponent(query)}`, { signal: controller.signal });
-            clearTimeout(timeoutId);
+                const response = await fetch(`${mirror}${path}?query=${encodeURIComponent(query)}`, {
+                    signal: controller.signal,
+                    headers: { 'Accept': 'application/json' }
+                });
+                clearTimeout(timeoutId);
 
-            if (!response.ok) {
-                lastError = `Status ${response.status} en ${mirror}`;
-                continue;
-            }
-
-            const data = await response.json();
-            let rawResults = data.data?.results || data.data || data.results || (Array.isArray(data) ? data : null);
-
-            if (!rawResults || !Array.isArray(rawResults) || rawResults.length === 0) {
-                lastError = `0 resultados en ${mirror}`;
-                continue;
-            }
-
-            console.log(`✅ ÉXITO: ${rawResults.length} canciones encontradas en ${mirror}`);
-
-            return rawResults.map(item => {
-                // Flexible duration parsing
-                let dur = item.duration;
-                if (typeof dur === 'string' && dur.includes(':')) {
-                    // Already formatted
-                } else {
-                    dur = formatPipedDuration(dur);
+                if (!response.ok) {
+                    lastError = `Status ${response.status} en ${mirror}${path}`;
+                    continue; // Probar siguiente ruta o espejo
                 }
 
-                return {
-                    id: `jio_${item.id}`,
-                    title: item.name || item.title || 'Unknown Title',
-                    channel: item.artists?.primary?.map(a => a.name).join(', ') || item.primary_artists || 'Artist',
-                    thumbnail: (item.image?.[item.image.length - 1]?.link || item.image?.[0]?.link || item.image || '').replace('150x150', '500x500'),
-                    duration: dur || '0:00',
-                    source: 'jio'
-                };
-            });
-        } catch (e) {
-            lastError = `Error en ${mirror}: ${e.message}`;
-            console.warn(lastError);
+                const data = await response.json();
+                let rawResults = data.data?.results || data.data || data.results || (Array.isArray(data) ? data : null);
+
+                if (!rawResults || !Array.isArray(rawResults) || rawResults.length === 0) {
+                    lastError = `0 resultados en ${mirror}${path}`;
+                    continue;
+                }
+
+                console.log(`✅ ¡ÉXITO! ${rawResults.length} temas en ${mirror}${path}`);
+                return rawResults.map(item => {
+                    let dur = item.duration;
+                    if (!(typeof dur === 'string' && dur.includes(':'))) {
+                        dur = formatPipedDuration(dur);
+                    }
+                    return {
+                        id: `jio_${item.id}`,
+                        title: item.name || item.title || 'Unknown Title',
+                        channel: item.artists?.primary?.map(a => a.name).join(', ') || item.primary_artists || 'Artist',
+                        thumbnail: (item.image?.[item.image.length - 1]?.link || item.image?.[0]?.link || item.image || '').replace('150x150', '500x500'),
+                        duration: dur || '0:00',
+                        source: 'jio'
+                    };
+                });
+            } catch (e) {
+                lastError = `Fallo en ${mirror}${path}: ${e.message}`;
+            }
         }
     }
     throw new Error(lastError);
@@ -1477,24 +1479,24 @@ async function searchMusic(pageToken = '', retryCount = 0) {
             addLog("YT: Saltado (Sin clave API)");
         }
 
-        // PHASE 2: JIOSAAVN (GLOBAL DB)
+        // PHASE 2: JIOSAAVN (GLOBAL DB) - Path-Adaptive
         if (results.length === 0 && !pageToken) {
-            addLog("Jio: Intentando Base de Datos Global...");
+            addLog("Jio: Intentando búsqueda profunda (Multi-Ruta)...");
             try {
                 const jioResults = await searchJioSaavn(query);
                 if (jioResults.length > 0) {
                     results = jioResults;
-                    addLog(`Jio: ¡Éxito! (${results.length} tracks)`);
+                    addLog(`Jio: ¡Éxito! (${results.length} temas)`);
                     showToast("Encontrado en Base de Datos Global", "info");
                 }
             } catch (e) {
-                addLog(`Jio: Fallaron todos los espejos. (${e.message})`);
+                addLog(`Jio: Falló tras agotar todas las rutas y espejos. (${e.message})`);
             }
         }
 
-        // PHASE 3: PIPED
+        // PHASE 3: PIPED - Multi-Pass
         if (results.length === 0 && !pageToken) {
-            addLog("Piped: Intentando Servidores de Respaldo...");
+            addLog("Piped: Intentando Servidores de Respaldo (Multi-Pase)...");
             try {
                 const pipedResults = await searchPiped(query);
                 if (pipedResults.length > 0) {
@@ -1502,26 +1504,26 @@ async function searchMusic(pageToken = '', retryCount = 0) {
                     addLog(`Piped: ¡Éxito! (${results.length} resultados)`);
                     showToast("Cargando servidores de respaldo...", "info");
                 } else {
-                    addLog("Piped: No se encontró nada.");
+                    addLog("Piped: No se encontró nada tras búsqueda global.");
                 }
             } catch (e) {
-                addLog(`Piped: Error crítico (${e.name})`);
+                addLog(`Piped: Error crítico (${e.message})`);
             }
         }
 
         // PHASE 4: INVIDIOUS
         if (results.length === 0 && !pageToken) {
-            addLog("Inv: Último recurso...");
+            addLog("Inv: Último recurso (Servidores alternativos)...");
             try {
                 const invResults = await searchInvidious(query);
                 if (invResults.length > 0) {
                     results = invResults;
                     addLog(`Inv: Éxito final (${results.length})`);
                 } else {
-                    addLog("Inv: También vacío.");
+                    addLog("Inv: Sin resultados.");
                 }
             } catch (e) {
-                addLog(`Inv: Fallo (${e.name})`);
+                addLog(`Inv: Fallo (${e.message})`);
             }
         }
 
