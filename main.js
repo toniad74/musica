@@ -1413,39 +1413,33 @@ async function searchMusic(pageToken = '', retryCount = 0) {
     } finally {
         document.getElementById('loading').classList.add('hidden');
     }
-} <div class="bg-red-500/10 border border-red-500/30 p-8 rounded-3xl text-center">
-    <p class="text-xl font-bold text-white mb-4">No se encontró nada para "${query}"</p>
-    <div class="text-sm text-gray-400 space-y-1">
-        ${debugSummary.map(m => `<div>→ ${m}</div>`).join('')}
-    </div>
-</div>
-`;
 }
+
 async function searchInvidious(query) {
     try {
-        console.log(`🔍 Buscando en ${ SINGLE_SERVER }...`);
+        console.log(`🔍 Buscando en ${SINGLE_SERVER}...`);
         const url = `https://${SINGLE_SERVER}/api/v1/search?q=${encodeURIComponent(query)}&type=video`;
-const response = await fetch(url);
+        const response = await fetch(url);
 
-if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-const data = await response.json();
-if (data && data.length > 0) {
-    console.log(`✅ ${data.length} resultados desde ${SINGLE_SERVER}`);
-    return data.slice(0, 30).map(item => ({
-        id: item.videoId,
-        title: item.title || 'Unknown Title',
-        channel: item.author || 'Unknown Artist',
-        thumbnail: item.videoThumbnails?.[0]?.url || `https://${SINGLE_SERVER}/vi/${item.videoId}/mqdefault.jpg`,
-        duration: formatPipedDuration(item.lengthSeconds),
-        source: 'inv'
-    }));
-}
-return [];
+        const data = await response.json();
+        if (data && data.length > 0) {
+            console.log(`✅ ${data.length} resultados desde ${SINGLE_SERVER}`);
+            return data.slice(0, 30).map(item => ({
+                id: item.videoId,
+                title: item.title || 'Unknown Title',
+                channel: item.author || 'Unknown Artist',
+                thumbnail: item.videoThumbnails?.[0]?.url || `https://${SINGLE_SERVER}/vi/${item.videoId}/mqdefault.jpg`,
+                duration: formatPipedDuration(item.lengthSeconds),
+                source: 'inv'
+            }));
+        }
+        return [];
     } catch (e) {
-    console.error(`Error en ${SINGLE_SERVER}:`, e);
-    throw new Error(`No se pudo conectar con ${SINGLE_SERVER}: ${e.message}`);
-}
+        console.error(`Error en ${SINGLE_SERVER}:`, e);
+        throw new Error(`No se pudo conectar con ${SINGLE_SERVER}: ${e.message}`);
+    }
 }
 function renderSearchResults(videos) {
     const grid = document.getElementById('resultsGrid');
