@@ -47,6 +47,10 @@ let isMediaPlaying = false;
 
 // SponsorBlock data
 let currentSponsorSegments = [];
+let pendingSponsorFetch = null; // Promise tracker for sync
+
+// Instance Blacklist for current session
+const FAILED_INSTANCES = new Set();
 
 // Invidious instances (fallback if one fails)
 // Prioritize instances known for speed and M4A support
@@ -657,68 +661,55 @@ function updateAdFreeStatus(active) {
     });
 }
 
-// --- INVIDIOUS & PIPED INTEGRATION ---
 // --- INVIDIOUS & PIPED INTEGRATION (ULTRA-FAST PARALLEL RACING) ---
 async function getAudioUrl(videoId) {
-    console.log(`🔍 Obteniendo URL de audio (Sin Publicidad) para: ${videoId}`);
-    showToast("Buscando audio limpio...");
+    console.log(`🔍 Buscando audio proxeado (Anti-403) para: ${videoId}`);
 
-    // 1. Try Cached Instance First (Instant)
+    // 1. Try Cached Instance First
     const cachedInstance = localStorage.getItem('amaya_fastest_server');
-    if (cachedInstance) {
+    if (cachedInstance && !FAILED_INSTANCES.has(cachedInstance)) {
         try {
-            const url = await fetchFromPiped(cachedInstance, videoId, 2500);
+            const url = await fetchFromPiped(cachedInstance, videoId, 2000);
             if (url) return url;
         } catch (e) {
             localStorage.removeItem('amaya_fastest_server');
+            FAILED_INSTANCES.add(cachedInstance);
         }
     }
 
     // 2. Parallel Racing Strategy
-    const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
-    const batchSize = 10; // Increased for faster coverage
+    const candidates = PIPED_INSTANCES
+        .filter(inst => !FAILED_INSTANCES.has(inst))
+        .sort(() => 0.5 - Math.random());
+
+    const batchSize = 12; // Maximum speed coverage
 
     for (let i = 0; i < candidates.length; i += batchSize) {
         const batch = candidates.slice(i, i + batchSize);
         console.log(`🚀 Racing Piped Batch ${Math.floor(i / batchSize) + 1}...`);
 
         try {
-            // Promise.any returns the FIRST one that succeeds
             const winnerUrl = await Promise.any(batch.map(instance =>
-                fetchFromPiped(instance, videoId, 5000)
+                fetchFromPiped(instance, videoId, 6000)
             ));
-
             if (winnerUrl) return winnerUrl;
         } catch (e) {
-            // Current batch failed, continue to next batch
-            console.warn("Batch failed, trying next set of servers...");
+            batch.forEach(inst => FAILED_INSTANCES.add(inst));
+            console.warn("Batch failed, trying next set...");
         }
     }
 
-    // STAGE 3: Invidious Fallback (Racing top instances)
-    console.log("⚠️ Piped falló. Cambiando a Invidious (Proxeado)...");
-    const invidiousCandidates = [...INVIDIOUS_INSTANCES].sort(() => 0.5 - Math.random());
-    const invidiousBatch = invidiousCandidates.slice(0, 4);
+    // STAGE 3: Invidious Fallback (Proxied)
+    console.log("⚠️ Piped falló. Intentando Invidious Proxeado...");
+    const invidiousBatch = INVIDIOUS_INSTANCES.slice(0, 5);
     try {
         const winnerUrl = await Promise.any(invidiousBatch.map(instance =>
-            fetchFromInvidious(instance, videoId, 5000)
+            fetchFromInvidious(instance, videoId, 6000)
         ));
         if (winnerUrl) return winnerUrl;
-    } catch (e) {
-        console.warn("Invidious racing failed.");
-    }
+    } catch (e) { }
 
-    // STAGE 4: Emergency Sequential Fallback
-    console.log("🚑 Búsqueda de emergencia profunda...");
-    const emergencyList = candidates.slice(0, 20);
-    for (const instance of emergencyList) {
-        try {
-            const url = await fetchFromPiped(instance, videoId, 3000);
-            if (url) return url;
-        } catch (e) { continue; }
-    }
-
-    throw new Error('No se pudo encontrar un stream de audio sin publicidad.');
+    throw new Error('No se encontró audio proxeado compatible.');
 }
 
 // Dedicated helper for Invidious Fetch with Scoring
@@ -759,26 +750,29 @@ async function fetchFromInvidious(instance, videoId, timeoutMs) {
 // --- SPONSORBLOCK INTEGRATION ---
 async function fetchSponsorSegments(videoId) {
     currentSponsorSegments = [];
-    try {
-        const categories = ["sponsor", "intro", "outro", "interaction", "selfpromo", "music_offtopic", "preview", "filler"];
-        const response = await fetch(`https://sponsor.ajay.app/api/skipSegments?videoID=${videoId}&categories=${JSON.stringify(categories)}`);
+    pendingSponsorFetch = (async () => {
+        try {
+            const categories = ["sponsor", "intro", "outro", "interaction", "selfpromo", "music_offtopic", "preview", "filler"];
+            const response = await fetch(`https://sponsor.ajay.app/api/skipSegments?videoID=${videoId}&categories=${JSON.stringify(categories)}`);
 
-        if (response.ok) {
-            const data = await response.json();
-            currentSponsorSegments = data;
-            console.log(`🛡️ SponsorBlock: ${data.length} segmentos encontrados`);
+            if (response.ok) {
+                const data = await response.json();
+                currentSponsorSegments = data;
+                console.log(`🛡️ SponsorBlock: ${data.length} segmentos activos`);
 
-            // Check immediately and frequently for the first 3 seconds to catch starting ads
-            for (let delay of [0, 100, 300, 700, 1500, 3000]) {
-                setTimeout(() => {
-                    const time = isCurrentlyUsingNative ? nativeAudio.currentTime : (player ? player.getCurrentTime() : 0);
-                    checkSponsorSegments(time || 0);
-                }, delay);
+                // Ultra-aggressive check for first 3 seconds
+                for (let delay of [0, 50, 150, 400, 800, 1500, 3000]) {
+                    setTimeout(() => {
+                        const time = isCurrentlyUsingNative ? (nativeAudio ? nativeAudio.currentTime : 0) : (player ? player.getCurrentTime() : 0);
+                        checkSponsorSegments(time || 0);
+                    }, delay);
+                }
             }
+        } catch (e) {
+            console.log("ℹ️ SponsorBlock: Offline or no ads.");
         }
-    } catch (e) {
-        console.log("ℹ️ SponsorBlock: No segments or network error.");
-    }
+    })();
+    return pendingSponsorFetch;
 }
 
 function checkSponsorSegments(currentTime) {
@@ -1478,46 +1472,38 @@ async function playSong(song, list = [], fromQueue = false) {
         // Fetch SponsorBlock segments
         fetchSponsorSegments(song.id);
 
-        // Try native audio first
+        // Primary Execution (PROXIED AUDIO + ADS SYNC)
         if (useNativeAudio && nativeAudio) {
             isCurrentlyUsingNative = true;
             try {
-                console.log(`🎵 Intentando reproducir con audio nativo: ${song.title}`);
+                showToast("Sincronizando protección anti-anuncios...");
 
-                const audioUrl = await getAudioUrl(song.id);
+                // Fetch segments and URL in parallel, but wait for BOTH
+                const sponsorPromise = fetchSponsorSegments(song.id);
+                const audioPromise = getAudioUrl(song.id);
 
-                if (!audioUrl) {
-                    throw new Error('No audio URL returned');
+                // Wait for URL first as it's the bottleneck
+                const audioUrl = await audioPromise;
+                if (!audioUrl) throw new Error('No audio URL found');
+
+                // Wait briefly for SponsorBlock if it hasn't returned yet (max 1.2s total)
+                const startWait = Date.now();
+                while (currentSponsorSegments.length === 0 && (Date.now() - startWait < 1200)) {
+                    await new Promise(r => setTimeout(r, 50));
                 }
 
                 nativeAudio.src = audioUrl;
 
-                // Wait briefly for SponsorBlock to return (max 1.5s)
-                // This prevents the 'flash' of ad at the start
-                let waitCount = 0;
-                while (currentSponsorSegments.length === 0 && waitCount < 15) {
-                    await new Promise(r => setTimeout(r, 100));
-                    waitCount++;
-                }
-
-                // Initial check: if there's a segment at the very start, skip it BEFORE playing
-                if (currentSponsorSegments.length > 0) {
-                    for (const segment of currentSponsorSegments) {
-                        const [start, end] = segment.segment;
-                        if (start <= 1.0) { // If ad starts in first second
-                            console.log(`🛡️ Evitando anuncio inicial: Saltando a ${end}s`);
-                            nativeAudio.currentTime = end;
-                            showToast("🛡️ Publicidad inicial eliminada automáticamente", "success");
-                            break;
-                        }
-                    }
+                // CRITICAL: Aggressive check BEFORE playing starts
+                const skipped = checkSponsorSegments(0);
+                if (skipped) {
+                    console.log("🛡️ Prevención inicial: Anuncio bloqueado antes de sonar.");
                 }
 
                 await nativeAudio.play();
-
                 isMediaPlaying = true;
                 updatePlayPauseIcons(true);
-                console.log('✅ Reproducción nativa exitosa (Sin Publicidad)');
+                console.log('✅ Reproducción limpia iniciada');
             } catch (error) {
                 console.error('❌ Error con audio nativo:', error);
 
