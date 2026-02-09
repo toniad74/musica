@@ -1345,7 +1345,9 @@ function rotateApiKey() {
 }
 
 function getCurrentApiKey() {
-    return apiKeys[currentKeyIndex] || '';
+    const key = apiKeys[currentKeyIndex] || '';
+    // Basic validation: YT keys are usually ~39 chars. If shorter than 20, it's likely invalid/placeholder.
+    return key.length > 20 ? key : null;
 }
 
 function toggleApiKeySection() {
@@ -1388,33 +1390,29 @@ async function searchMusic(pageToken = '', retryCount = 0) {
     const query = input.value.trim();
     if (!query) return;
 
-    // Robust keyboard closing: Multiple blurs and focus shift
+    // UI State
     input.blur();
-    setTimeout(() => input.blur(), 50);
-    window.focus();
-
-    const currentKey = getCurrentApiKey();
-    // Allow search even if no key - go straight to fallback
-    if (!currentKey) {
-        console.warn("No API Key. Attempting Piped fallback directly.");
-    }
+    setTimeout(() => input.blur(), 50); // Robust keyboard closing
+    window.focus(); // Ensure window focus after blur
 
     currentSearchQuery = query;
     if (!pageToken) currentSearchPage = 1;
 
     switchTab('search');
     document.getElementById('loading').classList.remove('hidden');
+    document.getElementById('errorMessage').classList.add('hidden'); // Hide previous errors
 
     try {
         let results = [];
+        const currentKey = getCurrentApiKey();
 
-        // --- STAGE 1: GOOGLE API (If key exists) ---
+        // STAGE 1: GOOGLE API (Optional)
         if (currentKey) {
             try {
                 const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&key=${currentKey}${pageToken ? `&pageToken=${pageToken}` : ''}`);
                 const data = await response.json();
 
-                if (!data.error) {
+                if (data.items) {
                     nextSearchToken = data.nextPageToken || '';
                     prevSearchToken = data.prevPageToken || '';
 
@@ -1426,43 +1424,44 @@ async function searchMusic(pageToken = '', retryCount = 0) {
                         duration: '0:00'
                     }));
 
-                    // Fetch durations for YT results
+                    // Fetch durations
                     const ids = results.map(v => v.id).join(',');
-                    const detailsResp = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${getCurrentApiKey()}`);
+                    const detailsResp = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${currentKey}`);
                     const detailsData = await detailsResp.json();
-
                     if (detailsData.items) {
                         detailsData.items.forEach(item => {
                             const video = results.find(v => v.id === item.id);
-                            if (video) {
-                                video.duration = parseISO8601Duration(item.contentDetails.duration);
-                            }
+                            if (video) video.duration = parseISO8601Duration(item.contentDetails.duration);
                         });
                     }
-                } else {
-                    console.warn("Google API error, falling back:", data.error.message);
+                } else if (data.error) {
+                    console.warn("Google API error:", data.error.message);
                 }
             } catch (e) {
-                console.warn("Google API Exception, falling back:", e);
+                console.warn("Google Search failed, proceeding to fallbacks:", e);
             }
         }
 
-        // --- STAGE 2: JIOSAAVN SEARCH (If Google failed or no key) ---
+        // STAGE 2: JIOSAAVN (If no Google results and it's full search)
         if (results.length === 0 && !pageToken) {
             try {
-                results = await searchJioSaavn(query);
-                if (results && results.length > 0) {
-                    showToast("Buscando en Base de Datos Global...", "info");
+                const jioResults = await searchJioSaavn(query);
+                if (jioResults && jioResults.length > 0) {
+                    results = jioResults;
+                    showToast("Buscando en Base de datos global...", "info");
                 }
             } catch (e) {
                 console.warn("JioSaavn search failed:", e);
             }
         }
 
-        // --- STAGE 3: PIPED SEARCH (Final desperate fallback) ---
+        // STAGE 3: PIPED (Desperate fallback)
         if (results.length === 0 && !pageToken) {
             try {
                 results = await searchPiped(query);
+                if (results && results.length > 0) {
+                    showToast("Cargando servidores de respaldo...", "info");
+                }
             } catch (e) {
                 console.warn("Piped search failed:", e);
             }
@@ -1471,15 +1470,14 @@ async function searchMusic(pageToken = '', retryCount = 0) {
         if (results.length > 0) {
             renderSearchResults(results);
             updateSearchPagination();
-            // Hide error message if we found something
-            document.getElementById('errorMessage').classList.add('hidden');
         } else {
-            throw new Error("No se encontraron resultados en ninguna fuente.");
+            document.getElementById('errorText').innerText = "Lo sentimos, no hemos podido encontrar resultados para \"" + query + "\" en ninguna fuente.";
+            document.getElementById('errorMessage').classList.remove('hidden');
         }
 
-    } catch (error) {
-        console.error("Search failed completely:", error);
-        document.getElementById('errorText').innerText = "Error: " + error.message;
+    } catch (globalError) {
+        console.error("Critical search error:", globalError);
+        document.getElementById('errorText').innerText = "Error crítico en la búsqueda. Por favor, reintenta.";
         document.getElementById('errorMessage').classList.remove('hidden');
     } finally {
         document.getElementById('loading').classList.add('hidden');
