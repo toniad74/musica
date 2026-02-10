@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-const APP_VERSION = "5.3.4";
+const APP_VERSION = "5.3.5";
 const APP_DATE = "10/02/2026";
 
 // Claves maestras ofuscadas para evitar detección simple
@@ -224,12 +224,31 @@ function setupAuthListener() {
 }
 
 async function loginWithGoogle() {
+    if (window.location.protocol === 'file:') {
+        alert("⚠️ El inicio de sesión de Google no funciona abriendo el archivo directamente.\n\nPor favor, sube los archivos a GitHub Pages o usa un servidor local (Local Server).");
+        showToast("Usa GitHub Pages para el login", "error");
+        return;
+    }
+
     try {
+        // Force account selection to avoid "auto-selecting" the wrong one
+        googleProvider.setCustomParameters({ prompt: 'select_account' });
+
         await signInWithPopup(auth, googleProvider);
         showToast("Sesión iniciada correctamente");
     } catch (error) {
-        console.error("Login error:", error);
-        showToast("Error al iniciar sesión", "error");
+        console.error("Detailed Login Error:", error);
+
+        if (error.code === 'auth/popup-blocked') {
+            showToast("⚠️ Activa los popups para entrar", "error");
+            alert("El navegador ha bloqueado la ventana de acceso. Por favor, permite los popups para esta web.");
+        } else if (error.code === 'auth/operation-not-allowed') {
+            showToast("Error: Google Login no activado en Firebase", "error");
+        } else if (error.code === 'auth/network-request-failed') {
+            showToast("Problema de conexión", "error");
+        } else {
+            showToast(`Error: ${error.message.split('(')[0]}`, "error");
+        }
     }
 }
 
