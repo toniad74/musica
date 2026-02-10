@@ -181,24 +181,34 @@ window.onload = () => {
     // Register Service Worker for background keepalive and auto-update
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').then(reg => {
-            // Check for updates every minute (60000ms)
-            setInterval(() => {
-                reg.update();
-                console.log('🔍 Buscando actualizaciones en segundo plano...');
-            }, 60000);
+            const updateApp = () => {
+                showToast("¡Nueva versión disponible! Actualizando...", "info");
+                setTimeout(() => window.location.reload(), 1500);
+            };
 
+            // 1. If there's already a waiting worker, update immediately
+            if (reg.waiting) {
+                updateApp();
+            }
+
+            // 2. Detect when a new worker is found and finished installing
             reg.onupdatefound = () => {
                 const installingWorker = reg.installing;
+                if (!installingWorker) return;
                 installingWorker.onstatechange = () => {
                     if (installingWorker.state === 'installed') {
                         if (navigator.serviceWorker.controller) {
-                            // New version available, notify and reload
-                            showToast("¡Nueva versión disponible! Actualizando...", "info");
-                            setTimeout(() => window.location.reload(), 2000);
+                            updateApp();
                         }
                     }
                 };
             };
+
+            // 3. Periodic background check
+            setInterval(() => {
+                reg.update();
+                console.log('🔍 Buscando actualizaciones...');
+            }, 60000);
         }).catch(e => console.error('SW registration error:', e));
     }
 };
