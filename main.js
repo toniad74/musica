@@ -2212,7 +2212,7 @@ function openPlaylist(id) {
                 <div class="hidden group-hover:block w-10 text-center">
                     <svg class="w-4 h-4 text-white mx-auto" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 </div>
-                <img src="${song.thumbnail}" class="w-10 h-10 rounded object-cover">
+                <img src="${song.thumbnail}" class="w-10 h-10 rounded object-cover drag-handle-thumbnail pointer-events-auto">
                 <div class="flex-1 min-w-0">
                     <div class="marquee-container">
                         <h3 class="text-white font-medium marquee-content song-title">${song.title}${isCurrent ? ' <span class="playing-badge">SONANDO</span>' : ''}</h3>
@@ -2242,12 +2242,13 @@ function openPlaylist(id) {
                 try { window.playlistSortable.destroy(); } catch (e) { }
             }
             window.playlistSortable = new Sortable(songsList, {
+                handle: '.drag-handle-thumbnail',
                 animation: 150,
                 ghostClass: 'sortable-ghost',
                 chosenClass: 'sortable-chosen',
                 dragClass: 'sortable-drag',
                 forceFallback: true,
-                fallbackTolerance: 3, // Allow a tiny bit of movement before dragging starts (helps with clicks)
+                fallbackTolerance: 3,
                 onEnd: function (evt) {
                     if (evt.oldIndex === evt.newIndex) return;
 
@@ -3239,5 +3240,5 @@ Object.assign(window, {
     moveSongInPlaylist
 });
 
-console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE - V9");
-setTimeout(() => showToast("App Actualizada (V9)"), 1000);
+console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE - V10");
+setTimeout(() => showToast("App Actualizada (V10)"), 1000);
