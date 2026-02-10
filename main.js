@@ -2,16 +2,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-const APP_VERSION = "5.3.9";
-const APP_DATE = "10/02/2026";
-
-// Claves maestras ofuscadas para evitar detección simple
-const MASTER_KEYS = [
-    "QUl6YVN5RG9idGhLY3VXS05US2M0d0VSYWQwQnB0S1hKVUNPaE93", // #1
-    "QUl6YVN5Q2xGQ090eUxjelBKbXY0bGtXNHEzTVpkWG5WWHRhaTFF", // #2
-    "QUl6YVN5QnUyWnk0N0FuOGlzYnIwUHB6UlZKNUdPd2RqWTNvc0FN"  // #3
-].map(k => atob(k));
-
 const firebaseConfig = {
     apiKey: "AIzaSyBHCTj7Jhlklf2ZL7AcE6ggkOvdgP9eotY",
     authDomain: "musica-amaya.firebaseapp.com",
@@ -37,7 +27,7 @@ let queue = [];
 let currentQueueIndex = -1;
 let currentlyPlayingPlaylistId = localStorage.getItem('amaya_playing_pl_id') || null;
 let playlists = JSON.parse(localStorage.getItem('amaya_playlists')) || [];
-let apiKeys = JSON.parse(localStorage.getItem('amaya_yt_keys')) || MASTER_KEYS;
+let apiKeys = JSON.parse(localStorage.getItem('amaya_yt_keys')) || [];
 let currentKeyIndex = parseInt(localStorage.getItem('amaya_yt_key_index')) || 0;
 let isShuffle = false;
 let repeatMode = 0; // 0: No repeat, 1: Repeat playlist, 2: Repeat one
@@ -164,96 +154,63 @@ window.onload = () => {
 
 
 function setupAuthListener() {
-    console.log("🔐 Inicializando escuchador de autenticación...");
     onAuthStateChanged(auth, (user) => {
-        console.log("🔄 Cambio de estado de Auth detectado:", user ? "Conectado" : "Desconectado");
-        updateUserUI(user);
+        if (user) {
+            currentUserUid = user.uid;
+
+            // Toggle Desktop UI
+            const loggedOutUI = document.getElementById('loggedOutUI');
+            const loggedInUI = document.getElementById('loggedInUI');
+            if (loggedOutUI) loggedOutUI.classList.add('hidden');
+            if (loggedInUI) loggedInUI.classList.remove('hidden');
+
+            // Toggle Mobile UI
+            const loggedOutUIMobile = document.getElementById('loggedOutUIMobile');
+            const loggedInUIMobile = document.getElementById('loggedInUIMobile');
+            if (loggedOutUIMobile) loggedOutUIMobile.classList.add('hidden');
+            if (loggedInUIMobile) loggedInUIMobile.classList.remove('hidden');
+
+            // Set Data
+            const userName = document.getElementById('userName');
+            const userAvatar = document.getElementById('userAvatar');
+            const userNameMobile = document.getElementById('userNameMobile');
+            const userAvatarMobile = document.getElementById('userAvatarMobile');
+
+            if (userName) userName.innerText = user.displayName;
+            if (userAvatar) userAvatar.src = user.photoURL;
+            if (userNameMobile) userNameMobile.innerText = user.displayName.split(' ')[0]; // First name only for mobile
+            if (userAvatarMobile) userAvatarMobile.src = user.photoURL;
+
+            loadPlaylistsFromCloud();
+        } else {
+            currentUserUid = null;
+
+            // Toggle Desktop UI
+            const loggedOutUI = document.getElementById('loggedOutUI');
+            const loggedInUI = document.getElementById('loggedInUI');
+            if (loggedOutUI) loggedOutUI.classList.remove('hidden');
+            if (loggedInUI) loggedInUI.classList.add('hidden');
+
+            // Toggle Mobile UI
+            const loggedOutUIMobile = document.getElementById('loggedOutUIMobile');
+            const loggedInUIMobile = document.getElementById('loggedInUIMobile');
+            if (loggedOutUIMobile) loggedOutUIMobile.classList.remove('hidden');
+            if (loggedInUIMobile) loggedInUIMobile.classList.add('hidden');
+
+            // Reset playlists to local only when logged out
+            playlists = JSON.parse(localStorage.getItem('amaya_playlists')) || [];
+            renderPlaylists();
+        }
     });
 }
-
-function updateUserUI(user) {
-    const desktopOut = document.getElementById('loggedOutUI');
-    const desktopIn = document.getElementById('loggedInUI');
-    const mobileOut = document.getElementById('loggedOutUIMobile');
-    const mobileIn = document.getElementById('loggedInUIMobile');
-
-    if (!user) {
-        currentUserUid = null;
-        if (desktopOut) desktopOut.classList.remove('hidden');
-        if (desktopIn) desktopIn.classList.add('hidden');
-        if (mobileOut) mobileOut.classList.remove('hidden');
-        if (mobileIn) mobileIn.classList.add('hidden');
-        return;
-    }
-
-    currentUserUid = user.uid;
-    console.log("👤 Actualizando UI para:", user.displayName || "Usuario");
-
-    // Toggle UI Visibility individually for maximum reliability
-    if (desktopOut) desktopOut.classList.add('hidden');
-    if (desktopIn) desktopIn.classList.remove('hidden');
-    if (mobileOut) mobileOut.classList.add('hidden');
-    if (mobileIn) mobileIn.classList.remove('hidden');
-
-    // Set Data
-    const userName = document.getElementById('userName');
-    const userAvatar = document.getElementById('userAvatar');
-    const userNameMobile = document.getElementById('userNameMobile');
-    const userAvatarMobile = document.getElementById('userAvatarMobile');
-
-    const nameToDisplay = user.displayName || 'Usuario';
-    const photoToDisplay = user.photoURL || '';
-
-    if (userName) userName.innerText = nameToDisplay;
-    if (userAvatar) userAvatar.src = photoToDisplay;
-    if (userNameMobile) userNameMobile.innerText = nameToDisplay.split(' ')[0];
-    if (userAvatarMobile) userAvatarMobile.src = photoToDisplay;
-
-    // Set version labels and titles
-    const versionTitle = `Amaya's Music V${APP_VERSION} (${APP_DATE})`;
-    if (desktopIn) desktopIn.title = versionTitle;
-    if (mobileIn) mobileIn.title = versionTitle;
-
-    document.querySelectorAll('.version-label-display').forEach(el => {
-        el.innerText = `V${APP_VERSION}`;
-    });
-
-    loadPlaylistsFromCloud();
-}
-
-
 
 async function loginWithGoogle() {
-    if (window.location.protocol === 'file:') {
-        alert("⚠️ El inicio de sesión de Google no funciona abriendo el archivo directamente.\n\nPor favor, sube los archivos a GitHub Pages o usa un servidor local (Local Server).");
-        showToast("Usa GitHub Pages para el login", "error");
-        return;
-    }
-
     try {
-        // Force account selection to avoid "auto-selecting" the wrong one
-        googleProvider.setCustomParameters({ prompt: 'select_account' });
-
-        console.log("🚀 Iniciando signInWithPopup...");
-        const result = await signInWithPopup(auth, googleProvider);
-        console.log("✅ signInWithPopup exitoso:", result.user.displayName);
-
+        await signInWithPopup(auth, googleProvider);
         showToast("Sesión iniciada correctamente");
-        updateUserUI(result.user); // Immediate UI update
     } catch (error) {
-        console.error("Detailed Login Error:", error);
-        alert("Error al entrar: " + error.message);
-
-        if (error.code === 'auth/popup-blocked') {
-            showToast("⚠️ Activa los popups", "error");
-        } else {
-            showToast("Error de acceso", "error");
-        }
-    } finally {
-        // Fallback for some mobile browsers
-        setTimeout(() => {
-            if (auth.currentUser) updateUserUI(auth.currentUser);
-        }, 500);
+        console.error("Login error:", error);
+        showToast("Error al iniciar sesión", "error");
     }
 }
 
@@ -263,13 +220,6 @@ async function logout() {
         showToast("Sesión cerrada");
     } catch (error) {
         console.error("Logout error:", error);
-    }
-}
-
-function confirmLogout() {
-    const msg = `Amaya's Music V${APP_VERSION}\nFecha: ${APP_DATE}\n\n¿Quieres cerrar sesión?`;
-    if (confirm(msg)) {
-        logout();
     }
 }
 
@@ -298,47 +248,17 @@ async function registerServiceWorker() {
             const registration = await navigator.serviceWorker.register('./sw.js');
             console.log('✅ Service Worker registrado:', registration);
 
-            // DETECTOR DE ACTUALIZACIONES
-            registration.addEventListener('updatefound', () => {
-                const newWorker = registration.installing;
-                newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        showUpdateNotification();
-                    }
-                });
-            });
-
             // Listen for messages from SW
             navigator.serviceWorker.addEventListener('message', event => {
                 if (event.data && event.data.type === 'PING') {
                     // Respond to ping to keep connection alive
+                    console.log('📡 SW ping recibido');
                 }
             });
-        } catch (e) {
-            console.error("SW Registration Error:", e);
+        } catch (error) {
+            console.error('❌ Error registrando Service Worker:', error);
         }
     }
-}
-
-function showUpdateNotification() {
-    const c = document.getElementById('updateContainer');
-    if (!c) return;
-    c.innerHTML = ''; // Clear prior if any
-
-    // Create persistent notification
-    const div = document.createElement('div');
-    div.className = "px-6 py-4 rounded-xl bg-blue-600 text-white shadow-2xl animate-bounce flex flex-col items-center gap-3 pointer-events-auto border-2 border-white/20";
-    div.innerHTML = `
-        <div class="text-center">
-            <p class="font-bold text-sm">✨ ¡Nueva versión disponible! (V${APP_VERSION})</p>
-            <p class="text-[10px] opacity-90">Actualizada el ${APP_DATE}</p>
-        </div>
-        <button onclick="window.location.reload(true)" 
-            class="bg-white text-blue-600 px-4 py-1.5 rounded-full text-xs font-black hover:scale-105 active:scale-95 transition-transform">
-            ACTUALIZAR AHORA
-        </button>
-    `;
-    c.appendChild(div);
 }
 
 function startServiceWorkerKeepAlive() {
@@ -1387,12 +1307,14 @@ function rotateApiKey() {
 }
 
 function getCurrentApiKey() {
-    if (!apiKeys || apiKeys.length === 0) return MASTER_KEYS[0];
-    return apiKeys[currentKeyIndex % apiKeys.length];
+    return apiKeys[currentKeyIndex] || '';
 }
 
 function toggleApiKeySection() {
-    showToast("Gestión de claves automática activa", "info");
+    const section = document.getElementById('apiKeySection');
+    const button = document.getElementById('apiKeyToggleButton');
+    const isHidden = section.classList.toggle('hidden');
+    button.innerText = isHidden ? "Mostrar clave API" : "Ocultar clave API";
 }
 
 function showApiInstructions() {
@@ -2691,12 +2613,12 @@ function playPlaylist(event, plId) {
 }
 
 function showToast(m, t = 'success') {
+    if (t !== 'success') return; // Silence non-success messages
     const c = document.getElementById('toastContainer');
     if (!c) return;
-    const bg = t === 'error' ? 'bg-red-600' : (t === 'warning' ? 'bg-yellow-600' : 'bg-green-600');
-    c.innerHTML = `<div class="px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-2xl animate-fade-in ${bg}">${m}</div>`;
+    c.innerHTML = `<div class="px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-2xl animate-fade-in bg-green-600">${m}</div>`;
     clearTimeout(window.toastT);
-    window.toastT = setTimeout(() => c.innerHTML = '', 3500);
+    window.toastT = setTimeout(() => c.innerHTML = '', 2500);
 }
 
 let progressUpdaterInterval; // Renamed from progressInterval to avoid conflict and be more descriptive
@@ -3168,7 +3090,6 @@ Object.assign(window, {
     updateMarquee,
     loginWithGoogle,
     logout,
-    confirmLogout,
     onYouTubeIframeAPIReady,
     onPlayerReady,
     onPlayerStateChange,
@@ -3196,5 +3117,5 @@ Object.assign(window, {
     removeFromQueue
 });
 
-console.log(`🚀 MAIN.JS CARGADO CORRECTAMENTE - V${APP_VERSION}`);
-setTimeout(() => showToast(`App Actualizada (V${APP_VERSION})`), 1000);
+console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE - V4");
+setTimeout(() => showToast("App Actualizada (V4)"), 1000);
