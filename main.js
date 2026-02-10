@@ -2203,12 +2203,12 @@ function openPlaylist(id) {
                 </div>
                 <div class="flex items-center gap-1">
                     <button onclick="event.stopPropagation(); moveSongInPlaylist('${pl.id}', ${index}, -1)" 
-                        class="text-gray-500 hover:text-white p-1.5 transition-colors ${index === 0 ? 'invisible' : ''}" 
+                        class="text-white hover:text-green-500 p-1.5 transition-colors ${index === 0 ? 'invisible' : ''}" 
                         title="Subir">
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z"/></svg>
                     </button>
                     <button onclick="event.stopPropagation(); moveSongInPlaylist('${pl.id}', ${index}, 1)" 
-                        class="text-gray-500 hover:text-white p-1.5 transition-colors ${index === pl.songs.length - 1 ? 'invisible' : ''}" 
+                        class="text-white hover:text-green-500 p-1.5 transition-colors ${index === pl.songs.length - 1 ? 'invisible' : ''}" 
                         title="Bajar">
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
                     </button>
@@ -3199,5 +3199,5 @@ Object.assign(window, {
     moveSongInPlaylist
 });
 
-console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE - V4");
-setTimeout(() => showToast("App Actualizada (V4)"), 1000);
+console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE - V5");
+setTimeout(() => showToast("App Actualizada (V5)"), 1000);
