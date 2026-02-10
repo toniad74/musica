@@ -2202,9 +2202,6 @@ function openPlaylist(id) {
                     <p class="text-[#b3b3b3] text-sm truncate">${song.channel}</p>
                 </div>
                 <div class="flex items-center gap-1">
-                    <div class="drag-handle-song p-1.5 text-gray-500 hover:text-white cursor-grab active:cursor-grabbing">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 4c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-12c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
-                    </div>
                     <button onclick="event.stopPropagation(); toggleQueue(${JSON.stringify(song).replace(/"/g, '&quot;')})" 
                         class="queue-btn p-1.5 hover:text-white ${inQueueClass}" 
                         data-song-id="${song.id}"
@@ -2223,12 +2220,16 @@ function openPlaylist(id) {
 
         // Initialize Sortable for the playlist songs
         if (typeof Sortable !== 'undefined') {
-            new Sortable(songsList, {
-                handle: '.drag-handle-song',
+            if (window.playlistSortable) {
+                try { window.playlistSortable.destroy(); } catch (e) { }
+            }
+            window.playlistSortable = new Sortable(songsList, {
                 animation: 150,
                 ghostClass: 'sortable-ghost',
                 chosenClass: 'sortable-chosen',
                 dragClass: 'sortable-drag',
+                forceFallback: true,
+                fallbackTolerance: 3, // Allow a tiny bit of movement before dragging starts (helps with clicks)
                 onEnd: function (evt) {
                     if (evt.oldIndex === evt.newIndex) return;
 
@@ -2240,11 +2241,12 @@ function openPlaylist(id) {
                     pl.songs.splice(evt.newIndex, 0, movedSong);
 
                     savePlaylists();
-                    // We don't need to re-render everything as the DOM is already updated by Sortable,
-                    // but we do need to update our internal indices if we ever use them.
-                    // To be safe and simple, let's just refresh the playlist view but without losing focus
-                    openPlaylist(activePlaylistId);
-                    showToast("Orden actualizado", "success");
+
+                    // Refresh after a tiny delay so Sortable finishes its work
+                    setTimeout(() => {
+                        openPlaylist(activePlaylistId);
+                        showToast("Orden guardado");
+                    }, 50);
                 }
             });
         }
@@ -3219,5 +3221,5 @@ Object.assign(window, {
     moveSongInPlaylist
 });
 
-console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE - V5");
-setTimeout(() => showToast("App Actualizada (V5)"), 1000);
+console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE - V8");
+setTimeout(() => showToast("App Actualizada (V8)"), 1000);
