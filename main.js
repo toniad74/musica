@@ -223,6 +223,12 @@ async function logout() {
     }
 }
 
+function confirmLogout() {
+    if (confirm("¿Quieres cerrar sesión?")) {
+        logout();
+    }
+}
+
 async function loadPlaylistsFromCloud() {
     if (!currentUserUid) return;
     try {
@@ -1983,8 +1989,14 @@ async function shareCurrentPlaylist() {
         });
 
         const shareUrl = `${window.location.origin}${window.location.pathname}?share=${pl.id}`;
+
+        // WhatsApp Share Link
+        const message = `¡Escucha mi lista "${pl.name}" en Amaya's Music! 🎵\n\n${shareUrl}`;
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+
         await navigator.clipboard.writeText(shareUrl);
-        showToast("¡Enlace de compartición copiado al portapapeles! 🔗");
+        showToast("¡Enlace abierto en WhatsApp y copiado al portapapeles! 🔗");
     } catch (e) {
         console.error("Error en compartir:", e);
         showToast("Error al compartir la lista", "error");
@@ -3084,6 +3096,7 @@ Object.assign(window, {
     updateMarquee,
     loginWithGoogle,
     logout,
+    confirmLogout,
     onYouTubeIframeAPIReady,
     onPlayerReady,
     onPlayerStateChange,
@@ -3100,6 +3113,7 @@ Object.assign(window, {
     triggerPlaylistCoverUpload,
     handlePlaylistCoverChange,
     openEditPlaylistModal,
+    showEditPlaylistModal,
     savePlaylistEdits,
     hideEditPlaylistModal,
     showDeletePlaylistConfirm,

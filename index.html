@@ -88,12 +88,13 @@
                     </button>
                 </div>
                 <div id="loggedInUI"
-                    class="hidden p-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3">
+                    class="hidden p-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3 cursor-pointer hover:bg-white/10 transition-colors"
+                    onclick="confirmLogout()" title="Click para cerrar sesión">
                     <img id="userAvatar" src="" class="w-10 h-10 rounded-full border border-white/20">
                     <div class="flex-1 min-w-0">
                         <p id="userName" class="text-white text-sm font-bold truncate"></p>
-                        <button onclick="logout()"
-                            class="text-[10px] text-gray-400 hover:text-red-400 uppercase font-bold tracking-wider">Cerrar
+                        <button onclick="event.stopPropagation(); logout()"
+                            class="text-[10px] text-gray-400 hover:text-white uppercase font-bold tracking-wider">Cerrar
                             sesión</button>
                     </div>
                 </div>
@@ -187,7 +188,8 @@
                                     Entrar
                                 </button>
                             </div>
-                            <div id="loggedInUIMobile" class="hidden flex items-center gap-3">
+                            <div id="loggedInUIMobile" class="hidden flex items-center gap-3 cursor-pointer"
+                                onclick="confirmLogout()" title="Click para cerrar sesión">
                                 <span id="userNameMobile"
                                     class="text-xs font-bold text-white truncate max-w-[80px]"></span>
                                 <img id="userAvatarMobile" src="" class="w-8 h-8 rounded-full border border-white/20">
