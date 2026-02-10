@@ -204,11 +204,11 @@ window.onload = () => {
                 };
             };
 
-            // 3. Periodic background check
+            // 3. Periodic background check every 30s
             setInterval(() => {
                 reg.update();
                 console.log('🔍 Buscando actualizaciones...');
-            }, 60000);
+            }, 30000);
         }).catch(e => console.error('SW registration error:', e));
     }
 };
@@ -1721,6 +1721,8 @@ async function playSong(song, list = [], fromQueue = false) {
 
                 // Wait for SponsorBlock data (aumentado a 3 segundos para mayor efectividad)
                 const startWait = Date.now();
+                const CACHE_NAME = 'amaya-music-v6';
+                // SW Version: 1.3.2 - Time: 23:45.2s a 3s
                 const MAX_WAIT = 3000; // Aumentado de 1.2s a 3s
 
                 while (currentSponsorSegments.length === 0 && (Date.now() - startWait < MAX_WAIT)) {
@@ -2735,8 +2737,11 @@ function renderHomePlaylists() {
                     <div class="absolute inset-0 bg-green-500/20 rounded-lg flex items-center justify-center">
                         <div class="flex gap-1 items-end h-4">
                             <div class="playing-bar"></div>
-                            <div class="playing-bar"></div>
-                            <div class="playing-bar"></div>
+                            <p class="text-white text-sm">v1.3.2</p>
+                            <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
+                                Actualizado
+                            </p>
+                            <p class="text-white text-sm">11 feb 2026 12:55</p>
                         </div>
                     </div>` : ''}
                 </div>
