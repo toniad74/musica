@@ -264,10 +264,35 @@ async function loginWithGoogle() {
 async function logout() {
     try {
         await signOut(auth);
+
+        // Reset local state
+        playlists = [];
+        playlist = [];
+        queue = [];
+        currentQueueIndex = -1;
+        sharedPlaylistData = null;
+
+        // Clear UI sections
+        const homeList = document.getElementById('homePlaylistsList');
+        if (homeList) homeList.innerHTML = '';
+
+        const sidebar = document.getElementById('playlistsSidebar');
+        if (sidebar) sidebar.innerHTML = '';
+
+        const resultsGrid = document.getElementById('resultsGrid');
+        if (resultsGrid) resultsGrid.innerHTML = '';
+
+        // Clear search
+        clearSearch();
+
+        // Return to search tab
+        switchTab('search');
+
         const dropdown = document.getElementById('profileDropdown');
         const mobileDropdown = document.getElementById('profileDropdownMobile');
         if (dropdown) dropdown.classList.add('hidden');
         if (mobileDropdown) mobileDropdown.classList.add('hidden');
+
         showToast("Sesión cerrada");
     } catch (error) {
         console.error("Logout error:", error);
@@ -2787,11 +2812,12 @@ function playPlaylist(event, plId) {
 }
 
 function showToast(m, t = 'success') {
+    if (t === 'error') return; // Do not show error toasts as requested
+
     const c = document.getElementById('toastContainer');
     if (!c) return;
 
     let bgColor = 'bg-green-600';
-    if (t === 'error') bgColor = 'bg-red-600';
     if (t === 'warning') bgColor = 'bg-yellow-600';
     if (t === 'info') bgColor = 'bg-blue-600/80';
 
