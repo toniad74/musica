@@ -458,19 +458,6 @@ body {
     text-overflow: ellipsis;
 }
 
-.news-card .thumbnail-container {
-    aspect-ratio: 16/9;
-}
-
-.news-card .play-btn-overlay {
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.news-card:hover .play-btn-overlay {
-    background-color: var(--accent-light);
-    box-shadow: 0 8px 16px rgba(30, 215, 96, 0.3);
-}
-
 /* Modern Inputs */
 input[type="text"],
 input[type="search"],

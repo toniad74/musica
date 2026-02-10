@@ -837,7 +837,6 @@ async function getAudioUrl(videoId) {
     const candidates = [...cobaltCandidates, ...pipedCandidates]
         .sort(() => 0.5 - Math.random());
 
-
     const batchSize = 10;
 
     for (let i = 0; i < candidates.length; i += batchSize) {
@@ -2757,8 +2756,11 @@ function renderHomePlaylists() {
                     <div class="absolute inset-0 bg-green-500/20 rounded-lg flex items-center justify-center">
                         <div class="flex gap-1 items-end h-4">
                             <div class="playing-bar"></div>
-                            <div class="playing-bar" style="animation-delay: 0.2s"></div>
-                            <div class="playing-bar" style="animation-delay: 0.4s"></div>
+                            <p class="text-white text-sm">v1.4.3</p>
+                            <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
+                                Actualizado
+                            </p>
+                            <p class="text-white text-sm">11 feb 2026 00:55</p>
                         </div>
                     </div>` : ''}
                 </div>
@@ -2868,37 +2870,30 @@ function renderNewsResults(videos) {
         card.style.animationDelay = `${index * 50}ms`;
         card.onclick = () => playSong(video);
 
-        const videoJson = JSON.stringify(video).replace(/"/g, '&quot;');
-
         card.innerHTML = `
             <div class="thumbnail-container relative overflow-hidden rounded-xl shadow-2xl">
                 <img src="${video.thumbnail}" alt="${video.title}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy">
-                
-                <!-- Action Buttons Overlay -->
-                <div class="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
-                    <button onclick="event.stopPropagation(); toggleQueue(${videoJson})" 
-                        class="w-8 h-8 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-green-500 hover:text-black transition-all shadow-lg"
-                        title="Añadir a la cola">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/>
-                        </svg>
-                    </button>
-                    <button onclick="event.stopPropagation(); showAddToPlaylistMenu(event, ${videoJson})" 
-                        class="w-8 h-8 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-white hover:text-black transition-all shadow-lg"
-                        title="Añadir a lista">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                        </svg>
-                    </button>
-                </div>
-
                 <div class="play-btn-overlay absolute bottom-4 right-4 bg-green-500 w-12 h-12 rounded-full flex items-center justify-center text-black opacity-0 transform translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 shadow-2xl transition-all duration-300">
                     <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z" />
                     </svg>
                 </div>
-                <div class="absolute bottom-3 left-3 bg-black/80 backdrop-blur-md border border-white/10 px-2 py-0.5 rounded text-[11px] font-bold text-white">
+                <div class="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md border border-white/10 px-2 py-0.5 rounded text-[11px] font-bold text-white">
                     ${video.duration}
+                </div>
+                
+                <!-- Action Buttons Overlay -->
+                <div class="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <button onclick="event.stopPropagation(); toggleQueue(${JSON.stringify(video).replace(/"/g, '&quot;')})" 
+                        class="p-2 bg-black/60 hover:bg-green-500 rounded-full text-white backdrop-blur-sm transition-colors"
+                        title="Añadir a la cola">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/></svg>
+                    </button>
+                    <button onclick="event.stopPropagation(); showAddToPlaylistMenu(event, ${JSON.stringify(video).replace(/"/g, '&quot;')})" 
+                        class="p-2 bg-black/60 hover:bg-white hover:text-black rounded-full text-white backdrop-blur-sm transition-colors"
+                        title="Añadir a playlist">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    </button>
                 </div>
             </div>
             <div class="mt-3 min-w-0">
