@@ -178,9 +178,22 @@ window.onload = () => {
         if (warning) warning.classList.remove('hidden');
     }
 
-    // Register Service Worker for background keepalive
+    // Register Service Worker for background keepalive and auto-update
     if ('serviceWorker' in navigator) {
-        try { navigator.serviceWorker.register('sw.js'); } catch (e) { }
+        navigator.serviceWorker.register('sw.js').then(reg => {
+            reg.onupdatefound = () => {
+                const installingWorker = reg.installing;
+                installingWorker.onstatechange = () => {
+                    if (installingWorker.state === 'installed') {
+                        if (navigator.serviceWorker.controller) {
+                            // New version available, notify and reload
+                            showToast("¡App actualizada a la última versión! Reiniciando...", "info");
+                            setTimeout(() => window.location.reload(), 2000);
+                        }
+                    }
+                };
+            };
+        }).catch(e => console.error('SW registration error:', e));
     }
 };
 
@@ -239,6 +252,7 @@ function setupAuthListener() {
 
 async function loginWithGoogle() {
     try {
+        googleProvider.setCustomParameters({ prompt: 'select_account' });
         await signInWithPopup(auth, googleProvider);
         showToast("Sesión iniciada correctamente");
     } catch (error) {
@@ -2173,6 +2187,25 @@ function renderPlaylists() {
         sidebar.appendChild(sideItem);
     });
 
+    // Initialize Sortable for sidebar playlists
+    if (typeof Sortable !== 'undefined' && sidebar.children.length > 0) {
+        if (window.sidebarSortable) {
+            try { window.sidebarSortable.destroy(); } catch (e) { }
+        }
+        window.sidebarSortable = new Sortable(sidebar, {
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            onEnd: function (evt) {
+                if (evt.oldIndex === evt.newIndex) return;
+                const [movedPl] = playlists.splice(evt.oldIndex, 1);
+                playlists.splice(evt.newIndex, 0, movedPl);
+                savePlaylists();
+                renderHomePlaylists(); // Sync home view
+                showToast("Orden de listas actualizado");
+            }
+        });
+    }
+
     // Also update the main library rows
     renderHomePlaylists();
 }
@@ -2655,8 +2688,8 @@ function renderHomePlaylists() {
 
         row.innerHTML = `
             <div class="flex items-center gap-4 flex-1 min-w-0">
-                <div class="relative">
-                    <img src="${coverImg}" class="w-16 h-16 rounded-lg object-cover shadow-lg">
+                <div class="relative playlist-cover-img">
+                    <img src="${coverImg}" class="w-16 h-16 rounded-lg object-cover shadow-lg pointer-events-none">
                     ${isPlaying ? `
                     <div class="absolute inset-0 bg-green-500/20 rounded-lg flex items-center justify-center">
                         <div class="flex gap-1 items-end h-4">
@@ -2678,6 +2711,26 @@ function renderHomePlaylists() {
         `;
         list.appendChild(row);
     });
+
+    // Initialize Sortable for home playlists (dragging by cover)
+    if (typeof Sortable !== 'undefined' && list.children.length > 0) {
+        if (window.homeSortable) {
+            try { window.homeSortable.destroy(); } catch (e) { }
+        }
+        window.homeSortable = new Sortable(list, {
+            handle: '.playlist-cover-img', // Reorder by dragging image
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            onEnd: function (evt) {
+                if (evt.oldIndex === evt.newIndex) return;
+                const [movedPl] = playlists.splice(evt.oldIndex, 1);
+                playlists.splice(evt.newIndex, 0, movedPl);
+                savePlaylists();
+                renderPlaylists(); // Sync sidebar view
+                showToast("Orden de listas actualizado");
+            }
+        });
+    }
 }
 
 function getPlaylistTotalDuration(pl) {
@@ -3278,5 +3331,4 @@ Object.assign(window, {
     moveSongInPlaylist
 });
 
-console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE - V11");
-setTimeout(() => showToast("App Actualizada (V11)"), 1000);
+console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE");
