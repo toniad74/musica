@@ -148,6 +148,25 @@ window.onload = () => {
     switchTab('search');
     updateQueueCount();
 
+    // Close profile dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        const dropdown = document.getElementById('profileDropdown');
+        const trigger = document.getElementById('loggedInUI');
+        const mobileDropdown = document.getElementById('profileDropdownMobile');
+        const mobileTrigger = document.getElementById('loggedInUIMobile');
+
+        if (dropdown && !dropdown.classList.contains('hidden')) {
+            if (!dropdown.contains(e.target) && !trigger.contains(e.target)) {
+                dropdown.classList.add('hidden');
+            }
+        }
+        if (mobileDropdown && !mobileDropdown.classList.contains('hidden')) {
+            if (!mobileDropdown.contains(e.target) && !mobileTrigger.contains(e.target)) {
+                mobileDropdown.classList.add('hidden');
+            }
+        }
+    });
+
     // Check for mobile-specific messages
     if (window.innerWidth <= 768) {
         const bgHint = document.getElementById('bgPlaybackHint');
@@ -231,9 +250,27 @@ async function loginWithGoogle() {
 async function logout() {
     try {
         await signOut(auth);
+        const dropdown = document.getElementById('profileDropdown');
+        const mobileDropdown = document.getElementById('profileDropdownMobile');
+        if (dropdown) dropdown.classList.add('hidden');
+        if (mobileDropdown) mobileDropdown.classList.add('hidden');
         showToast("Sesión cerrada");
     } catch (error) {
         console.error("Logout error:", error);
+    }
+}
+
+function toggleProfileDropdown() {
+    const dropdown = document.getElementById('profileDropdown');
+    if (dropdown) {
+        dropdown.classList.toggle('hidden');
+    }
+}
+
+function toggleProfileDropdownMobile() {
+    const dropdown = document.getElementById('profileDropdownMobile');
+    if (dropdown) {
+        dropdown.classList.toggle('hidden');
     }
 }
 

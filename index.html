@@ -88,14 +88,38 @@
                         Google Login
                     </button>
                 </div>
-                <div id="loggedInUI"
-                    class="hidden p-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3">
-                    <img id="userAvatar" src="" class="w-10 h-10 rounded-full border border-white/20">
-                    <div class="flex-1 min-w-0">
-                        <p id="userName" class="text-white text-sm font-bold truncate"></p>
+                <div id="loggedInUI" class="hidden relative">
+                    <div onclick="toggleProfileDropdown()"
+                        class="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3 cursor-pointer hover:bg-white/10 transition-colors">
+                        <img id="userAvatar" src="" class="w-10 h-10 rounded-full border border-white/20">
+                        <div class="flex-1 min-w-0">
+                            <p id="userName" class="text-white text-sm font-bold truncate"></p>
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Perfil</p>
+                        </div>
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+
+                    <!-- Profile Dropdown -->
+                    <div id="profileDropdown"
+                        class="hidden absolute top-full left-0 right-0 mt-2 bg-[#282828] rounded-xl shadow-2xl border border-white/10 z-50 overflow-hidden">
+                        <div class="p-4 border-b border-white/5">
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Versión</p>
+                            <p class="text-white text-sm">v1.2.5</p>
+                            <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
+                                Actualizado
+                            </p>
+                            <p class="text-white text-sm">10 feb 2026</p>
+                        </div>
                         <button onclick="logout()"
-                            class="text-[10px] text-gray-400 hover:text-red-400 uppercase font-bold tracking-wider">Cerrar
-                            sesión</button>
+                            class="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-white/5 flex items-center gap-2 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            Cerrar sesión
+                        </button>
                     </div>
                 </div>
 
@@ -177,10 +201,35 @@
                                     Entrar
                                 </button>
                             </div>
-                            <div id="loggedInUIMobile" class="hidden flex items-center gap-3">
-                                <span id="userNameMobile"
-                                    class="text-xs font-bold text-white truncate max-w-[80px]"></span>
-                                <img id="userAvatarMobile" src="" class="w-8 h-8 rounded-full border border-white/20">
+                            <div id="loggedInUIMobile" class="hidden relative">
+                                <div onclick="toggleProfileDropdownMobile()"
+                                    class="flex items-center gap-2 cursor-pointer">
+                                    <span id="userNameMobile"
+                                        class="text-xs font-bold text-white truncate max-w-[80px]"></span>
+                                    <img id="userAvatarMobile" src=""
+                                        class="w-8 h-8 rounded-full border border-white/20">
+                                </div>
+                                <!-- Profile Dropdown Mobile -->
+                                <div id="profileDropdownMobile"
+                                    class="hidden absolute top-full right-0 mt-2 bg-[#282828] rounded-xl shadow-2xl border border-white/10 z-50 overflow-hidden min-w-[150px]">
+                                    <div class="p-3 border-b border-white/5">
+                                        <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">
+                                            Versión</p>
+                                        <p class="text-white text-xs">v1.2.5</p>
+                                        <p
+                                            class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
+                                            Actualizado</p>
+                                        <p class="text-white text-xs">10 feb 2026</p>
+                                    </div>
+                                    <button onclick="logout()"
+                                        class="w-full text-left px-3 py-3 text-xs text-red-400 hover:bg-white/5 flex items-center gap-2 transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                        </svg>
+                                        Cerrar sesión
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
