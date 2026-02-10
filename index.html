@@ -106,11 +106,11 @@
                         class="hidden absolute top-full left-0 right-0 mt-2 bg-[#282828] rounded-xl shadow-2xl border border-white/10 z-50 overflow-hidden">
                         <div class="p-4 border-b border-white/5">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Versión</p>
-                            <p class="text-white text-sm">v1.2.9</p>
+                            <p class="text-white text-sm">v1.3.0</p>
                             <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                 Actualizado
                             </p>
-                            <p class="text-white text-sm">10 feb 2026 23:27</p>
+                            <p class="text-white text-sm">11 feb 2026 12:44</p>
                         </div>
                         <button onclick="logout()"
                             class="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-white/5 flex items-center gap-2 transition-colors">
@@ -216,11 +216,11 @@
                                     <div class="p-3 border-b border-white/5">
                                         <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">
                                             Versión</p>
-                                        <p class="text-white text-xs">v1.2.9</p>
+                                        <p class="text-white text-xs">v1.3.0</p>
                                         <p
                                             class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                             Actualizado</p>
-                                        <p class="text-white text-xs">10 feb 2026 23:27</p>
+                                        <p class="text-white text-xs">11 feb 2026 12:44</p>
                                     </div>
                                     <button onclick="logout()"
                                         class="w-full text-left px-3 py-3 text-xs text-red-400 hover:bg-white/5 flex items-center gap-2 transition-colors">
@@ -586,9 +586,13 @@
         <!-- Right: Volume and Queue -->
         <div class="flex items-center justify-end gap-2 w-1/3 min-w-0">
             <button id="showQueueBtn" onclick="showQueue()"
-                class="text-[#b3b3b3] hover:text-white px-2 py-1 rounded-full text-xs bg-green-500 hover:bg-green-400 transition-colors"
+                class="text-[#b3b3b3] hover:text-white px-3 py-1.5 rounded-full text-xs bg-green-500 hover:bg-green-400 transition-colors flex items-center gap-2"
                 title="Ver cola">
                 <span id="queueCount" class="text-black font-bold">0</span>
+                <svg class="w-4 h-4 text-black" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                        d="M4 6h18V4H4c-1.1 0-2 .9-2 2v1h2V6zm14 4h4V8h-4v2zm0 4h4v-2h-4v2zm0 4h4v-2h-4v2zM4 8h12c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h4v2H4c-1.1 0-2-.9-2-2V10c0-1.1.9-2 2-2z" />
+                </svg>
             </button>
             <button id="muteBtn" class="text-[#b3b3b3] hover:text-white" onclick="toggleMute()">
                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" id="volumeIcon">
@@ -718,13 +722,13 @@
             </button>
             <!-- Queue (Mini) -->
             <button onclick="event.stopPropagation(); showQueue()"
-                class="relative text-white p-2 flex items-center justify-center">
+                class="text-white p-2 flex items-center gap-1.5 justify-center">
+                <span id="queueCountMini"
+                    class="bg-green-500 text-black text-[10px] font-bold px-1.5 rounded-full min-w-[18px] hidden">0</span>
                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path
                         d="M4 6h18V4H4c-1.1 0-2 .9-2 2v1h2V6zm14 4h4V8h-4v2zm0 4h4v-2h-4v2zm0 4h4v-2h-4v2zM4 8h12c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h4v2H4c-1.1 0-2-.9-2-2V10c0-1.1.9-2 2-2z" />
                 </svg>
-                <span id="queueCountMini"
-                    class="absolute -top-1 -right-1 bg-green-500 text-black text-[10px] font-bold px-1.5 rounded-full min-w-[18px] hidden">0</span>
             </button>
         </div>
     </div>
