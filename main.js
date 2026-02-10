@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-const APP_VERSION = "5.3.5";
+const APP_VERSION = "5.3.6";
 const APP_DATE = "10/02/2026";
 
 // Claves maestras ofuscadas para evitar detección simple
@@ -180,16 +180,16 @@ function setupAuthListener() {
             if (loggedOutUIMobile) loggedOutUIMobile.classList.add('hidden');
             if (loggedInUIMobile) loggedInUIMobile.classList.remove('hidden');
 
-            // Set Data
+            // Set Data safely
             const userName = document.getElementById('userName');
             const userAvatar = document.getElementById('userAvatar');
             const userNameMobile = document.getElementById('userNameMobile');
             const userAvatarMobile = document.getElementById('userAvatarMobile');
 
-            if (userName) userName.innerText = user.displayName;
-            if (userAvatar) userAvatar.src = user.photoURL;
-            if (userNameMobile) userNameMobile.innerText = user.displayName.split(' ')[0]; // First name only for mobile
-            if (userAvatarMobile) userAvatarMobile.src = user.photoURL;
+            if (userName) userName.innerText = user.displayName || 'Usuario';
+            if (userAvatar) userAvatar.src = user.photoURL || '';
+            if (userNameMobile) userNameMobile.innerText = (user.displayName ? user.displayName.split(' ')[0] : 'Usuario');
+            if (userAvatarMobile) userAvatarMobile.src = user.photoURL || '';
 
             // Set version labels and titles
             const versionTitle = `Amaya's Music V${APP_VERSION} (${APP_DATE})`;
@@ -200,6 +200,7 @@ function setupAuthListener() {
                 el.innerText = `V${APP_VERSION}`;
             });
 
+            console.log("👤 Usuario detectado:", user.displayName);
             loadPlaylistsFromCloud();
         } else {
             currentUserUid = null;
