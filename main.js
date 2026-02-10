@@ -181,13 +181,19 @@ window.onload = () => {
     // Register Service Worker for background keepalive and auto-update
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').then(reg => {
+            // Check for updates every minute (60000ms)
+            setInterval(() => {
+                reg.update();
+                console.log('🔍 Buscando actualizaciones en segundo plano...');
+            }, 60000);
+
             reg.onupdatefound = () => {
                 const installingWorker = reg.installing;
                 installingWorker.onstatechange = () => {
                     if (installingWorker.state === 'installed') {
                         if (navigator.serviceWorker.controller) {
                             // New version available, notify and reload
-                            showToast("¡App actualizada a la última versión! Reiniciando...", "info");
+                            showToast("¡Nueva versión disponible! Actualizando...", "info");
                             setTimeout(() => window.location.reload(), 2000);
                         }
                     }
