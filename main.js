@@ -1966,6 +1966,11 @@ async function savePlaylists() {
         console.log("☁️ Playlists sincronizadas con la nube para el usuario:", currentUserUid);
     } catch (e) {
         console.error("Error al sincronizar con la nube:", e);
+        if (e.message && e.message.includes('large')) {
+            showToast("Error: Los datos son demasiado grandes para la nube", "error");
+        } else {
+            showToast("Error de sincronización", "error");
+        }
     }
 }
 
@@ -2285,13 +2290,22 @@ function handlePlaylistCoverChange(event) {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
         const pl = playlists.find(p => p.id === activePlaylistId);
         if (pl) {
-            pl.cover = e.target.result;
-            savePlaylists();
-            renderPlaylists();
-            openPlaylist(activePlaylistId);
+            showToast("Procesando imagen...", "info");
+            try {
+                // Resize and compress to stay under Firestore and LocalStorage limits
+                const compressed = await compressImage(e.target.result, 600, 600, 0.7);
+                pl.cover = compressed;
+                savePlaylists();
+                renderPlaylists();
+                openPlaylist(activePlaylistId);
+                showToast("Portada actualizada");
+            } catch (err) {
+                console.error("Error processing image:", err);
+                showToast("Error al procesar la imagen", "error");
+            }
         }
     };
     reader.readAsDataURL(file);
@@ -2613,12 +2627,17 @@ function playPlaylist(event, plId) {
 }
 
 function showToast(m, t = 'success') {
-    if (t !== 'success') return; // Silence non-success messages
     const c = document.getElementById('toastContainer');
     if (!c) return;
-    c.innerHTML = `<div class="px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-2xl animate-fade-in bg-green-600">${m}</div>`;
+
+    let bgColor = 'bg-green-600';
+    if (t === 'error') bgColor = 'bg-red-600';
+    if (t === 'warning') bgColor = 'bg-yellow-600';
+    if (t === 'info') bgColor = 'bg-blue-600/80';
+
+    c.innerHTML = `<div class="px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-2xl animate-fade-in ${bgColor} backdrop-blur-md border border-white/10 text-center min-w-[200px]">${m}</div>`;
     clearTimeout(window.toastT);
-    window.toastT = setTimeout(() => c.innerHTML = '', 2500);
+    window.toastT = setTimeout(() => c.innerHTML = '', 4000);
 }
 
 let progressUpdaterInterval; // Renamed from progressInterval to avoid conflict and be more descriptive
@@ -2985,6 +3004,38 @@ document.addEventListener('visibilitychange', () => {
         }
     }
 });
+// Helper to resize and compress images
+function compressImage(base64Str, maxWidth = 600, maxHeight = 600, quality = 0.7) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.src = base64Str;
+        img.onerror = reject;
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+                if (width > maxWidth) {
+                    height *= maxWidth / width;
+                    width = maxWidth;
+                }
+            } else {
+                if (height > maxHeight) {
+                    width *= maxHeight / height;
+                    height = maxHeight;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+    });
+}
+
 // --- DYNAMIC THEMING ---
 function updateAmbientBackground(imageUrl) {
     const bg = document.getElementById('ambient-bg');
