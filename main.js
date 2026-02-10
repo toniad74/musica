@@ -191,6 +191,15 @@ function setupAuthListener() {
             if (userNameMobile) userNameMobile.innerText = user.displayName.split(' ')[0]; // First name only for mobile
             if (userAvatarMobile) userAvatarMobile.src = user.photoURL;
 
+            // Set version labels and titles
+            const versionTitle = `Amaya's Music V${APP_VERSION} (${APP_DATE})`;
+            if (loggedInUI) loggedInUI.title = versionTitle;
+            if (loggedInUIMobile) loggedInUIMobile.title = versionTitle;
+
+            document.querySelectorAll('.version-label-display').forEach(el => {
+                el.innerText = `V${APP_VERSION}`;
+            });
+
             loadPlaylistsFromCloud();
         } else {
             currentUserUid = null;
