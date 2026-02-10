@@ -34,7 +34,8 @@ let currentKeyIndex = parseInt(localStorage.getItem('amaya_yt_key_index')) || 0;
 const _D_K = [
     "QUl6YVN5RG9idGhLY3VXS05US2M0d0VSYWQwQnB0S1hKVUNPaE93",
     "QUl6YVN5Q2xGQ090eUxjellQSm12NGxrVzRxM01aZFhuVlh0YWkxRQ==",
-    "QUl6YVN5QnUyWnk0N0FuOGlzYnIwUHB6UlZKNUdPd2RqWTNvc0FN"
+    "QUl6YVN5QnUyWnk0N0FuOGlzYnIwUHB6UlZKNUdPd2RqWTNvc0FN",
+    "QUl6YVN5QTlOa3h6dE1MY3k5SG9tY1JfOE1NcTdCQU1BbWRjTms="
 ];
 const DEFAULT_KEYS = _D_K.map(k => atob(k));
 
@@ -2810,7 +2811,7 @@ async function loadNewReleases(force = false) {
     try {
         const apiKey = getCurrentApiKey();
         // Charts API for Trending Music in Spain (regionCode: ES, categoryId: 10)
-        const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&maxResults=20&regionCode=ES&videoCategoryId=10&key=${apiKey}`);
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&maxResults=50&regionCode=ES&videoCategoryId=10&key=${apiKey}`);
         const data = await response.json();
 
         if (data.error) throw new Error(data.error.message);
@@ -2831,7 +2832,7 @@ async function loadNewReleases(force = false) {
         // Search Fallback if charts fail
         try {
             const fallbackQuery = "YouTube Music Trending Spain 2026";
-            const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(fallbackQuery)}&type=video&videoCategoryId=10&key=${getCurrentApiKey()}`);
+            const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&q=${encodeURIComponent(fallbackQuery)}&type=video&videoCategoryId=10&key=${getCurrentApiKey()}`);
             const data = await response.json();
 
             newsVideos = data.items.map(item => ({
