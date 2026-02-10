@@ -46,35 +46,6 @@ let prevSearchToken = '';
 let currentSearchQuery = '';
 let currentSearchPage = 1;
 
-// --- DYNAMIC HELPERS ---
-function decodeHtml(html) {
-    if (!html) return '';
-    const txt = document.createElement("textarea");
-    txt.innerHTML = html;
-    return txt.value;
-}
-
-function parseISO8601Duration(duration) {
-    if (!duration) return '0:00';
-    const match = duration.match(/P(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-    if (!match) return '0:00';
-    const days = parseInt(match[1]) || 0;
-    const hrs = parseInt(match[2]) || 0;
-    const mins = parseInt(match[3]) || 0;
-    const secs = parseInt(match[4]) || 0;
-
-    let totalMins = days * 1440 + hrs * 60 + mins;
-    if (totalMins > 0 || hrs > 0) {
-        if (totalMins >= 60) {
-            const h = Math.floor(totalMins / 60);
-            const m = totalMins % 60;
-            return `${h}:${m.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        }
-        return `${totalMins}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `0:${secs.toString().padStart(2, '0')}`;
-}
-
 // Track user intent to distinguish between unwanted background pauses and clicks
 let isUserPaused = false;
 
@@ -595,11 +566,6 @@ function setupNativeAudioHandlers() {
         // Solo verificar si el tiempo cambió significativamente (evitar spam)
         if (Math.abs(currentTime - lastCheckedTime) > 0.3) {
             lastCheckedTime = currentTime;
-
-            // Sync Media Session position more aggressively
-            if (navigator.mediaSession && navigator.mediaSession.setPositionState) {
-                updateMediaSessionPosition();
-            }
 
             if (currentSponsorSegments && currentSponsorSegments.length > 0) {
                 const skipped = checkSponsorSegments(currentTime);
@@ -1694,9 +1660,7 @@ async function playSong(song, list = [], fromQueue = false) {
             // Reset progress UI while loading
             if (navigator.mediaSession) {
                 try {
-                    if (navigator.mediaSession.setPositionState) {
-                        navigator.mediaSession.setPositionState(null);
-                    }
+                    navigator.mediaSession.setPositionState(null);
                     navigator.mediaSession.playbackState = 'paused';
                 } catch (e) { }
             }
@@ -1826,15 +1790,11 @@ function updateQueueIcons() {
     document.querySelectorAll('.queue-btn').forEach(btn => {
         const songId = btn.getAttribute('data-song-id');
         if (isSongInQueue(songId)) {
-            btn.classList.add('in-queue', 'text-green-500');
-            btn.classList.remove('text-[#b3b3b3]', 'text-white/70');
+            btn.classList.add('in-queue');
+            btn.classList.remove('text-[#b3b3b3]');
         } else {
-            btn.classList.remove('in-queue', 'text-green-500');
-            if (btn.closest('.news-card')) {
-                btn.classList.add('text-white/70');
-            } else {
-                btn.classList.add('text-[#b3b3b3]');
-            }
+            btn.classList.remove('in-queue');
+            btn.classList.add('text-[#b3b3b3]');
         }
     });
 }
@@ -2851,7 +2811,7 @@ async function loadNewReleases(force = false) {
     try {
         const apiKey = getCurrentApiKey();
         // Charts API for Trending Music in Spain (regionCode: ES, categoryId: 10)
-        const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&maxResults=50&regionCode=ES&videoCategoryId=10&key=${apiKey}`);
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&maxResults=20&regionCode=ES&videoCategoryId=10&key=${apiKey}`);
         const data = await response.json();
 
         if (data.error) throw new Error(data.error.message);
@@ -2872,7 +2832,7 @@ async function loadNewReleases(force = false) {
         // Search Fallback if charts fail
         try {
             const fallbackQuery = "YouTube Music Trending Spain 2026";
-            const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&q=${encodeURIComponent(fallbackQuery)}&type=video&videoCategoryId=10&key=${getCurrentApiKey()}`);
+            const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(fallbackQuery)}&type=video&videoCategoryId=10&key=${getCurrentApiKey()}`);
             const data = await response.json();
 
             newsVideos = data.items.map(item => ({
@@ -2902,67 +2862,29 @@ function renderNewsResults(videos) {
 
     grid.innerHTML = '';
     videos.forEach((video, index) => {
-        const inQueue = isSongInQueue(video.id);
-        const inQueueClass = inQueue ? 'in-queue' : 'text-white/70 hover:text-white';
-        const isCurrent = isMediaPlaying && currentTrack && String(currentTrack.id) === String(video.id);
-
         const card = document.createElement('div');
-        card.className = `news-card animate-fade-in group relative ${isCurrent ? 'is-playing' : ''}`;
-        card.dataset.videoId = video.id;
+        card.className = 'news-card animate-fade-in group';
         card.style.animationDelay = `${index * 50}ms`;
-        card.onclick = () => {
-            currentlyPlayingPlaylistId = null;
-            localStorage.removeItem('amaya_playing_pl_id');
-            renderHomePlaylists();
-            playSong(video, [video]);
-        };
+        card.onclick = () => playSong(video);
 
         card.innerHTML = `
-            <div class="thumbnail-container relative overflow-hidden rounded-xl shadow-2xl aspect-video mb-3">
+            <div class="thumbnail-container relative overflow-hidden rounded-xl shadow-2xl">
                 <img src="${video.thumbnail}" alt="${video.title}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy">
-                
-                <!-- Play Overlay -->
-                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <div class="bg-green-500 w-14 h-14 rounded-full flex items-center justify-center text-black shadow-2xl transform scale-90 group-hover:scale-100 transition-transform duration-300">
-                        <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z" />
-                        </svg>
-                    </div>
+                <div class="play-btn-overlay absolute bottom-4 right-4 bg-green-500 w-12 h-12 rounded-full flex items-center justify-center text-black opacity-0 transform translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 shadow-2xl transition-all duration-300">
+                    <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                    </svg>
                 </div>
-
-                <!-- Action Buttons Overlay -->
-                <div class="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                    <button onclick="event.stopPropagation(); toggleQueue(${JSON.stringify(video).replace(/"/g, '&quot;')})" 
-                        class="queue-btn p-2.5 bg-black/60 backdrop-blur-md rounded-full ${inQueueClass} transition-colors"
-                        data-song-id="${video.id}"
-                        title="Cola de reproducción">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/></svg>
-                    </button>
-                    <button onclick="event.stopPropagation(); showAddToPlaylistMenu(event, ${JSON.stringify(video).replace(/"/g, '&quot;')})" 
-                        class="p-2.5 bg-black/60 backdrop-blur-md rounded-full text-white/70 hover:text-white transition-colors"
-                        title="Añadir a lista">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-                    </button>
-                </div>
-
                 <div class="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md border border-white/10 px-2 py-0.5 rounded text-[11px] font-bold text-white">
                     ${video.duration}
                 </div>
             </div>
-            <div class="min-w-0">
-                <div class="marquee-container">
-                    <h3 class="font-bold text-white text-sm md:text-base leading-tight marquee-content ${isCurrent ? 'text-green-500' : ''}" title="${video.title}">
-                        ${video.title}
-                    </h3>
-                </div>
-                ${isCurrent ? ' <span class="playing-badge !inline-flex !static mb-1">SONANDO</span>' : ''}
-                <p class="text-gray-400 text-xs mt-1 font-medium truncate" title="${video.channel}">${video.channel}</p>
+            <div class="mt-3 min-w-0">
+                <h3 class="font-bold text-white text-sm md:text-base leading-tight line-clamp-2" title="${video.title}">${video.title}</h3>
+                <p class="text-gray-400 text-xs mt-1.5 font-medium truncate" title="${video.channel}">${video.channel}</p>
             </div>
         `;
         grid.appendChild(card);
-        // Apply marquee to the newly created card
-        const marquee = card.querySelector('.marquee-content');
-        if (marquee) updateMarquee(marquee);
     });
 }
 
@@ -3129,19 +3051,6 @@ function formatTime(seconds) {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')} `;
-}
-
-// --- SERVICE WORKER CONTROL ---
-function startServiceWorkerKeepAlive() {
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({ type: 'KEEP_ALIVE_START' });
-    }
-}
-
-function stopServiceWorkerKeepAlive() {
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({ type: 'KEEP_ALIVE_STOP' });
-    }
 }
 
 // --- CONTROLS INTERACTION ---
@@ -3576,9 +3485,7 @@ Object.assign(window, {
     playCurrentPlaylist,
     toggleMute,
     removeFromQueue,
-    moveSongInPlaylist,
-    startServiceWorkerKeepAlive,
-    stopServiceWorkerKeepAlive
+    moveSongInPlaylist
 });
 
 console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE");
