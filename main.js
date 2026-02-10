@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-const APP_VERSION = "5.3.6";
+const APP_VERSION = "5.3.8";
 const APP_DATE = "10/02/2026";
 
 // Claves maestras ofuscadas para evitar detección simple
@@ -165,64 +165,52 @@ window.onload = () => {
 
 function setupAuthListener() {
     onAuthStateChanged(auth, (user) => {
-        if (user) {
-            currentUserUid = user.uid;
-
-            // Toggle Desktop UI
-            const loggedOutUI = document.getElementById('loggedOutUI');
-            const loggedInUI = document.getElementById('loggedInUI');
-            if (loggedOutUI) loggedOutUI.classList.add('hidden');
-            if (loggedInUI) loggedInUI.classList.remove('hidden');
-
-            // Toggle Mobile UI
-            const loggedOutUIMobile = document.getElementById('loggedOutUIMobile');
-            const loggedInUIMobile = document.getElementById('loggedInUIMobile');
-            if (loggedOutUIMobile) loggedOutUIMobile.classList.add('hidden');
-            if (loggedInUIMobile) loggedInUIMobile.classList.remove('hidden');
-
-            // Set Data safely
-            const userName = document.getElementById('userName');
-            const userAvatar = document.getElementById('userAvatar');
-            const userNameMobile = document.getElementById('userNameMobile');
-            const userAvatarMobile = document.getElementById('userAvatarMobile');
-
-            if (userName) userName.innerText = user.displayName || 'Usuario';
-            if (userAvatar) userAvatar.src = user.photoURL || '';
-            if (userNameMobile) userNameMobile.innerText = (user.displayName ? user.displayName.split(' ')[0] : 'Usuario');
-            if (userAvatarMobile) userAvatarMobile.src = user.photoURL || '';
-
-            // Set version labels and titles
-            const versionTitle = `Amaya's Music V${APP_VERSION} (${APP_DATE})`;
-            if (loggedInUI) loggedInUI.title = versionTitle;
-            if (loggedInUIMobile) loggedInUIMobile.title = versionTitle;
-
-            document.querySelectorAll('.version-label-display').forEach(el => {
-                el.innerText = `V${APP_VERSION}`;
-            });
-
-            console.log("👤 Usuario detectado:", user.displayName);
-            loadPlaylistsFromCloud();
-        } else {
-            currentUserUid = null;
-
-            // Toggle Desktop UI
-            const loggedOutUI = document.getElementById('loggedOutUI');
-            const loggedInUI = document.getElementById('loggedInUI');
-            if (loggedOutUI) loggedOutUI.classList.remove('hidden');
-            if (loggedInUI) loggedInUI.classList.add('hidden');
-
-            // Toggle Mobile UI
-            const loggedOutUIMobile = document.getElementById('loggedOutUIMobile');
-            const loggedInUIMobile = document.getElementById('loggedInUIMobile');
-            if (loggedOutUIMobile) loggedOutUIMobile.classList.remove('hidden');
-            if (loggedInUIMobile) loggedInUIMobile.classList.add('hidden');
-
-            // Reset playlists to local only when logged out
-            playlists = JSON.parse(localStorage.getItem('amaya_playlists')) || [];
-            renderPlaylists();
-        }
+        updateUserUI(user);
     });
 }
+
+function updateUserUI(user) {
+    if (!user) {
+        currentUserUid = null;
+        document.querySelectorAll('#loggedOutUI, #loggedOutUIMobile').forEach(el => el.classList.remove('hidden'));
+        document.querySelectorAll('#loggedInUI, #loggedInUIMobile').forEach(el => el.classList.add('hidden'));
+        return;
+    }
+
+    currentUserUid = user.uid;
+
+    // Toggle UI Visibility with force
+    document.querySelectorAll('#loggedOutUI, #loggedOutUIMobile').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('#loggedInUI, #loggedInUIMobile').forEach(el => el.classList.remove('hidden'));
+
+    // Set Data
+    const userName = document.getElementById('userName');
+    const userAvatar = document.getElementById('userAvatar');
+    const userNameMobile = document.getElementById('userNameMobile');
+    const userAvatarMobile = document.getElementById('userAvatarMobile');
+
+    if (userName) userName.innerText = user.displayName || 'Usuario';
+    if (userAvatar) userAvatar.src = user.photoURL || '';
+    if (userNameMobile) userNameMobile.innerText = (user.displayName ? user.displayName.split(' ')[0] : 'Usuario');
+    if (userAvatarMobile) userAvatarMobile.src = user.photoURL || '';
+
+    // Set version labels and titles
+    const versionTitle = `Amaya's Music V${APP_VERSION} (${APP_DATE})`;
+    const loggedInUI = document.getElementById('loggedInUI');
+    const loggedInUIMobile = document.getElementById('loggedInUIMobile');
+
+    if (loggedInUI) loggedInUI.title = versionTitle;
+    if (loggedInUIMobile) loggedInUIMobile.title = versionTitle;
+
+    document.querySelectorAll('.version-label-display').forEach(el => {
+        el.innerText = `V${APP_VERSION}`;
+    });
+
+    console.log("👤 UI Actualizada para:", user.displayName);
+    loadPlaylistsFromCloud();
+}
+
+
 
 async function loginWithGoogle() {
     if (window.location.protocol === 'file:') {
@@ -250,6 +238,15 @@ async function loginWithGoogle() {
         } else {
             showToast(`Error: ${error.message.split('(')[0]}`, "error");
         }
+    } finally {
+        // Force a UI refresh in case Firebase listener is slow
+        setTimeout(() => {
+            const user = auth.currentUser;
+            if (user) {
+                console.log("🔄 Forzando actualización de UI manual...");
+                updateUserUI(user);
+            }
+        }, 1000);
     }
 }
 
@@ -317,8 +314,9 @@ async function registerServiceWorker() {
 }
 
 function showUpdateNotification() {
-    const c = document.getElementById('toastContainer');
+    const c = document.getElementById('updateContainer');
     if (!c) return;
+    c.innerHTML = ''; // Clear prior if any
 
     // Create persistent notification
     const div = document.createElement('div');
