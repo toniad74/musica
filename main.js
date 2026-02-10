@@ -58,6 +58,10 @@ let isMediaPlaying = false;
 let currentSponsorSegments = [];
 let pendingSponsorFetch = null; // Promise tracker for sync
 
+// News State
+let isNewsLoaded = false;
+let newsVideos = [];
+
 // Instance Blacklist for current session
 const FAILED_INSTANCES = new Set();
 
@@ -1721,8 +1725,6 @@ async function playSong(song, list = [], fromQueue = false) {
 
                 // Wait for SponsorBlock data (aumentado a 3 segundos para mayor efectividad)
                 const startWait = Date.now();
-                const CACHE_NAME = 'amaya-music-v6';
-                // SW Version: 1.3.2 - Time: 23:45.2s a 3s
                 const MAX_WAIT = 3000; // Aumentado de 1.2s a 3s
 
                 while (currentSponsorSegments.length === 0 && (Date.now() - startWait < MAX_WAIT)) {
@@ -2675,12 +2677,15 @@ function switchTab(tab) {
     const homeSection = document.getElementById('homeSection');
     const resultsSection = document.getElementById('resultsSection');
     const playlistView = document.getElementById('playlistView');
+    const newsSection = document.getElementById('newsSection');
     const tabPlaylists = document.getElementById('tab-playlists');
     const tabSearch = document.getElementById('tab-search');
+    const tabNews = document.getElementById('tab-news');
 
     // Update tab buttons
     if (tabPlaylists) tabPlaylists.classList.toggle('active', tab === 'playlists');
     if (tabSearch) tabSearch.classList.toggle('active', tab === 'search');
+    if (tabNews) tabNews.classList.toggle('active', tab === 'news');
 
     const searchInputSection = document.getElementById('searchInputSection');
 
@@ -2688,6 +2693,7 @@ function switchTab(tab) {
         homeSection.classList.remove('hidden');
         resultsSection.classList.add('hidden');
         playlistView.classList.add('hidden');
+        if (newsSection) newsSection.classList.add('hidden');
         if (searchInputSection) searchInputSection.classList.add('hidden');
         renderHomePlaylists();
         activePlaylistId = null;
@@ -2695,7 +2701,15 @@ function switchTab(tab) {
         homeSection.classList.add('hidden');
         resultsSection.classList.remove('hidden');
         playlistView.classList.add('hidden');
+        if (newsSection) newsSection.classList.add('hidden');
         if (searchInputSection) searchInputSection.classList.remove('hidden');
+    } else if (tab === 'news') {
+        homeSection.classList.add('hidden');
+        resultsSection.classList.add('hidden');
+        playlistView.classList.add('hidden');
+        if (newsSection) newsSection.classList.remove('hidden');
+        if (searchInputSection) searchInputSection.classList.add('hidden');
+        if (!isNewsLoaded) loadNewReleases();
     }
 }
 
@@ -2737,11 +2751,8 @@ function renderHomePlaylists() {
                     <div class="absolute inset-0 bg-green-500/20 rounded-lg flex items-center justify-center">
                         <div class="flex gap-1 items-end h-4">
                             <div class="playing-bar"></div>
-                            <p class="text-white text-sm">v1.3.2</p>
-                            <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
-                                Actualizado
-                            </p>
-                            <p class="text-white text-sm">11 feb 2026 12:55</p>
+                            <div class="playing-bar" style="animation-delay: 0.2s"></div>
+                            <div class="playing-bar" style="animation-delay: 0.4s"></div>
                         </div>
                     </div>` : ''}
                 </div>
@@ -2777,6 +2788,99 @@ function renderHomePlaylists() {
             }
         });
     }
+}
+
+async function loadNewReleases(force = false) {
+    if (isNewsLoaded && !force) return;
+
+    const grid = document.getElementById('newsGrid');
+    if (!grid) return;
+
+    grid.innerHTML = `
+        <div class="col-span-full py-20 text-center">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mb-4"></div>
+            <p class="text-gray-400 font-medium text-lg">Cargando las tendencias actuales...</p>
+        </div>
+    `;
+
+    try {
+        const apiKey = getCurrentApiKey();
+        // Charts API for Trending Music in Spain (regionCode: ES, categoryId: 10)
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&maxResults=20&regionCode=ES&videoCategoryId=10&key=${apiKey}`);
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error.message);
+
+        newsVideos = data.items.map(item => ({
+            id: item.id,
+            title: decodeHtml(item.snippet.title),
+            channel: decodeHtml(item.snippet.channelTitle),
+            thumbnail: item.snippet.thumbnails.maxres ? item.snippet.thumbnails.maxres.url : (item.snippet.thumbnails.high ? item.snippet.thumbnails.high.url : item.snippet.thumbnails.default.url),
+            duration: parseISO8601Duration(item.contentDetails.duration)
+        }));
+
+        isNewsLoaded = true;
+        renderNewsResults(newsVideos);
+    } catch (error) {
+        console.warn("Error Google API News. Fallback search...", error);
+
+        // Search Fallback if charts fail
+        try {
+            const fallbackQuery = "YouTube Music Trending Spain 2026";
+            const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(fallbackQuery)}&type=video&videoCategoryId=10&key=${getCurrentApiKey()}`);
+            const data = await response.json();
+
+            newsVideos = data.items.map(item => ({
+                id: item.id.videoId,
+                title: decodeHtml(item.snippet.title),
+                channel: decodeHtml(item.snippet.channelTitle),
+                thumbnail: item.snippet.thumbnails.high.url,
+                duration: '0:00'
+            }));
+
+            isNewsLoaded = true;
+            renderNewsResults(newsVideos);
+        } catch (e) {
+            grid.innerHTML = `
+                <div class="col-span-full py-12 text-center bg-red-500/10 rounded-2xl border border-red-500/20">
+                    <p class="text-red-400 mb-4">No se han podido cargar las novedades</p>
+                    <button onclick="loadNewReleases(true)" class="bg-white text-black px-6 py-2 rounded-full font-bold">Reintentar</button>
+                </div>
+            `;
+        }
+    }
+}
+
+function renderNewsResults(videos) {
+    const grid = document.getElementById('newsGrid');
+    if (!grid) return;
+
+    grid.innerHTML = '';
+    videos.forEach((video, index) => {
+        const card = document.createElement('div');
+        card.className = 'news-card animate-fade-in group';
+        card.style.animationDelay = `${index * 50}ms`;
+        card.onclick = () => playSong(video);
+
+        card.innerHTML = `
+            <div class="thumbnail-container relative overflow-hidden rounded-xl shadow-2xl">
+                <img src="${video.thumbnail}" alt="${video.title}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy">
+                <div class="play-btn-overlay absolute bottom-4 right-4 bg-green-500 w-12 h-12 rounded-full flex items-center justify-center text-black opacity-0 transform translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 shadow-2xl transition-all duration-300">
+                    <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                    </svg>
+                </div>
+                <div class="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md border border-white/10 px-2 py-0.5 rounded text-[11px] font-bold text-white">
+                    ${video.duration}
+                </div>
+            </div>
+            <div class="mt-3 min-w-0">
+                <h3 class="font-bold text-white text-sm md:text-base leading-tight line-clamp-2" title="${video.title}">${video.title}</h3>
+                <p class="text-gray-400 text-xs mt-1.5 font-medium truncate" title="${video.channel}">${video.channel}</p>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
 }
 
 function getPlaylistTotalDuration(pl) {
@@ -3320,6 +3424,7 @@ Object.assign(window, {
     hideCreatePlaylistModal,
     createPlaylist,
     searchMusic,
+    loadNewReleases,
     toggleClearButton,
     clearSearch,
     searchPrevPage,

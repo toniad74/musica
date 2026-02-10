@@ -106,11 +106,11 @@
                         class="hidden absolute top-full left-0 right-0 mt-2 bg-[#282828] rounded-xl shadow-2xl border border-white/10 z-50 overflow-hidden">
                         <div class="p-4 border-b border-white/5">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Versión</p>
-                            <p class="text-white text-sm">v1.3.3</p>
+                            <p class="text-white text-sm">v1.4.0</p>
                             <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                 Actualizado
                             </p>
-                            <p class="text-white text-sm">10 feb 2026 23:55</p>
+                            <p class="text-white text-sm">11 feb 2026 00:01</p>
                         </div>
                         <button onclick="logout()"
                             class="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-white/5 flex items-center gap-2 transition-colors">
@@ -216,11 +216,11 @@
                                     <div class="p-3 border-b border-white/5">
                                         <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">
                                             Versión</p>
-                                        <p class="text-white text-xs">v1.3.3</p>
+                                        <p class="text-white text-xs">v1.4.0</p>
                                         <p
                                             class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                             Actualizado</p>
-                                        <p class="text-white text-xs">10 feb 2026 23:55</p>
+                                        <p class="text-white text-xs">11 feb 2026 00:01</p>
                                     </div>
                                     <button onclick="logout()"
                                         class="w-full text-left px-3 py-3 text-xs text-red-400 hover:bg-white/5 flex items-center gap-2 transition-colors">
@@ -307,6 +307,9 @@
                 </button>
                 <button id="tab-search" onclick="switchTab('search')" class="tab-btn active">
                     Buscar
+                </button>
+                <button id="tab-news" onclick="switchTab('news')" class="tab-btn">
+                    Novedades
                 </button>
             </div>
 
@@ -485,6 +488,27 @@
                             Siguiente
                         </button>
                     </div>
+                </div>
+            </div>
+
+            <!-- News Section -->
+            <div id="newsSection" class="hidden px-4 md:px-8 pb-12">
+                <div class="flex items-center justify-between mb-8">
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-black">Novedades</h2>
+                        <p class="text-gray-400 text-sm mt-1">Lo más escuchado en YouTube Music</p>
+                    </div>
+                    <button onclick="loadNewReleases(true)"
+                        class="bg-white/5 hover:bg-white/10 p-3 rounded-full transition-all group" title="Actualizar">
+                        <svg class="w-5 h-5 text-gray-400 group-hover:text-white group-active:rotate-180 transition-transform duration-500"
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </button>
+                </div>
+                <div id="newsGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+                    <!-- News cards will be injected here -->
                 </div>
             </div>
         </main>
