@@ -1,4 +1,4 @@
-const CACHE_NAME = 'amaya-music-v1';
+const CACHE_NAME = 'amaya-music-v5.1';
 const urlsToCache = [
     './',
     './index.html',

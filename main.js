@@ -2,6 +2,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
+const APP_VERSION = "5.1";
+const APP_DATE = "10/02/2026";
+
 const firebaseConfig = {
     apiKey: "AIzaSyBHCTj7Jhlklf2ZL7AcE6ggkOvdgP9eotY",
     authDomain: "musica-amaya.firebaseapp.com",
@@ -224,7 +227,8 @@ async function logout() {
 }
 
 function confirmLogout() {
-    if (confirm("¿Quieres cerrar sesión?")) {
+    const msg = `Amaya's Music V${APP_VERSION}\nFecha: ${APP_DATE}\n\n¿Quieres cerrar sesión?`;
+    if (confirm(msg)) {
         logout();
     }
 }
@@ -254,17 +258,46 @@ async function registerServiceWorker() {
             const registration = await navigator.serviceWorker.register('./sw.js');
             console.log('✅ Service Worker registrado:', registration);
 
+            // DETECTOR DE ACTUALIZACIONES
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        showUpdateNotification();
+                    }
+                });
+            });
+
             // Listen for messages from SW
             navigator.serviceWorker.addEventListener('message', event => {
                 if (event.data && event.data.type === 'PING') {
                     // Respond to ping to keep connection alive
-                    console.log('📡 SW ping recibido');
                 }
             });
-        } catch (error) {
-            console.error('❌ Error registrando Service Worker:', error);
+        } catch (e) {
+            console.error("SW Registration Error:", e);
         }
     }
+}
+
+function showUpdateNotification() {
+    const c = document.getElementById('toastContainer');
+    if (!c) return;
+
+    // Create persistent notification
+    const div = document.createElement('div');
+    div.className = "px-6 py-4 rounded-xl bg-blue-600 text-white shadow-2xl animate-bounce flex flex-col items-center gap-3 pointer-events-auto border-2 border-white/20";
+    div.innerHTML = `
+        <div class="text-center">
+            <p class="font-bold text-sm">✨ ¡Nueva versión disponible! (V${APP_VERSION})</p>
+            <p class="text-[10px] opacity-90">Actualizada el ${APP_DATE}</p>
+        </div>
+        <button onclick="window.location.reload(true)" 
+            class="bg-white text-blue-600 px-4 py-1.5 rounded-full text-xs font-black hover:scale-105 active:scale-95 transition-transform">
+            ACTUALIZAR AHORA
+        </button>
+    `;
+    c.appendChild(div);
 }
 
 function startServiceWorkerKeepAlive() {
@@ -2619,12 +2652,12 @@ function playPlaylist(event, plId) {
 }
 
 function showToast(m, t = 'success') {
-    if (t !== 'success') return; // Silence non-success messages
     const c = document.getElementById('toastContainer');
     if (!c) return;
-    c.innerHTML = `<div class="px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-2xl animate-fade-in bg-green-600">${m}</div>`;
+    const bg = t === 'error' ? 'bg-red-600' : (t === 'warning' ? 'bg-yellow-600' : 'bg-green-600');
+    c.innerHTML = `<div class="px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-2xl animate-fade-in ${bg}">${m}</div>`;
     clearTimeout(window.toastT);
-    window.toastT = setTimeout(() => c.innerHTML = '', 2500);
+    window.toastT = setTimeout(() => c.innerHTML = '', 3500);
 }
 
 let progressUpdaterInterval; // Renamed from progressInterval to avoid conflict and be more descriptive
@@ -3124,5 +3157,5 @@ Object.assign(window, {
     removeFromQueue
 });
 
-console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE - V4");
-setTimeout(() => showToast("App Actualizada (V4)"), 1000);
+console.log(`🚀 MAIN.JS CARGADO CORRECTAMENTE - V${APP_VERSION}`);
+setTimeout(() => showToast(`App Actualizada (V${APP_VERSION})`), 1000);
