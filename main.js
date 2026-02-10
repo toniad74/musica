@@ -2202,16 +2202,9 @@ function openPlaylist(id) {
                     <p class="text-[#b3b3b3] text-sm truncate">${song.channel}</p>
                 </div>
                 <div class="flex items-center gap-1">
-                    <button onclick="event.stopPropagation(); moveSongInPlaylist('${pl.id}', ${index}, -1)" 
-                        class="text-white hover:text-green-500 p-1.5 transition-colors ${index === 0 ? 'invisible' : ''}" 
-                        title="Subir">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z"/></svg>
-                    </button>
-                    <button onclick="event.stopPropagation(); moveSongInPlaylist('${pl.id}', ${index}, 1)" 
-                        class="text-white hover:text-green-500 p-1.5 transition-colors ${index === pl.songs.length - 1 ? 'invisible' : ''}" 
-                        title="Bajar">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
-                    </button>
+                    <div class="drag-handle-song p-1.5 text-gray-500 hover:text-white cursor-grab active:cursor-grabbing">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 4c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-12c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                    </div>
                     <button onclick="event.stopPropagation(); toggleQueue(${JSON.stringify(song).replace(/"/g, '&quot;')})" 
                         class="queue-btn p-1.5 hover:text-white ${inQueueClass}" 
                         data-song-id="${song.id}"
@@ -2227,6 +2220,34 @@ function openPlaylist(id) {
             `;
             songsList.appendChild(row);
         });
+
+        // Initialize Sortable for the playlist songs
+        if (typeof Sortable !== 'undefined') {
+            new Sortable(songsList, {
+                handle: '.drag-handle-song',
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                dragClass: 'sortable-drag',
+                onEnd: function (evt) {
+                    if (evt.oldIndex === evt.newIndex) return;
+
+                    const pl = playlists.find(p => p.id === activePlaylistId);
+                    if (!pl) return;
+
+                    // Reorder the array
+                    const [movedSong] = pl.songs.splice(evt.oldIndex, 1);
+                    pl.songs.splice(evt.newIndex, 0, movedSong);
+
+                    savePlaylists();
+                    // We don't need to re-render everything as the DOM is already updated by Sortable,
+                    // but we do need to update our internal indices if we ever use them.
+                    // To be safe and simple, let's just refresh the playlist view but without losing focus
+                    openPlaylist(activePlaylistId);
+                    showToast("Orden actualizado", "success");
+                }
+            });
+        }
     }
     // Apply marquees to playlist songs
     songsList.querySelectorAll('.marquee-content').forEach(el => updateMarquee(el));
@@ -2294,16 +2315,15 @@ function removeSongFromPlaylist(plId, songId) {
 }
 
 function moveSongInPlaylist(plId, fromIndex, direction) {
+    // Deprecated in favor of drag and drop, but keeping for compatibility if needed
     const pl = playlists.find(p => p.id === plId);
     if (!pl) return;
 
     const toIndex = fromIndex + direction;
     if (toIndex < 0 || toIndex >= pl.songs.length) return;
 
-    // Swap songs
-    const songToMove = pl.songs[fromIndex];
-    pl.songs.splice(fromIndex, 1);
-    pl.songs.splice(toIndex, 0, songToMove);
+    const [movedSong] = pl.songs.splice(fromIndex, 1);
+    pl.songs.splice(toIndex, 0, movedSong);
 
     savePlaylists();
     renderPlaylists();
