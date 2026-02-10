@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-const APP_VERSION = "5.3.8";
+const APP_VERSION = "5.3.9";
 const APP_DATE = "10/02/2026";
 
 // Claves maestras ofuscadas para evitar detección simple
@@ -164,24 +164,36 @@ window.onload = () => {
 
 
 function setupAuthListener() {
+    console.log("🔐 Inicializando escuchador de autenticación...");
     onAuthStateChanged(auth, (user) => {
+        console.log("🔄 Cambio de estado de Auth detectado:", user ? "Conectado" : "Desconectado");
         updateUserUI(user);
     });
 }
 
 function updateUserUI(user) {
+    const desktopOut = document.getElementById('loggedOutUI');
+    const desktopIn = document.getElementById('loggedInUI');
+    const mobileOut = document.getElementById('loggedOutUIMobile');
+    const mobileIn = document.getElementById('loggedInUIMobile');
+
     if (!user) {
         currentUserUid = null;
-        document.querySelectorAll('#loggedOutUI, #loggedOutUIMobile').forEach(el => el.classList.remove('hidden'));
-        document.querySelectorAll('#loggedInUI, #loggedInUIMobile').forEach(el => el.classList.add('hidden'));
+        if (desktopOut) desktopOut.classList.remove('hidden');
+        if (desktopIn) desktopIn.classList.add('hidden');
+        if (mobileOut) mobileOut.classList.remove('hidden');
+        if (mobileIn) mobileIn.classList.add('hidden');
         return;
     }
 
     currentUserUid = user.uid;
+    console.log("👤 Actualizando UI para:", user.displayName || "Usuario");
 
-    // Toggle UI Visibility with force
-    document.querySelectorAll('#loggedOutUI, #loggedOutUIMobile').forEach(el => el.classList.add('hidden'));
-    document.querySelectorAll('#loggedInUI, #loggedInUIMobile').forEach(el => el.classList.remove('hidden'));
+    // Toggle UI Visibility individually for maximum reliability
+    if (desktopOut) desktopOut.classList.add('hidden');
+    if (desktopIn) desktopIn.classList.remove('hidden');
+    if (mobileOut) mobileOut.classList.add('hidden');
+    if (mobileIn) mobileIn.classList.remove('hidden');
 
     // Set Data
     const userName = document.getElementById('userName');
@@ -189,24 +201,23 @@ function updateUserUI(user) {
     const userNameMobile = document.getElementById('userNameMobile');
     const userAvatarMobile = document.getElementById('userAvatarMobile');
 
-    if (userName) userName.innerText = user.displayName || 'Usuario';
-    if (userAvatar) userAvatar.src = user.photoURL || '';
-    if (userNameMobile) userNameMobile.innerText = (user.displayName ? user.displayName.split(' ')[0] : 'Usuario');
-    if (userAvatarMobile) userAvatarMobile.src = user.photoURL || '';
+    const nameToDisplay = user.displayName || 'Usuario';
+    const photoToDisplay = user.photoURL || '';
+
+    if (userName) userName.innerText = nameToDisplay;
+    if (userAvatar) userAvatar.src = photoToDisplay;
+    if (userNameMobile) userNameMobile.innerText = nameToDisplay.split(' ')[0];
+    if (userAvatarMobile) userAvatarMobile.src = photoToDisplay;
 
     // Set version labels and titles
     const versionTitle = `Amaya's Music V${APP_VERSION} (${APP_DATE})`;
-    const loggedInUI = document.getElementById('loggedInUI');
-    const loggedInUIMobile = document.getElementById('loggedInUIMobile');
-
-    if (loggedInUI) loggedInUI.title = versionTitle;
-    if (loggedInUIMobile) loggedInUIMobile.title = versionTitle;
+    if (desktopIn) desktopIn.title = versionTitle;
+    if (mobileIn) mobileIn.title = versionTitle;
 
     document.querySelectorAll('.version-label-display').forEach(el => {
         el.innerText = `V${APP_VERSION}`;
     });
 
-    console.log("👤 UI Actualizada para:", user.displayName);
     loadPlaylistsFromCloud();
 }
 
@@ -223,30 +234,26 @@ async function loginWithGoogle() {
         // Force account selection to avoid "auto-selecting" the wrong one
         googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-        await signInWithPopup(auth, googleProvider);
+        console.log("🚀 Iniciando signInWithPopup...");
+        const result = await signInWithPopup(auth, googleProvider);
+        console.log("✅ signInWithPopup exitoso:", result.user.displayName);
+
         showToast("Sesión iniciada correctamente");
+        updateUserUI(result.user); // Immediate UI update
     } catch (error) {
         console.error("Detailed Login Error:", error);
+        alert("Error al entrar: " + error.message);
 
         if (error.code === 'auth/popup-blocked') {
-            showToast("⚠️ Activa los popups para entrar", "error");
-            alert("El navegador ha bloqueado la ventana de acceso. Por favor, permite los popups para esta web.");
-        } else if (error.code === 'auth/operation-not-allowed') {
-            showToast("Error: Google Login no activado en Firebase", "error");
-        } else if (error.code === 'auth/network-request-failed') {
-            showToast("Problema de conexión", "error");
+            showToast("⚠️ Activa los popups", "error");
         } else {
-            showToast(`Error: ${error.message.split('(')[0]}`, "error");
+            showToast("Error de acceso", "error");
         }
     } finally {
-        // Force a UI refresh in case Firebase listener is slow
+        // Fallback for some mobile browsers
         setTimeout(() => {
-            const user = auth.currentUser;
-            if (user) {
-                console.log("🔄 Forzando actualización de UI manual...");
-                updateUserUI(user);
-            }
-        }, 1000);
+            if (auth.currentUser) updateUserUI(auth.currentUser);
+        }, 500);
     }
 }
 
