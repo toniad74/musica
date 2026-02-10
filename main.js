@@ -2705,11 +2705,15 @@ function switchTab(tab) {
         if (searchInputSection) searchInputSection.classList.remove('hidden');
     } else if (tab === 'news') {
         homeSection.classList.add('hidden');
-        resultsSection.classList.add('hidden');
+        resultsSection.classList.add('hidden'); // Added
         playlistView.classList.add('hidden');
         if (newsSection) newsSection.classList.remove('hidden');
-        if (searchInputSection) searchInputSection.classList.add('hidden');
-        if (!isNewsLoaded) loadNewReleases();
+        if (searchInputSection) searchInputSection.classList.add('hidden'); // Added
+
+        // Auto-load news if section is now visible and not loaded
+        if (!isNewsLoaded) {
+            loadNewReleases();
+        }
     }
 }
 

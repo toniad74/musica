@@ -225,10 +225,10 @@ button.in-queue svg {
 }
 
 .tab-btn.active {
-    background: rgba(30, 215, 96, 0.1);
-    color: var(--accent-color);
-    border-color: rgba(30, 215, 96, 0.3);
-    box-shadow: 0 8px 20px rgba(30, 215, 96, 0.15);
+    background: rgba(30, 215, 96, 0.2) !important;
+    color: var(--accent-color) !important;
+    border-color: rgba(30, 215, 96, 0.4) !important;
+    box-shadow: 0 0 20px rgba(30, 215, 96, 0.2);
     transform: translateY(-1px);
 }
 
@@ -443,6 +443,7 @@ body {
     line-height: 1.4;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     color: white;
