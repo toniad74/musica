@@ -3248,6 +3248,8 @@ Object.assign(window, {
     updateMarquee,
     loginWithGoogle,
     logout,
+    toggleProfileDropdown,
+    toggleProfileDropdownMobile,
     onYouTubeIframeAPIReady,
     onPlayerReady,
     onPlayerStateChange,
