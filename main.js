@@ -2201,14 +2201,26 @@ function openPlaylist(id) {
                     </div>
                     <p class="text-[#b3b3b3] text-sm truncate">${song.channel}</p>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-1">
+                    <button onclick="event.stopPropagation(); moveSongInPlaylist('${pl.id}', ${index}, -1)" 
+                        class="text-gray-500 hover:text-white p-1.5 transition-colors ${index === 0 ? 'invisible' : ''}" 
+                        title="Subir">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z"/></svg>
+                    </button>
+                    <button onclick="event.stopPropagation(); moveSongInPlaylist('${pl.id}', ${index}, 1)" 
+                        class="text-gray-500 hover:text-white p-1.5 transition-colors ${index === pl.songs.length - 1 ? 'invisible' : ''}" 
+                        title="Bajar">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                    </button>
                     <button onclick="event.stopPropagation(); toggleQueue(${JSON.stringify(song).replace(/"/g, '&quot;')})" 
-                        class="queue-btn p-2 hover:text-white ${inQueueClass}" 
+                        class="queue-btn p-1.5 hover:text-white ${inQueueClass}" 
                         data-song-id="${song.id}"
                         title="Añadir/Quitar de la cola">
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/></svg>
                     </button>
-                    <button onclick="event.stopPropagation(); removeSongFromPlaylist('${pl.id}', '${song.id}')" class="text-gray-500 hover:text-red-500 p-2 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity" title="Eliminar de la lista">
+                    <button onclick="event.stopPropagation(); removeSongFromPlaylist('${pl.id}', '${song.id}')" 
+                        class="text-gray-500 hover:text-red-500 p-1.5 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity" 
+                        title="Eliminar de la lista">
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                     </button>
                 </div>
@@ -2279,6 +2291,24 @@ function removeSongFromPlaylist(plId, songId) {
     renderPlaylists();
     openPlaylist(plId);
     showToast("Canción eliminada de la lista");
+}
+
+function moveSongInPlaylist(plId, fromIndex, direction) {
+    const pl = playlists.find(p => p.id === plId);
+    if (!pl) return;
+
+    const toIndex = fromIndex + direction;
+    if (toIndex < 0 || toIndex >= pl.songs.length) return;
+
+    // Swap songs
+    const songToMove = pl.songs[fromIndex];
+    pl.songs.splice(fromIndex, 1);
+    pl.songs.splice(toIndex, 0, songToMove);
+
+    savePlaylists();
+    renderPlaylists();
+    openPlaylist(plId);
+    showToast("Posición actualizada");
 }
 
 function triggerPlaylistCoverUpload() {
@@ -3165,7 +3195,8 @@ Object.assign(window, {
     deleteCurrentPlaylist,
     playCurrentPlaylist,
     toggleMute,
-    removeFromQueue
+    removeFromQueue,
+    moveSongInPlaylist
 });
 
 console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE - V4");
