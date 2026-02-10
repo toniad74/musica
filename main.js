@@ -131,14 +131,13 @@ window.onload = () => {
             const input = document.getElementById(`apiKeyInput${i + 1}`);
             if (input) input.value = key;
         });
-        document.getElementById('apiKeySection').classList.add('hidden');
-        document.getElementById('apiKeyToggleButton').innerText = "Mostrar clave API";
-        document.getElementById('apiWarning').classList.add('hidden');
-    } else {
-        // If using internal keys, keep section hidden but don't show warning
-        document.getElementById('apiKeySection').classList.add('hidden');
-        document.getElementById('apiWarning').classList.add('hidden');
     }
+
+    // Always keep API Section and Warning hidden as keys are now handled automatically
+    const apiKeySection = document.getElementById('apiKeySection');
+    if (apiKeySection) apiKeySection.classList.add('hidden');
+    const apiWarning = document.getElementById('apiWarning');
+    if (apiWarning) apiWarning.classList.add('hidden');
 
     setupMediaSessionHandlers();
     renderPlaylists();
@@ -3240,5 +3239,5 @@ Object.assign(window, {
     moveSongInPlaylist
 });
 
-console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE - V10");
-setTimeout(() => showToast("App Actualizada (V10)"), 1000);
+console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE - V11");
+setTimeout(() => showToast("App Actualizada (V11)"), 1000);
