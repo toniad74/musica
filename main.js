@@ -3089,7 +3089,7 @@ async function loadMoreNews() {
 
         newsVideos = [...newsVideos, ...newBatch];
         newsNextPageToken = data.nextPageToken || '';
-        renderNewsResults(newsVideos);
+        renderNewsResults(newBatch, true);
     } catch (error) {
         console.error("Error loading more news:", error);
         showToast("Error al cargar más novedades", "warning");
@@ -3287,11 +3287,11 @@ function updateLyricsSync(currentTime) {
     }
 }
 
-function renderNewsResults(videos) {
+function renderNewsResults(videos, append = false) {
     const grid = document.getElementById('newsGrid');
     if (!grid) return;
 
-    grid.innerHTML = '';
+    if (!append) grid.innerHTML = '';
     videos.forEach((video, index) => {
         const inQueue = isSongInQueue(video.id);
         const inQueueClass = inQueue ? 'in-queue-active' : 'bg-black/60 hover:bg-green-500';
