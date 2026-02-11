@@ -142,11 +142,11 @@
                         class="hidden absolute top-full left-0 right-0 mt-2 bg-[#282828] rounded-xl shadow-2xl border border-white/10 z-50 overflow-hidden">
                         <div class="p-4 border-b border-white/5">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Versión</p>
-                            <p class="text-white text-sm">v1.7.13</p>
+                            <p class="text-white text-sm">v1.7.14</p>
                             <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                 Actualizado
                             </p>
-                            <p class="text-white text-sm">11 feb 2026 22:15</p>
+                            <p class="text-white text-sm">11 feb 2026 22:51</p>
                         </div>
                         <button onclick="showReport()"
                             class="w-full text-left px-4 py-3 text-sm text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -260,11 +260,11 @@
                                     <div class="p-3 border-b border-white/5">
                                         <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">
                                             Versión</p>
-                                        <p class="text-white text-xs">v1.7.13</p>
+                                        <p class="text-white text-xs">v1.7.14</p>
                                         <p
                                             class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                             Actualizado</p>
-                                        <p class="text-white text-xs">11 feb 2026 22:15</p>
+                                        <p class="text-white text-xs">11 feb 2026 22:51</p>
                                     </div>
                                     <button onclick="showReport()"
                                         class="w-full text-left px-3 py-3 text-xs text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -1043,14 +1043,14 @@
 
                 <div class="h-8 w-px bg-white/10 mx-2 hidden md:block"></div>
 
-                <div class="flex items-center gap-2">
-                    <input type="date" id="reportStartDate"
+                <div class="flex flex-wrap items-center gap-2 mt-2 md:mt-0">
+                    <input type="date" id="reportStartDate" onchange="updateReportCustomRange()"
                         class="bg-black/40 border border-white/10 rounded-lg px-3 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500">
                     <span class="text-gray-500">al</span>
-                    <input type="date" id="reportEndDate"
+                    <input type="date" id="reportEndDate" onchange="updateReportCustomRange()"
                         class="bg-black/40 border border-white/10 rounded-lg px-3 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-green-500">
                     <button onclick="updateReportCustomRange()"
-                        class="ml-2 bg-green-500 text-black px-4 py-1 rounded-lg text-sm font-bold hover:scale-105 transition-transform">Filtrar</button>
+                        class="hidden ml-2 bg-green-500 text-black px-4 py-1 rounded-lg text-sm font-bold hover:scale-105 transition-transform">Filtrar</button>
                 </div>
             </div>
 
