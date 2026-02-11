@@ -3160,38 +3160,89 @@ async function fetchLyricsForCurrent() {
     content.innerHTML = `
         <div class="flex flex-col items-center justify-center space-y-4 py-20">
             <div class="w-12 h-12 border-4 border-white/10 border-t-green-500 rounded-full animate-spin"></div>
-            <p class="text-gray-400 font-bold tracking-widest uppercase text-xs">Buscando letra...</p>
+            <p class="text-gray-400 font-bold tracking-widest uppercase text-xs">Buscando letra en múltiples fuentes...</p>
         </div>
     `;
 
     lastLyricsVideoId = currentTrack.id;
-    const cleanTitle = currentTrack.title.replace(/\(.*\)|\[.*\]/g, '').trim();
-    const cleanArtist = (currentTrack.artist || currentTrack.channel || '').replace(/VEVO|Official|Topic/gi, '').trim();
+
+    // Advanced Title Cleaning to improve hit rate
+    let cleanTitle = currentTrack.title
+        .replace(/\(.*\)|\[.*\]/g, '') // Remove parenthesis content
+        .replace(/ft\.|feat\.|featuring|prod\.|with/gi, '') // Remove collaboration markers
+        .replace(/official video|audio|lyric video|lyrics|official/gi, '') // Remove meta words
+        .replace(/[-_]/g, ' ') // Replace separators with spaces
+        .trim();
+
+    // Clean Artist
+    let cleanArtist = (currentTrack.artist || currentTrack.channel || '')
+        .replace(/ - Topic|VEVO|Official|Topic/gi, '')
+        .replace(/,\s*.*$/, '') // Use only primary artist (remove stuff after comma)
+        .trim();
+
+    console.log(`🎤 Buscando letra para: "${cleanTitle}" de "${cleanArtist}"`);
 
     try {
-        const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(cleanArtist)}&track_name=${encodeURIComponent(cleanTitle)}`;
-        const response = await fetch(url);
-
-        if (response.status === 404) {
-            // Try search as fallback
-            const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(cleanArtist + " " + cleanTitle)}`;
-            const searchRes = await fetch(searchUrl);
-            const searchData = await searchRes.json();
-
-            if (searchData && searchData.length > 0) {
-                renderLyrics(searchData[0]);
-                return;
+        // STRATEGY 1: LRCLIB (Specific Search)
+        // Best for synced lyrics
+        let foundData = null;
+        try {
+            const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(cleanArtist)}&track_name=${encodeURIComponent(cleanTitle)}`;
+            const response = await fetch(url);
+            if (response.ok) {
+                foundData = await response.json();
+            } else if (response.status === 404) {
+                // STRATEGY 2: LRCLIB (Broad Search)
+                const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(cleanArtist + " " + cleanTitle)}`;
+                const searchRes = await fetch(searchUrl);
+                const searchData = await searchRes.json();
+                if (searchData && searchData.length > 0) {
+                    foundData = searchData[0];
+                }
             }
-            throw new Error("No lyrics found");
+        } catch (lrcError) {
+            console.warn("LRCLib failed:", lrcError);
         }
 
-        const data = await response.json();
-        renderLyrics(data);
-    } catch (e) {
+        if (foundData) {
+            console.log("✅ Letra encontrada en LRCLib");
+            renderLyrics(foundData);
+            return;
+        }
+
+        // STRATEGY 3: Lyrics.ovh Fallback (Text only, no sync)
+        console.log("⚠️ LRCLib no tuvo resultados. Intentando Lyrics.ovh...");
         content.innerHTML = `
-            <div class="text-center py-20">
+            <div class="flex flex-col items-center justify-center space-y-4 py-20">
+                <div class="w-12 h-12 border-4 border-white/10 border-t-blue-500 rounded-full animate-spin"></div>
+                <p class="text-blue-400 font-bold tracking-widest uppercase text-xs">Probando fuente alternativa...</p>
+            </div>
+        `;
+
+        const ovhUrl = `https://api.lyrics.ovh/v1/${encodeURIComponent(cleanArtist)}/${encodeURIComponent(cleanTitle)}`;
+        const ovhRes = await fetch(ovhUrl);
+
+        if (ovhRes.ok) {
+            const ovhData = await ovhRes.json();
+            if (ovhData.lyrics) {
+                console.log("✅ Letra encontrada en Lyrics.ovh");
+                renderLyrics({
+                    plainLyrics: ovhData.lyrics,
+                    syncedLyrics: null
+                });
+                return;
+            }
+        }
+
+        throw new Error("No lyrics found in any source");
+
+    } catch (e) {
+        console.error("Lyrics Error:", e);
+        content.innerHTML = `
+            <div class="text-center py-20 animate-fade-in">
                 <p class="text-white/20 text-6xl mb-4">⊙﹏⊙</p>
-                <p class="text-gray-500 font-bold">No hemos encontrado la letra de esta canción.</p>
+                <p class="text-gray-500 font-bold mb-2">No hemos encontrado la letra.</p>
+                <p class="text-gray-600 text-xs">Intenta reproducir la versión oficial de la canción.</p>
             </div>
         `;
         document.getElementById('syncedLyricsIndicator').classList.add('hidden');
