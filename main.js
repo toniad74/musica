@@ -3005,8 +3005,17 @@ async function fetchNewsDurations(videos) {
         data.items.forEach(item => {
             const video = videos.find(v => v.id === item.id);
             if (video) {
-                video.duration = parseISO8601Duration(item.contentDetails.duration);
+                const durationRaw = item.contentDetails.duration;
+                video.duration = parseISO8601Duration(durationRaw);
+                video.durationSec = parseISO8601DurationInSeconds(durationRaw);
             }
+        });
+
+        // REQUISITO: Filtrar canciones de menos de 2 minutos (120s)
+        newsVideos = newsVideos.filter(v => {
+            // If duration unknown yet, keep it (will be filtered in next batch or once data arrives)
+            if (v.duration === '...') return true;
+            return v.durationSec >= 120;
         });
 
         renderNewsResults(newsVideos);
@@ -3535,6 +3544,15 @@ function parseISO8601Duration(duration) {
         return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')} `;
     }
     return `${m}:${s.toString().padStart(2, '0')} `;
+}
+
+function parseISO8601DurationInSeconds(duration) {
+    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (!match) return 0;
+    const h = parseInt(match[1]) || 0;
+    const m = parseInt(match[2]) || 0;
+    const s = parseInt(match[3]) || 0;
+    return h * 3600 + m * 60 + s;
 }
 
 // Background playback recovery & Heartbeat
