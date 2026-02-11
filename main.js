@@ -3092,6 +3092,165 @@ function updateLoadMoreButton() {
     }
 }
 
+// --- LYRICS SYSTEM ---
+let currentLyricsArr = [];
+let lyricsSyncMode = false;
+let isLyricsOpen = false;
+let lastLyricsVideoId = null;
+
+async function toggleLyrics() {
+    const overlay = document.getElementById('lyricsOverlay');
+    isLyricsOpen = !isLyricsOpen;
+
+    overlay.classList.toggle('hidden', !isLyricsOpen);
+    setTimeout(() => overlay.classList.toggle('visible', isLyricsOpen), 50);
+
+    if (isLyricsOpen) {
+        // Update header info
+        document.getElementById('lyricsArt').src = currentTrack.thumbnail;
+        document.getElementById('lyricsTitle').innerText = currentTrack.title;
+        document.getElementById('lyricsArtist').innerText = currentTrack.artist || currentTrack.channel;
+
+        if (lastLyricsVideoId !== currentTrack.id) {
+            await fetchLyricsForCurrent();
+        }
+    }
+}
+
+async function fetchLyricsForCurrent() {
+    if (!currentTrack) return;
+
+    const content = document.getElementById('lyricsContent');
+    content.innerHTML = `
+        <div class="flex flex-col items-center justify-center space-y-4 py-20">
+            <div class="w-12 h-12 border-4 border-white/10 border-t-green-500 rounded-full animate-spin"></div>
+            <p class="text-gray-400 font-bold tracking-widest uppercase text-xs">Buscando letra...</p>
+        </div>
+    `;
+
+    lastLyricsVideoId = currentTrack.id;
+    const cleanTitle = currentTrack.title.replace(/\(.*\)|\[.*\]/g, '').trim();
+    const cleanArtist = (currentTrack.artist || currentTrack.channel || '').replace(/VEVO|Official|Topic/gi, '').trim();
+
+    try {
+        const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(cleanArtist)}&track_name=${encodeURIComponent(cleanTitle)}`;
+        const response = await fetch(url);
+
+        if (response.status === 404) {
+            // Try search as fallback
+            const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(cleanArtist + " " + cleanTitle)}`;
+            const searchRes = await fetch(searchUrl);
+            const searchData = await searchRes.json();
+
+            if (searchData && searchData.length > 0) {
+                renderLyrics(searchData[0]);
+                return;
+            }
+            throw new Error("No lyrics found");
+        }
+
+        const data = await response.json();
+        renderLyrics(data);
+    } catch (e) {
+        content.innerHTML = `
+            <div class="text-center py-20">
+                <p class="text-white/20 text-6xl mb-4">⊙﹏⊙</p>
+                <p class="text-gray-500 font-bold">No hemos encontrado la letra de esta canción.</p>
+            </div>
+        `;
+        document.getElementById('syncedLyricsIndicator').classList.add('hidden');
+        document.getElementById('syncedLyricsIndicatorMobile').classList.add('hidden');
+    }
+}
+
+function renderLyrics(data) {
+    const content = document.getElementById('lyricsContent');
+    content.innerHTML = '';
+
+    lyricsSyncMode = !!data.syncedLyrics;
+    const lyricsText = data.syncedLyrics || data.plainLyrics || "";
+
+    if (lyricsSyncMode) {
+        currentLyricsArr = parseLRC(lyricsText);
+        document.getElementById('lyricsOverlay').classList.add('lyrics-synced');
+        document.getElementById('syncedLyricsIndicator').classList.remove('hidden');
+        document.getElementById('syncedLyricsIndicatorMobile').classList.remove('hidden');
+    } else {
+        currentLyricsArr = lyricsText.split('\n').map(line => ({ text: line }));
+        document.getElementById('lyricsOverlay').classList.remove('lyrics-synced');
+        document.getElementById('syncedLyricsIndicator').classList.add('hidden');
+        document.getElementById('syncedLyricsIndicatorMobile').classList.add('hidden');
+    }
+
+    currentLyricsArr.forEach((line, index) => {
+        if (!line.text.trim() && lyricsSyncMode) return;
+        const p = document.createElement('p');
+        p.className = 'lyric-line';
+        p.innerText = line.text || '♪';
+        p.dataset.index = index;
+        if (lyricsSyncMode) {
+            p.onclick = () => {
+                const targetTime = line.time;
+                if (isCurrentlyUsingNative && nativeAudio) {
+                    nativeAudio.currentTime = targetTime;
+                } else if (player && player.seekTo) {
+                    player.seekTo(targetTime);
+                }
+            };
+        }
+        content.appendChild(p);
+    });
+}
+
+function parseLRC(lrc) {
+    const lines = lrc.split('\n');
+    const result = [];
+    const timeReg = /\[(\d+):(\d+\.\d+)\]/;
+
+    lines.forEach(line => {
+        const match = timeReg.exec(line);
+        if (match) {
+            const minutes = parseInt(match[1]);
+            const seconds = parseFloat(match[2]);
+            const text = line.replace(timeReg, '').trim();
+            result.push({
+                time: minutes * 60 + seconds,
+                text: text
+            });
+        }
+    });
+    return result.sort((a, b) => a.time - b.time);
+}
+
+function updateLyricsSync(currentTime) {
+    if (!isLyricsOpen || !lyricsSyncMode || !currentLyricsArr.length) return;
+
+    // Find current line
+    let activeIndex = -1;
+    for (let i = 0; i < currentLyricsArr.length; i++) {
+        if (currentTime >= currentLyricsArr[i].time) {
+            activeIndex = i;
+        } else {
+            break;
+        }
+    }
+
+    if (activeIndex !== -1) {
+        const activeLine = document.querySelector(`.lyric-line[data-index="${activeIndex}"]`);
+
+        if (activeLine && !activeLine.classList.contains('active')) {
+            document.querySelectorAll('.lyric-line.active').forEach(l => l.classList.remove('active'));
+            activeLine.classList.add('active');
+
+            // Smooth scroll to active line
+            activeLine.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+        }
+    }
+}
+
 function renderNewsResults(videos) {
     const grid = document.getElementById('newsGrid');
     if (!grid) return;
@@ -3246,6 +3405,11 @@ function updateProgressBar() {
     if (progressBar) progressBar.value = progress;
     if (progressFill) progressFill.style.width = progress + '%';
     if (progressThumb) progressThumb.style.left = progress + '%';
+
+    // --- Lyrics Sync ---
+    if (isLyricsOpen && lyricsSyncMode) {
+        updateLyricsSync(currentTime);
+    }
 
     // Update mobile progress
     const mobileProgressBar = document.getElementById('mobileProgressBar');
@@ -3989,9 +4153,9 @@ Object.assign(window, {
     moveSongInPlaylist,
     showReport,
     hideReport,
-    updateReportPeriod,
     updateReportCustomRange,
-    loadMoreNews
+    loadMoreNews,
+    toggleLyrics
 });
 
 console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE");

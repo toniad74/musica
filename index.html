@@ -142,11 +142,11 @@
                         class="hidden absolute top-full left-0 right-0 mt-2 bg-[#282828] rounded-xl shadow-2xl border border-white/10 z-50 overflow-hidden">
                         <div class="p-4 border-b border-white/5">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Versión</p>
-                            <p class="text-white text-sm">v1.6.1</p>
+                            <p class="text-white text-sm">v1.7.0</p>
                             <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                 Actualizado
                             </p>
-                            <p class="text-white text-sm">11 feb 2026 20:33</p>
+                            <p class="text-white text-sm">11 feb 2026 20:50</p>
                         </div>
                         <button onclick="showReport()"
                             class="w-full text-left px-4 py-3 text-sm text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -260,11 +260,11 @@
                                     <div class="p-3 border-b border-white/5">
                                         <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">
                                             Versión</p>
-                                        <p class="text-white text-xs">v1.6.1</p>
+                                        <p class="text-white text-xs">v1.7.0</p>
                                         <p
                                             class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                             Actualizado</p>
-                                        <p class="text-white text-xs">11 feb 2026 20:33</p>
+                                        <p class="text-white text-xs">11 feb 2026 20:50</p>
                                     </div>
                                     <button onclick="showReport()"
                                         class="w-full text-left px-3 py-3 text-xs text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -675,6 +675,15 @@
                 title="Ver cola">
                 <span id="queueCount" class="text-black">0</span>
             </button>
+            <button id="showLyricsBtn" onclick="toggleLyrics()"
+                class="text-[#b3b3b3] hover:text-white p-2 transition-colors relative" title="Ver letra">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span id="syncedLyricsIndicator"
+                    class="absolute top-1 right-1 w-1.5 h-1.5 bg-green-500 rounded-full hidden"></span>
+            </button>
             <button id="muteBtn" class="text-[#b3b3b3] hover:text-white" onclick="toggleMute()">
                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" id="volumeIcon">
                     <path
@@ -818,6 +827,14 @@
                 </svg></button>
             <span class="text-xs text-gray-400 uppercase tracking-wider">Reproduciendo</span>
             <div class="flex items-center gap-2">
+                <button onclick="toggleLyrics()" class="p-2 text-gray-400 hover:text-white relative" title="Ver letra">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span id="syncedLyricsIndicatorMobile"
+                        class="absolute top-2 right-2 w-2 h-2 bg-green-500 rounded-full hidden"></span>
+                </button>
             </div>
         </div>
         <div class="flex-1 flex items-center justify-center px-4">
@@ -1084,6 +1101,46 @@
                     <!-- Activity rows will go here -->
                 </div>
             </div>
+        </div>
+    </div>
+    <!-- Lyrics View Overlay -->
+    <div id="lyricsOverlay"
+        class="hidden fixed inset-0 z-[150] bg-black/40 backdrop-blur-[40px] flex flex-col items-center p-6 md:p-12 transition-all duration-500">
+        <!-- Close Handle (Mobile styles) -->
+        <div class="drag-handle mb-8 md:hidden" onclick="toggleLyrics()"></div>
+
+        <!-- Desktop Header -->
+        <div class="w-full max-w-4xl flex items-center justify-between mb-8">
+            <div class="flex items-center gap-4">
+                <img id="lyricsArt" src="" class="w-16 h-16 rounded-lg shadow-2xl object-cover">
+                <div class="min-w-0">
+                    <h2 id="lyricsTitle" class="text-white font-black text-xl md:text-2xl truncate"></h2>
+                    <p id="lyricsArtist" class="text-gray-400 font-bold"></p>
+                </div>
+            </div>
+            <button onclick="toggleLyrics()"
+                class="p-4 rounded-full bg-white/5 hover:bg-white/10 text-white transition-all hover:scale-110">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Lyrics Container -->
+        <div id="lyricsContainer" class="w-full max-w-4xl flex-1 overflow-y-auto lyrics-scroller custom-scrollbar px-4">
+            <div id="lyricsContent" class="py-[20vh] space-y-6 text-center md:text-left">
+                <!-- Lyrics lines will be injected here -->
+                <div class="animate-pulse space-y-4">
+                    <div class="h-8 bg-white/5 rounded-lg w-3/4 mx-auto md:mx-0"></div>
+                    <div class="h-8 bg-white/5 rounded-lg w-1/2 mx-auto md:mx-0"></div>
+                    <div class="h-8 bg-white/5 rounded-lg w-2/3 mx-auto md:mx-0"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer indicator -->
+        <div class="mt-8 text-gray-500 text-[10px] font-black tracking-widest uppercase opacity-40">
+            Powered by LRCLib & Spotify
         </div>
     </div>
 </body>
