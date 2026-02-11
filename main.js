@@ -3089,6 +3089,14 @@ async function loadMoreNews() {
 
         newsVideos = [...newsVideos, ...newBatch];
         newsNextPageToken = data.nextPageToken || '';
+
+        // If batch was empty due to filtering, try next page immediately
+        if (newBatch.length === 0 && newsNextPageToken) {
+            isLoadingMoreNews = false; // Reset lock to allow recursion
+            await loadMoreNews();
+            return;
+        }
+
         renderNewsResults(newBatch, true);
     } catch (error) {
         console.error("Error loading more news:", error);
@@ -3103,13 +3111,19 @@ function setupNewsInfiniteScroll() {
     const container = document.getElementById('newsLoadMoreContainer');
     if (!container) return;
 
-    const observer = new IntersectionObserver((entries) => {
+    // Disconnect previous observer if exists to avoid duplicates
+    if (window.newsObserver) window.newsObserver.disconnect();
+
+    window.newsObserver = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && newsNextPageToken && !isLoadingMoreNews) {
             loadMoreNews();
         }
-    }, { threshold: 0.1 });
+    }, {
+        rootMargin: '400px', // Trigger loading well before reaching the bottom
+        threshold: 0.1
+    });
 
-    observer.observe(container);
+    window.newsObserver.observe(container);
 }
 
 function updateLoadMoreButton() {
