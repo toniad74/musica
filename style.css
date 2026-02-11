@@ -888,6 +888,7 @@ button,
     color: black !important;
     box-shadow: 0 0 15px rgba(30, 215, 96, 0.5);
 }
+
 /* --- LYRICS SYSTEM --- */
 #lyricsOverlay {
     transform: translateY(100%);
@@ -940,7 +941,7 @@ button,
         font-size: 1.5rem;
         padding: 10px 12px;
     }
-    
+
     .lyric-line.active {
         transform: scale(1.05);
     }
@@ -948,4 +949,28 @@ button,
 
 .lyrics-scroller::-webkit-scrollbar {
     width: 0px;
+}
+
+/* Desktop Full Player Support */
+@media (min-width: 769px) {
+    .mobile-player-full {
+        align-items: center;
+        justify-content: center;
+        background: #000;
+        background: radial-gradient(circle at center top, rgba(30, 215, 96, 0.05), #000 80%);
+    }
+
+    /* Constrain width of inner containers */
+    .mobile-player-full>div {
+        max-width: 500px;
+        width: 100%;
+    }
+
+    #mobileArtworkContainer {
+        width: 320px !important;
+        height: 320px !important;
+        margin: 0 auto;
+        border-radius: 24px !important;
+        box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6);
+    }
 }
