@@ -1432,13 +1432,23 @@ async function searchPiped(query) {
             console.log(`✅ Búsqueda Piped exitosa en: ${instance}`);
 
             // Map Piped format to our internal format
-            return data.items.map(item => ({
-                id: item.url.split('/watch?v=')[1],
-                title: item.title,
-                channel: item.uploaderName,
-                thumbnail: item.thumbnail,
-                duration: item.duration ? formatPipedDuration(item.duration) : '0:00'
-            }));
+            return data.items.map(item => {
+                let videoId = '';
+                // Robust ID extraction from Piped
+                if (item.url && item.url.includes('v=')) {
+                    videoId = item.url.split('v=')[1].split('&')[0];
+                } else if (item.url && item.url.includes('/')) {
+                    videoId = item.url.split('/').pop().split('?')[0];
+                }
+
+                return {
+                    id: videoId || item.url,
+                    title: item.title,
+                    channel: item.uploaderName,
+                    thumbnail: item.thumbnail,
+                    duration: item.duration ? formatPipedDuration(item.duration) : '0:00'
+                };
+            });
 
         } catch (e) {
             continue;
@@ -1595,18 +1605,22 @@ async function searchMusic(pageToken = '', retryCount = 0) {
             duration: '0:00'
         }));
 
-        // Fetch durations
-        const ids = videos.map(v => v.id).join(',');
-        const detailsResp = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${getCurrentApiKey()}`);
-        const detailsData = await detailsResp.json();
+        // Fetch durations - Wrap in try/catch to ensure results show even if metadata fetch fails
+        try {
+            const ids = videos.map(v => v.id).join(',');
+            const detailsResp = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${getCurrentApiKey()}`);
+            const detailsData = await detailsResp.json();
 
-        if (detailsData.items) {
-            detailsData.items.forEach(item => {
-                const video = videos.find(v => v.id === item.id);
-                if (video) {
-                    video.duration = parseISO8601Duration(item.contentDetails.duration);
-                }
-            });
+            if (detailsData.items) {
+                detailsData.items.forEach(item => {
+                    const video = videos.find(v => v.id === item.id);
+                    if (video) {
+                        video.duration = parseISO8601Duration(item.contentDetails.duration);
+                    }
+                });
+            }
+        } catch (durationError) {
+            console.warn("Failed to fetch durations, showing results without them.", durationError);
         }
 
         renderSearchResults(videos);
