@@ -3977,33 +3977,38 @@ async function fetchAndRenderReport(startDate, endDate) {
 
 function calculateStatistics(history) {
     const stats = {
-        totalMinutes: 0,
+        totalSeconds: 0,
         totalSongs: history.length,
         uniqueArtists: new Set(),
-        artistsMap: {}, // artist -> minutes
+        artistsMap: {}, // artist -> seconds
         genresMap: {},  // genre -> count
     };
 
     history.forEach(item => {
-        const minutes = (item.durationSeconds || 0) / 60;
-        stats.totalMinutes += minutes;
+        const secs = item.durationSeconds || 0;
+        stats.totalSeconds += secs;
         stats.uniqueArtists.add(item.artist);
 
-        stats.artistsMap[item.artist] = (stats.artistsMap[item.artist] || 0) + minutes;
+        stats.artistsMap[item.artist] = (stats.artistsMap[item.artist] || 0) + secs;
 
         if (item.genre && item.genre !== "Unknown") {
             stats.genresMap[item.genre] = (stats.genresMap[item.genre] || 0) + 1;
         }
     });
 
-    stats.totalMinutes = Math.round(stats.totalMinutes);
+    stats.totalSeconds = Math.round(stats.totalSeconds);
     stats.uniqueArtistsCount = stats.uniqueArtists.size;
 
-    // Sort artists by minutes
+    // Sort artists by seconds
     stats.topArtists = Object.entries(stats.artistsMap)
-        .sort((a, b) => b[1] - a[1])
+        .sort((a, b) => b[1] - a[1]) // Sort by total seconds
         .slice(0, 10)
-        .map(([name, mins]) => ({ name, minutes: Math.round(mins) }));
+        .map(([name, seconds]) => ({
+            name,
+            seconds,
+            min: Math.floor(seconds / 60),
+            sec: Math.floor(seconds % 60)
+        }));
 
     // Sort genres by count
     stats.topGenres = Object.entries(stats.genresMap)
@@ -4011,11 +4016,18 @@ function calculateStatistics(history) {
         .slice(0, 10)
         .map(([name, count]) => ({ name, count }));
 
+    stats.totalMin = Math.floor(stats.totalSeconds / 60);
+    stats.totalSec = Math.floor(stats.totalSeconds % 60);
+
     return stats;
 }
 
 function renderReport(stats, history) {
-    document.getElementById('stat-total-minutes').innerText = stats.totalMinutes.toLocaleString();
+    const timeDisplay = stats.totalMin > 0
+        ? `${stats.totalMin.toLocaleString()}m ${stats.totalSec}s`
+        : `${stats.totalSec}s`;
+
+    document.getElementById('stat-total-minutes').innerText = timeDisplay;
     document.getElementById('stat-total-songs').innerText = stats.totalSongs.toLocaleString();
     document.getElementById('stat-unique-artists').innerText = stats.uniqueArtistsCount.toLocaleString();
 
@@ -4023,19 +4035,21 @@ function renderReport(stats, history) {
     const artistList = document.getElementById('top-artists-list');
     artistList.innerHTML = stats.topArtists.length > 0 ? '' : '<p class="text-gray-500 italic">No hay datos.</p>';
 
-    const maxMins = stats.topArtists.length > 0 ? stats.topArtists[0].minutes : 1;
+    const maxSeconds = stats.topArtists.length > 0 ? stats.topArtists[0].seconds : 1;
 
     stats.topArtists.forEach((artist, i) => {
         const item = document.createElement('div');
         item.className = 'stat-item';
-        const percent = (artist.minutes / maxMins) * 100;
+        const percent = (artist.seconds / maxSeconds) * 100;
+
+        const artistTime = artist.min > 0 ? `${artist.min}m ${artist.sec}s` : `${artist.sec}s`;
 
         item.innerHTML = `
             <div class="stat-rank">${i + 1}</div>
             <div class="flex-1">
                 <div class="flex justify-between items-center mb-1">
                     <span class="font-bold text-white">${artist.name}</span>
-                    <span class="text-xs font-mono text-green-500">${artist.minutes} min</span>
+                    <span class="text-xs font-mono text-green-500">${artistTime}</span>
                 </div>
                 <div class="stat-bar-container">
                     <div class="stat-bar-fill" style="width: ${percent}%"></div>
