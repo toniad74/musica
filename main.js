@@ -3988,16 +3988,16 @@ async function updateReportPeriod(period) {
     // Update tabs UI
     document.querySelectorAll('.report-tab').forEach(tab => {
         const isActive = tab.dataset.period === period;
-        tab.classList.toggle('active', isActive);
-        tab.classList.toggle('bg-white', isActive);
 
-        // Force colors via inline styles to bypass Tailwind/CSS conflicts
+        // Remove existing classes to properly reset
+        tab.classList.remove('active', 'bg-white', 'text-black');
+        tab.style.removeProperty('color');
+        tab.style.removeProperty('background-color');
+
         if (isActive) {
-            tab.style.setProperty('color', 'black', 'important');
-            tab.style.setProperty('background-color', 'white', 'important');
-        } else {
-            tab.style.removeProperty('color');
-            tab.style.removeProperty('background-color');
+            tab.classList.add('active', 'bg-white', 'text-black');
+            // Force styles just in case
+            tab.style.cssText = "background-color: white !important; color: black !important;";
         }
     });
 
@@ -4017,8 +4017,15 @@ async function updateReportPeriod(period) {
     }
 
     if (startDate) {
-        document.getElementById('reportStartDate').value = startDate.toISOString().split('T')[0];
-        document.getElementById('reportEndDate').value = now.toISOString().split('T')[0];
+        // Programmatic value change does NOT trigger onchange, so this is safe
+        const startInput = document.getElementById('reportStartDate');
+        const endInput = document.getElementById('reportEndDate');
+
+        if (startInput && endInput) {
+            startInput.value = startDate.toISOString().split('T')[0];
+            endInput.value = now.toISOString().split('T')[0];
+        }
+
         await fetchAndRenderReport(startDate, now);
     }
 }
@@ -4033,8 +4040,12 @@ async function updateReportCustomRange() {
     const end = new Date(endStr);
     end.setHours(23, 59, 59, 999);
 
-    // Clear active period tags as this is custom
-    document.querySelectorAll('.report-tab').forEach(tab => tab.classList.remove('active'));
+    // Clear active period tags as this is custom but preserve their base style
+    document.querySelectorAll('.report-tab').forEach(tab => {
+        tab.classList.remove('active', 'bg-white', 'text-black');
+        tab.style.removeProperty('color');
+        tab.style.removeProperty('background-color');
+    });
 
     await fetchAndRenderReport(start, end);
 }
@@ -4112,11 +4123,8 @@ function calculateStatistics(history) {
 }
 
 function renderReport(stats, history) {
-    const timeDisplay = stats.totalMin > 0
-        ? `${stats.totalMin.toLocaleString()}m ${stats.totalSec}s`
-        : `${stats.totalSec}s`;
-
-    document.getElementById('stat-total-minutes').innerText = timeDisplay;
+    // Show only minutes as requested
+    document.getElementById('stat-total-minutes').innerText = stats.totalMin.toLocaleString();
     document.getElementById('stat-total-songs').innerText = stats.totalSongs.toLocaleString();
     document.getElementById('stat-unique-artists').innerText = stats.uniqueArtistsCount.toLocaleString();
 
