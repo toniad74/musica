@@ -256,6 +256,9 @@ function setupAuthListener() {
 
             // Redirect to Search on login
             switchTab('search');
+
+            // Show Brave browser recommendation (once per session)
+            showBraveRecommendation();
         } else {
             currentUserUid = null;
 
@@ -368,6 +371,26 @@ async function loadPlaylistsFromCloud() {
         console.error("Error al cargar desde la nube:", e);
     }
 }
+
+// Show Brave browser recommendation
+function showBraveRecommendation() {
+    // Check if we've already shown the message this session
+    if (sessionStorage.getItem('braveRecommendationShown')) {
+        return;
+    }
+
+    // Detect if the user is using Brave browser
+    const isBrave = navigator.brave && typeof navigator.brave.isBrave === 'function';
+
+    if (!isBrave) {
+        // Show recommendation after a short delay to not overwhelm the user
+        setTimeout(() => {
+            showToast("💡 Consejo: Usa el navegador Brave para una experiencia sin anuncios", "info");
+            sessionStorage.setItem('braveRecommendationShown', 'true');
+        }, 2000);
+    }
+}
+
 
 // Service Worker registration and keepalive
 async function registerServiceWorker() {
