@@ -150,7 +150,7 @@ window.onload = () => {
     checkSharedPlaylist();
 
     setupAuthListener();
-    switchTab('search');
+    switchTab('playlists');
     updateQueueCount();
 
     // Close profile dropdown when clicking outside
@@ -286,6 +286,12 @@ async function logout() {
     try {
         await signOut(auth);
 
+        // Stop Playback Forcefully
+        if (nativeAudio) { nativeAudio.pause(); nativeAudio.currentTime = 0; }
+        if (player && typeof player.stopVideo === 'function') { player.stopVideo(); }
+        isMediaPlaying = false;
+        updatePlayPauseIcons(false);
+
         // Reset local state
         playlists = [];
         playlist = [];
@@ -306,8 +312,8 @@ async function logout() {
         // Clear search
         clearSearch();
 
-        // Return to search tab
-        switchTab('search');
+        // Return to playlists tab (search is restricted)
+        switchTab('playlists');
 
         const dropdown = document.getElementById('profileDropdown');
         const mobileDropdown = document.getElementById('profileDropdownMobile');
@@ -1462,6 +1468,11 @@ async function searchMusic(pageToken = '', retryCount = 0) {
     const query = input.value.trim();
     if (!query) return;
 
+    if (!currentUserUid) {
+        showToast("Inicia sesión para buscar música", "warning");
+        return;
+    }
+
     // Robust keyboard closing: Multiple blurs and focus shift
     input.blur();
     setTimeout(() => input.blur(), 50);
@@ -1627,6 +1638,11 @@ function updateSearchPagination() {
 // --- PLAYBACK ---
 async function playSong(song, list = [], fromQueue = false) {
     try {
+        if (!currentUserUid) {
+            showToast("Inicia sesión para reproducir canciones", "warning");
+            return;
+        }
+
         isUserPaused = false; // Reset intent state: starting a song implies active user intent
         currentTrack = song;
         // Initialize session state if not from queue
@@ -2704,6 +2720,12 @@ function switchTab(tab) {
     const tabSearch = document.getElementById('tab-search');
     const tabNews = document.getElementById('tab-news');
 
+    // RESTRICCIÓN: Login obligatorio para Buscar y Novedades
+    if ((tab === 'search' || tab === 'news') && !currentUserUid) {
+        showToast("Inicia sesión con Google para acceder", "warning");
+        return;
+    }
+
     // Update tab buttons
     if (tabPlaylists) tabPlaylists.classList.toggle('active', tab === 'playlists');
     if (tabSearch) tabSearch.classList.toggle('active', tab === 'search');
@@ -2820,6 +2842,10 @@ function renderHomePlaylists() {
 }
 
 async function loadNewReleases(force = false) {
+    if (!currentUserUid) {
+        showToast("Inicia sesión para ver novedades", "warning");
+        return;
+    }
     if (isNewsLoaded && !force) return;
 
     const grid = document.getElementById('newsGrid');
