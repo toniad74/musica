@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -369,6 +369,48 @@ async function loadPlaylistsFromCloud() {
         }
     } catch (e) {
         console.error("Error al cargar desde la nube:", e);
+    }
+}
+
+async function addToHistory(song) {
+    if (!currentUserUid || !song) return;
+
+    try {
+        // Try to get more metadata (like genres/topics) if they are missing
+        let genre = "Unknown";
+        try {
+            const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=topicDetails&id=${song.id}&key=${getCurrentApiKey()}`);
+            const data = await response.json();
+            if (data.items && data.items[0] && data.items[0].topicDetails) {
+                const topics = data.items[0].topicDetails.relevantTopicIds || [];
+                // Simple mapping of some topic IDs to genres
+                if (topics.includes('/m/04rlf')) genre = "Music";
+                if (topics.includes('/m/064t9')) genre = "Pop";
+                if (topics.includes('/m/06by7')) genre = "Rock";
+                if (topics.includes('/m/04k94')) genre = "Hip Hop";
+                if (topics.includes('/m/02mscn')) genre = "Christian";
+                if (topics.includes('/m/033zz')) genre = "Electronic";
+                if (topics.includes('/m/03_d0')) genre = "Jazz";
+                if (topics.includes('/m/0zdp')) genre = "Reggae";
+                if (topics.includes('/m/0ggq0m')) genre = "Latin";
+                if (topics.includes('/m/02lkt')) genre = "Electronic";
+            }
+        } catch (e) { console.warn("Failed to fetch genre metadata:", e); }
+
+        const historyRef = collection(db, "users", currentUserUid, "history");
+        await addDoc(historyRef, {
+            songId: song.id,
+            title: song.title,
+            artist: song.channel,
+            thumbnail: song.thumbnail,
+            duration: song.duration,
+            durationSeconds: parseDurationToSeconds(song.duration),
+            genre: genre,
+            timestamp: serverTimestamp()
+        });
+        console.log("📊 Historia guardada:", song.title);
+    } catch (e) {
+        console.error("Error al guardar en el historial:", e);
     }
 }
 
@@ -1823,6 +1865,9 @@ async function playSong(song, list = [], fromQueue = false) {
                 isMediaPlaying = true;
                 updatePlayPauseIcons(true);
                 console.log('✅ Reproducción limpia iniciada');
+
+                // Track listening history
+                addToHistory(song);
             } catch (error) {
                 console.error('❌ Error con audio nativo:', error);
 
@@ -1836,11 +1881,15 @@ async function playSong(song, list = [], fromQueue = false) {
                 showToast('Usando reproductor de reserva...', 'info');
                 isCurrentlyUsingNative = false;
                 loadYouTubeIFrame(song.id);
+                // Track listening history even on fallback
+                addToHistory(song);
             }
         } else {
             console.log('📡 Usando YouTube Player directamente');
             isCurrentlyUsingNative = false;
             loadYouTubeIFrame(song.id);
+            // Track listening history
+            addToHistory(song);
         }
     } catch (error) {
         console.error("Error playing song:", error);
@@ -2946,6 +2995,9 @@ function renderNewsResults(videos) {
 
     grid.innerHTML = '';
     videos.forEach((video, index) => {
+        const inQueue = isSongInQueue(video.id);
+        const inQueueClass = inQueue ? 'in-queue-active' : 'bg-black/60 hover:bg-green-500';
+
         const card = document.createElement('div');
         card.className = 'news-card animate-fade-in group';
         card.style.animationDelay = `${index * 50}ms`;
@@ -2966,8 +3018,9 @@ function renderNewsResults(videos) {
                 <!-- Action Buttons Overlay (Split: Queue Left, Playlist Right) -->
                 <div class="absolute top-2 left-2 z-10">
                     <button onclick="event.stopPropagation(); toggleQueue(${JSON.stringify(video).replace(/"/g, '&quot;')})" 
-                        class="p-2 bg-black/60 hover:bg-green-500 rounded-full text-white backdrop-blur-sm transition-colors"
-                        title="Añadir a la cola">
+                        class="p-2 ${inQueueClass} rounded-full text-white backdrop-blur-sm transition-colors"
+                        title="Añadir a la cola"
+                        data-song-id="${video.id}">
                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/></svg>
                     </button>
                 </div>
@@ -3521,6 +3574,217 @@ window.addEventListener('resize', () => {
     clearTimeout(window.marqueeResizeTimeout);
     window.marqueeResizeTimeout = setTimeout(updateMarquees, 500);
 });
+// --- REPORTING LOGIC ---
+let currentReportPeriod = '7d';
+
+async function showReport() {
+    if (!currentUserUid) return;
+    document.getElementById('reportModal').classList.remove('hidden');
+    // Set default dates
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 7);
+
+    document.getElementById('reportEndDate').value = end.toISOString().split('T')[0];
+    document.getElementById('reportStartDate').value = start.toISOString().split('T')[0];
+
+    await updateReportPeriod('7d');
+}
+
+function hideReport() {
+    document.getElementById('reportModal').classList.add('hidden');
+}
+
+async function updateReportPeriod(period) {
+    currentReportPeriod = period;
+
+    // Update tabs UI
+    document.querySelectorAll('.report-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.period === period);
+    });
+
+    let startDate;
+    const now = new Date();
+
+    if (period === '1d') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    } else if (period === '7d') {
+        startDate = new Date();
+        startDate.setDate(now.getDate() - 7);
+    } else if (period === '30d') {
+        startDate = new Date();
+        startDate.setDate(now.getDate() - 30);
+    } else if (period === 'all') {
+        startDate = new Date(2024, 0, 1); // Way back
+    }
+
+    if (startDate) {
+        document.getElementById('reportStartDate').value = startDate.toISOString().split('T')[0];
+        document.getElementById('reportEndDate').value = now.toISOString().split('T')[0];
+        await fetchAndRenderReport(startDate, now);
+    }
+}
+
+async function updateReportCustomRange() {
+    const startStr = document.getElementById('reportStartDate').value;
+    const endStr = document.getElementById('reportEndDate').value;
+
+    if (!startStr || !endStr) return;
+
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    end.setHours(23, 59, 59, 999);
+
+    // Clear active period tags as this is custom
+    document.querySelectorAll('.report-tab').forEach(tab => tab.classList.remove('active'));
+
+    await fetchAndRenderReport(start, end);
+}
+
+async function fetchAndRenderReport(startDate, endDate) {
+    if (!currentUserUid) return;
+
+    showToast("Generando reporte...", "info");
+
+    try {
+        const historyRef = collection(db, "users", currentUserUid, "history");
+        const q = query(
+            historyRef,
+            where("timestamp", ">=", startDate),
+            where("timestamp", "<=", endDate),
+            orderBy("timestamp", "desc")
+        );
+
+        const snapshot = await getDocs(q);
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        const stats = calculateStatistics(data);
+        renderReport(stats, data);
+    } catch (e) {
+        console.error("Error fetching report data:", e);
+        showToast("Error al obtener datos", "error");
+    }
+}
+
+function calculateStatistics(history) {
+    const stats = {
+        totalMinutes: 0,
+        totalSongs: history.length,
+        uniqueArtists: new Set(),
+        artistsMap: {}, // artist -> minutes
+        genresMap: {},  // genre -> count
+    };
+
+    history.forEach(item => {
+        const minutes = (item.durationSeconds || 0) / 60;
+        stats.totalMinutes += minutes;
+        stats.uniqueArtists.add(item.artist);
+
+        stats.artistsMap[item.artist] = (stats.artistsMap[item.artist] || 0) + minutes;
+
+        if (item.genre && item.genre !== "Unknown") {
+            stats.genresMap[item.genre] = (stats.genresMap[item.genre] || 0) + 1;
+        }
+    });
+
+    stats.totalMinutes = Math.round(stats.totalMinutes);
+    stats.uniqueArtistsCount = stats.uniqueArtists.size;
+
+    // Sort artists by minutes
+    stats.topArtists = Object.entries(stats.artistsMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([name, mins]) => ({ name, minutes: Math.round(mins) }));
+
+    // Sort genres by count
+    stats.topGenres = Object.entries(stats.genresMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([name, count]) => ({ name, count }));
+
+    return stats;
+}
+
+function renderReport(stats, history) {
+    document.getElementById('stat-total-minutes').innerText = stats.totalMinutes.toLocaleString();
+    document.getElementById('stat-total-songs').innerText = stats.totalSongs.toLocaleString();
+    document.getElementById('stat-unique-artists').innerText = stats.uniqueArtistsCount.toLocaleString();
+
+    // Render Artists
+    const artistList = document.getElementById('top-artists-list');
+    artistList.innerHTML = stats.topArtists.length > 0 ? '' : '<p class="text-gray-500 italic">No hay datos.</p>';
+
+    const maxMins = stats.topArtists.length > 0 ? stats.topArtists[0].minutes : 1;
+
+    stats.topArtists.forEach((artist, i) => {
+        const item = document.createElement('div');
+        item.className = 'stat-item';
+        const percent = (artist.minutes / maxMins) * 100;
+
+        item.innerHTML = `
+            <div class="stat-rank">${i + 1}</div>
+            <div class="flex-1">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="font-bold text-white">${artist.name}</span>
+                    <span class="text-xs font-mono text-green-500">${artist.minutes} min</span>
+                </div>
+                <div class="stat-bar-container">
+                    <div class="stat-bar-fill" style="width: ${percent}%"></div>
+                </div>
+            </div>
+        `;
+        artistList.appendChild(item);
+    });
+
+    // Render Genres
+    const genreList = document.getElementById('top-genres-list');
+    genreList.innerHTML = stats.topGenres.length > 0 ? '' : '<p class="text-gray-500 italic">No hay datos.</p>';
+
+    const maxGenre = stats.topGenres.length > 0 ? stats.topGenres[0].count : 1;
+
+    stats.topGenres.forEach((genre, i) => {
+        const item = document.createElement('div');
+        item.className = 'stat-item';
+        const percent = (genre.count / maxGenre) * 100;
+
+        item.innerHTML = `
+            <div class="stat-rank">${i + 1}</div>
+            <div class="flex-1">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="font-bold text-white">${genre.name}</span>
+                    <span class="text-xs font-mono text-blue-500">${genre.count} veces</span>
+                </div>
+                <div class="stat-bar-container">
+                    <div class="stat-bar-fill" style="width: ${percent}%"></div>
+                </div>
+            </div>
+        `;
+        genreList.appendChild(item);
+    });
+
+    // Render Recent Activity (Mini rows)
+    const activityList = document.getElementById('recent-activity-list');
+    activityList.innerHTML = '';
+
+    history.slice(0, 10).forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-4 p-3 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer';
+        const timeStr = item.timestamp ? new Date(item.timestamp.seconds * 1000).toLocaleString() : 'Recién';
+
+        row.innerHTML = `
+            <img src="${item.thumbnail}" class="w-10 h-10 rounded object-cover">
+            <div class="flex-1 min-w-0">
+                <p class="text-white text-sm font-bold truncate">${item.title}</p>
+                <p class="text-gray-400 text-xs">${item.artist}</p>
+            </div>
+            <div class="text-right">
+                <p class="text-[10px] text-gray-500 uppercase font-black">${timeStr}</p>
+            </div>
+        `;
+        activityList.appendChild(row);
+    });
+}
+
 // --- EXPOSE TO GLOBAL SCOPE (For HTML onclick handlers) ---
 // Only expose functions that are actually defined in this file or imported
 Object.assign(window, {
@@ -3587,7 +3851,11 @@ Object.assign(window, {
     playCurrentPlaylist,
     toggleMute,
     removeFromQueue,
-    moveSongInPlaylist
+    moveSongInPlaylist,
+    showReport,
+    hideReport,
+    updateReportPeriod,
+    updateReportCustomRange
 });
 
 console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE");

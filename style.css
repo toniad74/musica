@@ -773,3 +773,106 @@ button,
 .drag-handle-thumbnail {
     cursor: move !important;
 }
+
+/* --- REPORT MODAL STYLES --- */
+#reportModal {
+    background: radial-gradient(circle at top right, rgba(30, 215, 96, 0.05), transparent 40%),
+        radial-gradient(circle at bottom left, rgba(168, 85, 247, 0.05), transparent 40%),
+        #050505;
+}
+
+.report-tab {
+    padding: 8px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #b3b3b3;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+}
+
+.report-tab:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.report-tab.active {
+    background: white;
+    color: black;
+}
+
+.stats-card {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stats-card:hover {
+    transform: translateY(-8px);
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
+}
+
+.stat-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateX(4px);
+}
+
+.stat-rank {
+    width: 24px;
+    font-weight: 900;
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.2);
+}
+
+.stat-item:nth-child(1) .stat-rank {
+    color: #ffd700;
+}
+
+/* Gold */
+.stat-item:nth-child(2) .stat-rank {
+    color: #c0c0c0;
+}
+
+/* Silver */
+.stat-item:nth-child(3) .stat-rank {
+    color: #cd7f32;
+}
+
+/* Bronze */
+
+.stat-bar-container {
+    flex: 1;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.stat-bar-fill {
+    height: 100%;
+    background: var(--accent-color);
+    border-radius: 10px;
+    transition: width 1s ease-out;
+}
+
+#top-genres-list .stat-bar-fill {
+    background: #3b82f6;
+    /* Blue for genres */
+}
+
+/* Fix for News Cards Queue Icon */
+.news-card .in-queue-active {
+    background: var(--accent-color) !important;
+    color: black !important;
+    box-shadow: 0 0 15px rgba(30, 215, 96, 0.5);
+}
