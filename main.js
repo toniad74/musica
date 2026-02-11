@@ -3000,35 +3000,44 @@ async function loadNewReleases(force = false) {
 
     try {
         const apiKey = getCurrentApiKey();
-        // Fixed: More effective query for newest music entries
-        const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&maxResults=50&videoCategoryId=10&regionCode=ES&key=${apiKey}`);
-        const data = await response.json();
 
-        if (data.error) throw new Error(data.error.message);
+        // Loop to ensure we have enough initial items
+        while (newsVideos.length < 50) {
+            const pageTokenParam = newsNextPageToken ? `&pageToken=${newsNextPageToken}` : '';
+            const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&maxResults=50&videoCategoryId=10&regionCode=ES${pageTokenParam}&key=${apiKey}`);
+            const data = await response.json();
 
-        newsVideos = data.items.map(item => ({
-            id: item.id,
-            title: decodeHtml(item.snippet.title),
-            channel: decodeHtml(item.snippet.channelTitle),
-            thumbnail: item.snippet.thumbnails.high ? item.snippet.thumbnails.high.url : item.snippet.thumbnails.default.url,
-            duration: parseISO8601Duration(item.contentDetails.duration),
-            durationSec: parseISO8601DurationInSeconds(item.contentDetails.duration)
-        })).filter(v => v.durationSec >= 120);
+            if (data.error) throw new Error(data.error.message);
 
-        newsNextPageToken = data.nextPageToken || '';
+            const newBatch = data.items.map(item => ({
+                id: item.id,
+                title: decodeHtml(item.snippet.title),
+                channel: decodeHtml(item.snippet.channelTitle),
+                thumbnail: item.snippet.thumbnails.high ? item.snippet.thumbnails.high.url : item.snippet.thumbnails.default.url,
+                duration: parseISO8601Duration(item.contentDetails.duration),
+                durationSec: parseISO8601DurationInSeconds(item.contentDetails.duration)
+            })).filter(v => v.durationSec >= 120);
+
+            newsVideos = [...newsVideos, ...newBatch];
+            newsNextPageToken = data.nextPageToken || '';
+
+            if (!newsNextPageToken) break; // No more pages
+        }
 
         isNewsLoaded = true;
-        renderNewsResults(newsVideos);
+        renderNewsResults(newsVideos, false); // Initial render (replace)
         updateLoadMoreButton();
         setupNewsInfiniteScroll();
     } catch (error) {
         console.warn("Error loading News:", error);
-        grid.innerHTML = `
-            <div class="col-span-full py-12 text-center bg-red-500/10 rounded-2xl border border-red-500/20">
-                <p class="text-red-400 mb-4">No se han podido cargar las novedades</p>
-                <button onclick="loadNewReleases(true)" class="bg-white text-black px-6 py-2 rounded-full font-bold">Reintentar</button>
-            </div>
-        `;
+        if (grid) {
+            grid.innerHTML = `
+                <div class="col-span-full py-12 text-center bg-red-500/10 rounded-2xl border border-red-500/20">
+                    <p class="text-red-400 mb-4">No se han podido cargar las novedades</p>
+                    <button onclick="loadNewReleases(true)" class="bg-white text-black px-6 py-2 rounded-full font-bold">Reintentar</button>
+                </div>
+            `;
+        }
     }
 }
 
