@@ -2756,11 +2756,11 @@ function renderHomePlaylists() {
                     <div class="absolute inset-0 bg-green-500/20 rounded-lg flex items-center justify-center">
                         <div class="flex gap-1 items-end h-4">
                             <div class="playing-bar"></div>
-                            <p class="text-white text-sm">v1.4.3</p>
+                            <p class="text-white text-sm">v1.4.4</p>
                             <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                 Actualizado
                             </p>
-                            <p class="text-white text-sm">11 feb 2026 00:55</p>
+                            <p class="text-white text-sm">11 feb 2026 01:05</p>
                         </div>
                     </div>` : ''}
                 </div>
@@ -2882,8 +2882,8 @@ function renderNewsResults(videos) {
                     ${video.duration}
                 </div>
                 
-                <!-- Action Buttons Overlay -->
-                <div class="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <!-- Action Buttons Overlay (Always Visible) -->
+                <div class="absolute top-2 right-2 flex flex-col gap-2 z-10">
                     <button onclick="event.stopPropagation(); toggleQueue(${JSON.stringify(video).replace(/"/g, '&quot;')})" 
                         class="p-2 bg-black/60 hover:bg-green-500 rounded-full text-white backdrop-blur-sm transition-colors"
                         title="Añadir a la cola">
