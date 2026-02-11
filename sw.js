@@ -1,5 +1,5 @@
-const CACHE_NAME = 'amaya-music-v16';
-// SW Version: 1.4.8 - Time: 01:30 (GMT+1)
+const CACHE_NAME = 'amaya-music-v17';
+// SW Version: 1.5.0 - Time: 09:51 (GMT+1) - Login obligatorio implementado
 const urlsToCache = [
     './',
     './index.html',
