@@ -4142,7 +4142,9 @@ function renderReport(stats, history) {
         item.className = 'stat-item';
         const percent = (artist.seconds / maxSeconds) * 100;
 
-        const artistTime = artist.min > 0 ? `${artist.min}m ${artist.sec}s` : `${artist.sec}s`;
+        // Show simplified minutes (rounded)
+        const mins = Math.round(artist.seconds / 60);
+        const artistTime = `${mins} min`;
 
         item.innerHTML = `
             <div class="stat-rank">${i + 1}</div>
@@ -4208,9 +4210,8 @@ function renderReport(stats, history) {
         // Calculate duration display
         let durationDisplay = '';
         if (item.durationSeconds) {
-            const m = Math.floor(item.durationSeconds / 60);
-            const s = Math.floor(item.durationSeconds % 60);
-            durationDisplay = `<span class="text-xs text-green-500 font-mono">${m}m ${s}s</span>`;
+            const m = Math.round(item.durationSeconds / 60);
+            durationDisplay = `<span class="text-xs text-green-500 font-mono">${m} min</span>`;
         }
 
         row.innerHTML = `
