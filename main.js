@@ -875,6 +875,20 @@ function updatePlayPauseIcons(isPlaying) {
     // Update Ad-Free UI status based on current engine
     updateAdFreeStatus(isCurrentlyUsingNative);
 
+    // Dynamic Icon Updates for News Cards
+    // 1. Reset ALL news cards to PLAY icon
+    document.querySelectorAll('.card-play-icon path').forEach(pathEl => {
+        pathEl.setAttribute('d', "M8 5v14l11-7z");
+    });
+
+    // 2. Set CURRENT news card to PAUSE icon (if playing)
+    if (currentTrack) {
+        const activeCard = document.querySelector(`.news-card[data-video-id="${currentTrack.id}"] .card-play-icon path`);
+        if (activeCard && isPlaying) {
+            activeCard.setAttribute('d', "M6 4h4v16H6zm8 0h4v16h-4z");
+        }
+    }
+
     // Refresh UI highlights
     refreshUIHighlights();
 }
@@ -3284,6 +3298,7 @@ function renderNewsResults(videos) {
 
         const card = document.createElement('div');
         card.className = 'news-card animate-fade-in group';
+        card.setAttribute('data-video-id', video.id); // Add ID for targeting
         card.style.animationDelay = `${index * 50}ms`;
         card.onclick = () => playSong(video);
 
@@ -3291,7 +3306,7 @@ function renderNewsResults(videos) {
             <div class="thumbnail-container relative overflow-hidden rounded-xl shadow-2xl">
                 <img src="${video.thumbnail}" alt="${video.title}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy">
                 <div class="play-btn-overlay absolute bottom-4 right-4 bg-green-500 w-12 h-12 rounded-full flex items-center justify-center text-black opacity-0 transform translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 shadow-2xl transition-all duration-300">
-                    <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-8 h-8 card-play-icon transition-all duration-300" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z" />
                     </svg>
                 </div>
@@ -4104,16 +4119,26 @@ function renderReport(stats, history) {
     recentHistory.forEach(item => {
         const row = document.createElement('div');
         row.className = 'flex items-center gap-4 p-3 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer';
-        const timeStr = item.timestamp ? new Date(item.timestamp.seconds * 1000).toLocaleString() : 'Recién';
+
+        // Calculate duration display
+        let durationDisplay = '';
+        if (item.durationSeconds) {
+            const m = Math.floor(item.durationSeconds / 60);
+            const s = Math.floor(item.durationSeconds % 60);
+            durationDisplay = `<span class="text-xs text-green-500 font-mono">${m}m ${s}s</span>`;
+        }
 
         row.innerHTML = `
             <img src="${item.thumbnail}" class="w-10 h-10 rounded object-cover">
             <div class="flex-1 min-w-0">
                 <p class="text-white text-sm font-bold truncate">${item.title}</p>
-                <p class="text-gray-400 text-xs">${item.artist}</p>
+                <div class="flex items-center gap-2">
+                    <p class="text-gray-400 text-xs truncate">${item.artist}</p>
+                    ${durationDisplay}
+                </div>
             </div>
-            <div class="text-right">
-                <p class="text-[10px] text-gray-500 uppercase font-black">${timeStr}</p>
+            <div class="text-xs text-gray-500 whitespace-nowrap">
+                ${item.timestamp ? new Date(item.timestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
             </div>
         `;
         activityList.appendChild(row);
