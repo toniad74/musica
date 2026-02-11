@@ -249,8 +249,16 @@ function setupAuthListener() {
             if (userAvatarMobile) userAvatarMobile.src = user.photoURL;
 
             loadPlaylistsFromCloud();
+
+            // Unlock UI
+            document.getElementById('loginOverlay').classList.add('hidden', 'opacity-0');
+            document.getElementById('appContent').classList.remove('hidden');
         } else {
             currentUserUid = null;
+
+            // Lock UI
+            document.getElementById('loginOverlay').classList.remove('hidden', 'opacity-0');
+            document.getElementById('appContent').classList.add('hidden');
 
             // Toggle Desktop UI
             const loggedOutUI = document.getElementById('loggedOutUI');
@@ -264,8 +272,8 @@ function setupAuthListener() {
             if (loggedOutUIMobile) loggedOutUIMobile.classList.remove('hidden');
             if (loggedInUIMobile) loggedInUIMobile.classList.add('hidden');
 
-            // Reset playlists to local only when logged out
-            playlists = JSON.parse(localStorage.getItem('amaya_playlists')) || [];
+            // Reset playlists - NO LOCAL PLAYLISTS ALLOWED
+            playlists = [];
             renderPlaylists();
         }
     });
