@@ -253,6 +253,9 @@ function setupAuthListener() {
             // Unlock UI
             document.getElementById('loginOverlay').classList.add('hidden', 'opacity-0');
             document.getElementById('appContent').classList.remove('hidden');
+
+            // Redirect to Search on login
+            switchTab('search');
         } else {
             currentUserUid = null;
 
