@@ -2777,11 +2777,11 @@ function renderHomePlaylists() {
                     <div class="absolute inset-0 bg-green-500/20 rounded-lg flex items-center justify-center">
                         <div class="flex gap-1 items-end h-4">
                             <div class="playing-bar"></div>
-                            <p class="text-white text-sm">v1.4.6</p>
+                            <p class="text-white text-sm">v1.4.7</p>
                             <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                 Actualizado
                             </p>
-                            <p class="text-white text-sm">11 feb 2026 01:20</p>
+                            <p class="text-white text-sm">11 feb 2026 01:25</p>
                         </div>
                     </div>` : ''}
                 </div>
