@@ -31,7 +31,8 @@ const newCacheVersion = currentCacheVersion + 1;
 // Extraer versión actual de la app
 const versionMatch = swContent.match(/SW Version: ([\d.]+)/);
 const currentVersion = versionMatch[1];
-const newVersion = incrementVersion(currentVersion);
+const manualVersion = process.argv[2];
+const newVersion = manualVersion || incrementVersion(currentVersion);
 
 // Actualizar sw.js
 swContent = swContent.replace(
