@@ -3989,14 +3989,12 @@ async function updateReportPeriod(period) {
     document.querySelectorAll('.report-tab').forEach(tab => {
         const isActive = tab.dataset.period === period;
 
-        // Remove existing classes to properly reset
-        tab.classList.remove('active', 'bg-white', 'text-black');
-        tab.style.removeProperty('color');
-        tab.style.removeProperty('background-color');
+        // Hard reset of classes and styles
+        tab.className = 'report-tab';
+        tab.style.cssText = '';
 
         if (isActive) {
             tab.classList.add('active', 'bg-white', 'text-black');
-            // Force styles just in case
             tab.style.cssText = "background-color: white !important; color: black !important;";
         }
     });
@@ -4025,7 +4023,7 @@ async function updateReportPeriod(period) {
             window.isUpdatingDatesProgrammatically = true;
             startInput.value = startDate.toISOString().split('T')[0];
             endInput.value = now.toISOString().split('T')[0];
-            setTimeout(() => { window.isUpdatingDatesProgrammatically = false; }, 50);
+            setTimeout(() => { window.isUpdatingDatesProgrammatically = false; }, 500);
         }
 
         await fetchAndRenderReport(startDate, now);
