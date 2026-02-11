@@ -3694,7 +3694,9 @@ async function updateReportPeriod(period) {
 
     // Update tabs UI
     document.querySelectorAll('.report-tab').forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.period === period);
+        const isActive = tab.dataset.period === period;
+        tab.classList.toggle('active', isActive);
+        tab.classList.toggle('bg-white', isActive);
     });
 
     let startDate;

@@ -797,10 +797,22 @@ button,
 }
 
 .report-tab.active,
-button.report-tab.active {
+button.report-tab.active,
+#reportModal .report-tab.active,
+#reportModal button.report-tab.active {
     background: white !important;
     background-color: white !important;
     color: black !important;
+}
+
+/* Specific mobile override for when hover rules kick in or selectors are broad */
+@media (max-width: 768px) {
+
+    #reportModal button.report-tab.active:hover,
+    #reportModal button.report-tab.active:active {
+        color: black !important;
+        background: white !important;
+    }
 }
 
 .stats-card {
