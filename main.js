@@ -3885,11 +3885,23 @@ function renderReport(stats, history) {
         genreList.appendChild(item);
     });
 
-    // Render Recent Activity (Mini rows)
+    // Render Recent Activity (Mini rows) - Limit to last 24h
     const activityList = document.getElementById('recent-activity-list');
     activityList.innerHTML = '';
 
-    history.slice(0, 10).forEach(item => {
+    const now = Date.now();
+    const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+
+    const recentHistory = history.filter(item => {
+        const itemTime = item.timestamp ? (item.timestamp.seconds * 1000) : now;
+        return itemTime >= twentyFourHoursAgo;
+    }).slice(0, 10);
+
+    if (recentHistory.length === 0) {
+        activityList.innerHTML = '<p class="text-gray-500 italic p-4 text-sm text-center">Sin actividad en las últimas 24h</p>';
+    }
+
+    recentHistory.forEach(item => {
         const row = document.createElement('div');
         row.className = 'flex items-center gap-4 p-3 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer';
         const timeStr = item.timestamp ? new Date(item.timestamp.seconds * 1000).toLocaleString() : 'Recién';
