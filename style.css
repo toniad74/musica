@@ -796,8 +796,10 @@ button,
     background: rgba(255, 255, 255, 0.05);
 }
 
-.report-tab.active {
+.report-tab.active,
+button.report-tab.active {
     background: white !important;
+    background-color: white !important;
     color: black !important;
 }
 
