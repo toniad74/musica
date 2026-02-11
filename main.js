@@ -2777,11 +2777,11 @@ function renderHomePlaylists() {
                     <div class="absolute inset-0 bg-green-500/20 rounded-lg flex items-center justify-center">
                         <div class="flex gap-1 items-end h-4">
                             <div class="playing-bar"></div>
-                            <p class="text-white text-sm">v1.4.7</p>
+                            <p class="text-white text-sm">v1.4.8</p>
                             <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                 Actualizado
                             </p>
-                            <p class="text-white text-sm">11 feb 2026 01:25</p>
+                            <p class="text-white text-sm">11 feb 2026 01:30</p>
                         </div>
                     </div>` : ''}
                 </div>
@@ -2903,13 +2903,15 @@ function renderNewsResults(videos) {
                     ${video.duration}
                 </div>
                 
-                <!-- Action Buttons Overlay (Always Visible) -->
-                <div class="absolute top-2 left-2 flex flex-col gap-2 z-10">
+                <!-- Action Buttons Overlay (Split: Queue Left, Playlist Right) -->
+                <div class="absolute top-2 left-2 z-10">
                     <button onclick="event.stopPropagation(); toggleQueue(${JSON.stringify(video).replace(/"/g, '&quot;')})" 
                         class="p-2 bg-black/60 hover:bg-green-500 rounded-full text-white backdrop-blur-sm transition-colors"
                         title="Añadir a la cola">
                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/></svg>
                     </button>
+                </div>
+                <div class="absolute top-2 right-2 z-10">
                     <button onclick="event.stopPropagation(); showAddToPlaylistMenu(event, ${JSON.stringify(video).replace(/"/g, '&quot;')})" 
                         class="p-2 bg-black/60 hover:bg-white hover:text-black rounded-full text-white backdrop-blur-sm transition-colors"
                         title="Añadir a playlist">
