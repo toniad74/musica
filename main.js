@@ -1508,18 +1508,25 @@ function saveApiKey() {
     }
 }
 
+function getMergedApiKeys() {
+    // Return unique keys from both user input and internal pool
+    const merged = [...apiKeys, ...DEFAULT_KEYS];
+    return [...new Set(merged)].filter(k => k && k.trim() !== "");
+}
+
 function rotateApiKey() {
-    const activeKeys = apiKeys.length > 0 ? apiKeys : DEFAULT_KEYS;
-    if (activeKeys.length <= 1) return false;
-    currentKeyIndex = (currentKeyIndex + 1) % activeKeys.length;
+    const allKeys = getMergedApiKeys();
+    if (allKeys.length <= 1) return false;
+    currentKeyIndex = (currentKeyIndex + 1) % allKeys.length;
     localStorage.setItem('amaya_yt_key_index', currentKeyIndex);
-    console.log(`🔄 Rotando a clave API #${currentKeyIndex + 1}`);
+    console.log(`🔄 Rotando a clave API #${currentKeyIndex + 1} (Total: ${allKeys.length})`);
     return true;
 }
 
 function getCurrentApiKey() {
-    if (apiKeys.length > 0) return apiKeys[currentKeyIndex];
-    return DEFAULT_KEYS[currentKeyIndex % DEFAULT_KEYS.length] || '';
+    const allKeys = getMergedApiKeys();
+    if (allKeys.length === 0) return '';
+    return allKeys[currentKeyIndex % allKeys.length];
 }
 
 function toggleApiKeySection() {
@@ -1588,15 +1595,16 @@ async function searchMusic(pageToken = '', retryCount = 0) {
         const data = await response.json();
 
         if (data.error) {
-            // Check for quota error
+            console.error("YouTube API Error:", data.error);
+            // Check for quota error OR other common errors that warrant rotation
             const activeKeys = apiKeys.length > 0 ? apiKeys : DEFAULT_KEYS;
-            if (data.error.errors && data.error.errors.some(e => e.reason === 'quotaExceeded')) {
-                if (rotateApiKey() && retryCount < activeKeys.length) {
-                    showToast("Límite de cuota superado. Rotando clave...", "warning");
-                    return searchMusic(pageToken, retryCount + 1);
-                }
+            const errorReason = data.error.errors ? data.error.errors[0].reason : '';
+
+            if (rotateApiKey() && retryCount < activeKeys.length) {
+                console.warn(`Attempting rotation due to: ${errorReason}. Retry ${retryCount + 1}/${activeKeys.length}`);
+                return searchMusic(pageToken, retryCount + 1);
             }
-            throw new Error(data.error.message);
+            throw new Error(`YouTube API: ${data.error.message} (${errorReason})`);
         }
 
         nextSearchToken = data.nextPageToken || '';
