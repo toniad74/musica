@@ -2987,24 +2987,21 @@ async function loadNewReleases(force = false) {
     try {
         const apiKey = getCurrentApiKey();
         // Fixed: More effective query for newest music entries
-        const q = "topic Music";
-        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&order=date&type=video&videoCategoryId=10&q=${encodeURIComponent(q)}&key=${apiKey}`);
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&maxResults=50&videoCategoryId=10&regionCode=ES&key=${apiKey}`);
         const data = await response.json();
 
         if (data.error) throw new Error(data.error.message);
 
         newsVideos = data.items.map(item => ({
-            id: item.id.videoId,
+            id: item.id,
             title: decodeHtml(item.snippet.title),
             channel: decodeHtml(item.snippet.channelTitle),
             thumbnail: item.snippet.thumbnails.high ? item.snippet.thumbnails.high.url : item.snippet.thumbnails.default.url,
-            duration: '...'
-        }));
+            duration: parseISO8601Duration(item.contentDetails.duration),
+            durationSec: parseISO8601DurationInSeconds(item.contentDetails.duration)
+        })).filter(v => v.durationSec >= 120);
 
         newsNextPageToken = data.nextPageToken || '';
-
-        // Fetch durations
-        fetchNewsDurations(newsVideos);
 
         isNewsLoaded = true;
         renderNewsResults(newsVideos);
@@ -3062,24 +3059,22 @@ async function loadMoreNews() {
 
     try {
         const apiKey = getCurrentApiKey();
-        const q = "topic Music";
-        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&order=date&type=video&videoCategoryId=10&pageToken=${newsNextPageToken}&q=${encodeURIComponent(q)}&key=${apiKey}`);
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&maxResults=50&videoCategoryId=10&regionCode=ES&pageToken=${newsNextPageToken}&key=${apiKey}`);
         const data = await response.json();
 
         if (data.error) throw new Error(data.error.message);
 
         const newBatch = data.items.map(item => ({
-            id: item.id.videoId,
+            id: item.id,
             title: decodeHtml(item.snippet.title),
             channel: decodeHtml(item.snippet.channelTitle),
             thumbnail: item.snippet.thumbnails.high ? item.snippet.thumbnails.high.url : item.snippet.thumbnails.default.url,
-            duration: '...'
-        }));
+            duration: parseISO8601Duration(item.contentDetails.duration),
+            durationSec: parseISO8601DurationInSeconds(item.contentDetails.duration)
+        })).filter(v => v.durationSec >= 120);
 
         newsVideos = [...newsVideos, ...newBatch];
         newsNextPageToken = data.nextPageToken || '';
-
-        fetchNewsDurations(newBatch);
         renderNewsResults(newsVideos);
     } catch (error) {
         console.error("Error loading more news:", error);
