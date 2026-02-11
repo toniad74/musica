@@ -4022,8 +4022,10 @@ async function updateReportPeriod(period) {
         const endInput = document.getElementById('reportEndDate');
 
         if (startInput && endInput) {
+            window.isUpdatingDatesProgrammatically = true;
             startInput.value = startDate.toISOString().split('T')[0];
             endInput.value = now.toISOString().split('T')[0];
+            setTimeout(() => { window.isUpdatingDatesProgrammatically = false; }, 50);
         }
 
         await fetchAndRenderReport(startDate, now);
@@ -4031,6 +4033,7 @@ async function updateReportPeriod(period) {
 }
 
 async function updateReportCustomRange() {
+    if (window.isUpdatingDatesProgrammatically) return;
     const startStr = document.getElementById('reportStartDate').value;
     const endStr = document.getElementById('reportEndDate').value;
 
@@ -4102,7 +4105,7 @@ function calculateStatistics(history) {
     // Sort artists by seconds
     stats.topArtists = Object.entries(stats.artistsMap)
         .sort((a, b) => b[1] - a[1]) // Sort by total seconds
-        .slice(0, 10)
+        .slice(0, 5)
         .map(([name, seconds]) => ({
             name,
             seconds,
@@ -4113,7 +4116,7 @@ function calculateStatistics(history) {
     // Sort genres by count
     stats.topGenres = Object.entries(stats.genresMap)
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
+        .slice(0, 5)
         .map(([name, count]) => ({ name, count }));
 
     stats.totalMin = Math.floor(stats.totalSeconds / 60);
