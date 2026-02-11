@@ -1908,7 +1908,7 @@ function isSongInQueue(songId) {
 }
 
 function updateQueueIcons() {
-    // Update all queue buttons in search results and playlists
+    // 1. Update standard .queue-btn (Search & Playlists)
     document.querySelectorAll('.queue-btn').forEach(btn => {
         const songId = btn.getAttribute('data-song-id');
         if (isSongInQueue(songId)) {
@@ -1917,6 +1917,18 @@ function updateQueueIcons() {
         } else {
             btn.classList.remove('in-queue');
             btn.classList.add('text-[#b3b3b3]');
+        }
+    });
+
+    // 2. Update News Cards buttons
+    document.querySelectorAll('.news-card-queue-btn').forEach(btn => {
+        const songId = btn.getAttribute('data-song-id');
+        if (isSongInQueue(songId)) {
+            btn.classList.add('in-queue-active');
+            btn.classList.remove('bg-black/60', 'hover:bg-green-500');
+        } else {
+            btn.classList.remove('in-queue-active');
+            btn.classList.add('bg-black/60', 'hover:bg-green-500');
         }
     });
 }
@@ -2947,9 +2959,9 @@ async function loadNewReleases(force = false) {
 
     try {
         const apiKey = getCurrentApiKey();
-        // Use SEARCH API with order=date to get the very latest music videos
-        // Querying for "Music" with categoryId 10 (Music)
-        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&order=date&type=video&videoCategoryId=10&q=music&key=${apiKey}`);
+        // Fixed: More effective query for newest music entries
+        const q = "topic Music";
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&order=date&type=video&videoCategoryId=10&q=${encodeURIComponent(q)}&key=${apiKey}`);
         const data = await response.json();
 
         if (data.error) throw new Error(data.error.message);
@@ -2959,17 +2971,18 @@ async function loadNewReleases(force = false) {
             title: decodeHtml(item.snippet.title),
             channel: decodeHtml(item.snippet.channelTitle),
             thumbnail: item.snippet.thumbnails.high ? item.snippet.thumbnails.high.url : item.snippet.thumbnails.default.url,
-            duration: '...' // Search API doesn't return duration directly
+            duration: '...'
         }));
 
         newsNextPageToken = data.nextPageToken || '';
 
-        // Fetch durations in a separate call for better rich UI
+        // Fetch durations
         fetchNewsDurations(newsVideos);
 
         isNewsLoaded = true;
         renderNewsResults(newsVideos);
         updateLoadMoreButton();
+        setupNewsInfiniteScroll();
     } catch (error) {
         console.warn("Error loading News:", error);
         grid.innerHTML = `
@@ -3013,7 +3026,8 @@ async function loadMoreNews() {
 
     try {
         const apiKey = getCurrentApiKey();
-        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&order=date&type=video&videoCategoryId=10&pageToken=${newsNextPageToken}&q=music&key=${apiKey}`);
+        const q = "topic Music";
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&order=date&type=video&videoCategoryId=10&pageToken=${newsNextPageToken}&q=${encodeURIComponent(q)}&key=${apiKey}`);
         const data = await response.json();
 
         if (data.error) throw new Error(data.error.message);
@@ -3038,6 +3052,19 @@ async function loadMoreNews() {
         isLoadingMoreNews = false;
         updateLoadMoreButton();
     }
+}
+
+function setupNewsInfiniteScroll() {
+    const container = document.getElementById('newsLoadMoreContainer');
+    if (!container) return;
+
+    const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && newsNextPageToken && !isLoadingMoreNews) {
+            loadMoreNews();
+        }
+    }, { threshold: 0.1 });
+
+    observer.observe(container);
 }
 
 function updateLoadMoreButton() {
@@ -3085,7 +3112,7 @@ function renderNewsResults(videos) {
                 <!-- Action Buttons Overlay (Split: Queue Left, Playlist Right) -->
                 <div class="absolute top-2 left-2 z-10">
                     <button onclick="event.stopPropagation(); toggleQueue(${JSON.stringify(video).replace(/"/g, '&quot;')})" 
-                        class="p-2 ${inQueueClass} rounded-full text-white backdrop-blur-sm transition-colors"
+                        class="p-2 news-card-queue-btn ${inQueueClass} rounded-full text-white backdrop-blur-sm transition-colors"
                         title="Añadir a la cola"
                         data-song-id="${video.id}">
                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/></svg>
