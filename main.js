@@ -3697,6 +3697,15 @@ async function updateReportPeriod(period) {
         const isActive = tab.dataset.period === period;
         tab.classList.toggle('active', isActive);
         tab.classList.toggle('bg-white', isActive);
+
+        // Force colors via inline styles to bypass Tailwind/CSS conflicts
+        if (isActive) {
+            tab.style.setProperty('color', 'black', 'important');
+            tab.style.setProperty('background-color', 'white', 'important');
+        } else {
+            tab.style.removeProperty('color');
+            tab.style.removeProperty('background-color');
+        }
     });
 
     let startDate;

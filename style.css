@@ -796,13 +796,11 @@ button,
     background: rgba(255, 255, 255, 0.05);
 }
 
-.report-tab.active,
-button.report-tab.active,
 #reportModal .report-tab.active,
 #reportModal button.report-tab.active {
     background: white !important;
     background-color: white !important;
-    color: black !important;
+    color: #000000 !important;
 }
 
 /* Specific mobile override for when hover rules kick in or selectors are broad */
