@@ -142,11 +142,11 @@
                         class="hidden absolute top-full left-0 right-0 mt-2 bg-[#282828] rounded-xl shadow-2xl border border-white/10 z-50 overflow-hidden">
                         <div class="p-4 border-b border-white/5">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Versión</p>
-                            <p class="text-white text-sm">v1.5.3</p>
+                            <p class="text-white text-sm">v1.5.4</p>
                             <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                 Actualizado
                             </p>
-                            <p class="text-white text-sm">11 feb 2026 19:55</p>
+                            <p class="text-white text-sm">11 feb 2026 20:01</p>
                         </div>
                         <button onclick="showReport()"
                             class="w-full text-left px-4 py-3 text-sm text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -260,11 +260,11 @@
                                     <div class="p-3 border-b border-white/5">
                                         <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">
                                             Versión</p>
-                                        <p class="text-white text-xs">v1.5.3</p>
+                                        <p class="text-white text-xs">v1.5.4</p>
                                         <p
                                             class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                             Actualizado</p>
-                                        <p class="text-white text-xs">11 feb 2026 19:55</p>
+                                        <p class="text-white text-xs">11 feb 2026 20:01</p>
                                     </div>
                                     <button onclick="showReport()"
                                         class="w-full text-left px-3 py-3 text-xs text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -563,6 +563,13 @@
                     <div id="newsGrid"
                         class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
                         <!-- News cards will be injected here -->
+                    </div>
+                    <!-- Load More Button -->
+                    <div id="newsLoadMoreContainer" class="hidden mt-12 flex justify-center pb-8">
+                        <button id="loadMoreNewsBtn" onclick="loadMoreNews()"
+                            class="bg-white text-black px-10 py-3 rounded-full font-bold hover:scale-105 transition-transform shadow-xl flex items-center justify-center gap-2">
+                            Cargar más canciones
+                        </button>
                     </div>
                 </div>
         </main>

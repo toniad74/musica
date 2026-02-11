@@ -62,6 +62,8 @@ let pendingSponsorFetch = null; // Promise tracker for sync
 // News State
 let isNewsLoaded = false;
 let newsVideos = [];
+let newsNextPageToken = '';
+let isLoadingMoreNews = false;
 
 // Instance Blacklist for current session
 const FAILED_INSTANCES = new Set();
@@ -187,8 +189,8 @@ window.onload = () => {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').then(reg => {
             const updateApp = () => {
-                showToast("¡Nueva versión disponible! Actualizando...", "info");
-                setTimeout(() => window.location.reload(), 1500);
+                showToast("¡Nueva versión disponible! El sistema se reiniciará en 10 segundos para aplicar los cambios...", "info", 10000);
+                setTimeout(() => window.location.reload(), 10000);
             };
 
             // 1. If there's already a waiting worker, update immediately
@@ -2934,58 +2936,123 @@ async function loadNewReleases(force = false) {
     const grid = document.getElementById('newsGrid');
     if (!grid) return;
 
-    grid.innerHTML = `
-        <div class="col-span-full py-20 text-center">
-            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mb-4"></div>
-            <p class="text-gray-400 font-medium text-lg">Cargando las tendencias actuales...</p>
-        </div>
-    `;
+    if (!force) {
+        grid.innerHTML = `
+            <div class="col-span-full py-20 flex flex-col items-center justify-center animate-pulse">
+                <div class="w-12 h-12 border-4 border-green-500/30 border-t-green-500 rounded-full animate-spin mb-4"></div>
+                <p class="text-gray-400 font-medium text-lg">Cargando las tendencias actuales...</p>
+            </div>
+        `;
+    }
 
     try {
         const apiKey = getCurrentApiKey();
-        // Charts API for Trending Music in Spain (regionCode: ES, categoryId: 10)
-        const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&maxResults=50&regionCode=ES&videoCategoryId=10&key=${apiKey}`);
+        // Use SEARCH API with order=date to get the very latest music videos
+        // Querying for "Music" with categoryId 10 (Music)
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&order=date&type=video&videoCategoryId=10&q=music&key=${apiKey}`);
         const data = await response.json();
 
         if (data.error) throw new Error(data.error.message);
 
         newsVideos = data.items.map(item => ({
-            id: item.id,
+            id: item.id.videoId,
             title: decodeHtml(item.snippet.title),
             channel: decodeHtml(item.snippet.channelTitle),
-            thumbnail: item.snippet.thumbnails.maxres ? item.snippet.thumbnails.maxres.url : (item.snippet.thumbnails.high ? item.snippet.thumbnails.high.url : item.snippet.thumbnails.default.url),
-            duration: parseISO8601Duration(item.contentDetails.duration)
+            thumbnail: item.snippet.thumbnails.high ? item.snippet.thumbnails.high.url : item.snippet.thumbnails.default.url,
+            duration: '...' // Search API doesn't return duration directly
         }));
+
+        newsNextPageToken = data.nextPageToken || '';
+
+        // Fetch durations in a separate call for better rich UI
+        fetchNewsDurations(newsVideos);
 
         isNewsLoaded = true;
         renderNewsResults(newsVideos);
+        updateLoadMoreButton();
     } catch (error) {
-        console.warn("Error Google API News. Fallback search...", error);
+        console.warn("Error loading News:", error);
+        grid.innerHTML = `
+            <div class="col-span-full py-12 text-center bg-red-500/10 rounded-2xl border border-red-500/20">
+                <p class="text-red-400 mb-4">No se han podido cargar las novedades</p>
+                <button onclick="loadNewReleases(true)" class="bg-white text-black px-6 py-2 rounded-full font-bold">Reintentar</button>
+            </div>
+        `;
+    }
+}
 
-        // Search Fallback if charts fail
-        try {
-            const fallbackQuery = "YouTube Music Trending Spain 2026";
-            const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&q=${encodeURIComponent(fallbackQuery)}&type=video&videoCategoryId=10&key=${getCurrentApiKey()}`);
-            const data = await response.json();
+async function fetchNewsDurations(videos) {
+    const ids = videos.filter(v => v.duration === '...').map(v => v.id).join(',');
+    if (!ids) return;
 
-            newsVideos = data.items.map(item => ({
-                id: item.id.videoId,
-                title: decodeHtml(item.snippet.title),
-                channel: decodeHtml(item.snippet.channelTitle),
-                thumbnail: item.snippet.thumbnails.high.url,
-                duration: '0:00'
-            }));
+    try {
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${getCurrentApiKey()}`);
+        const data = await response.json();
 
-            isNewsLoaded = true;
-            renderNewsResults(newsVideos);
-        } catch (e) {
-            grid.innerHTML = `
-                <div class="col-span-full py-12 text-center bg-red-500/10 rounded-2xl border border-red-500/20">
-                    <p class="text-red-400 mb-4">No se han podido cargar las novedades</p>
-                    <button onclick="loadNewReleases(true)" class="bg-white text-black px-6 py-2 rounded-full font-bold">Reintentar</button>
-                </div>
-            `;
+        data.items.forEach(item => {
+            const video = videos.find(v => v.id === item.id);
+            if (video) {
+                video.duration = parseISO8601Duration(item.contentDetails.duration);
+            }
+        });
+
+        renderNewsResults(newsVideos);
+    } catch (e) { console.warn("Failed to fetch news durations:", e); }
+}
+
+async function loadMoreNews() {
+    if (isLoadingMoreNews || !newsNextPageToken) return;
+    isLoadingMoreNews = true;
+
+    // Update button state
+    const btn = document.getElementById('loadMoreNewsBtn');
+    if (btn) {
+        btn.innerHTML = '<div class="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div> Cargando...';
+        btn.disabled = true;
+    }
+
+    try {
+        const apiKey = getCurrentApiKey();
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&order=date&type=video&videoCategoryId=10&pageToken=${newsNextPageToken}&q=music&key=${apiKey}`);
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error.message);
+
+        const newBatch = data.items.map(item => ({
+            id: item.id.videoId,
+            title: decodeHtml(item.snippet.title),
+            channel: decodeHtml(item.snippet.channelTitle),
+            thumbnail: item.snippet.thumbnails.high ? item.snippet.thumbnails.high.url : item.snippet.thumbnails.default.url,
+            duration: '...'
+        }));
+
+        newsVideos = [...newsVideos, ...newBatch];
+        newsNextPageToken = data.nextPageToken || '';
+
+        fetchNewsDurations(newBatch);
+        renderNewsResults(newsVideos);
+    } catch (error) {
+        console.error("Error loading more news:", error);
+        showToast("Error al cargar más novedades", "warning");
+    } finally {
+        isLoadingMoreNews = false;
+        updateLoadMoreButton();
+    }
+}
+
+function updateLoadMoreButton() {
+    const container = document.getElementById('newsLoadMoreContainer');
+    if (!container) return;
+
+    if (newsNextPageToken) {
+        container.classList.remove('hidden');
+        const btn = document.getElementById('loadMoreNewsBtn');
+        if (btn) {
+            btn.innerHTML = 'Cargar más canciones';
+            btn.disabled = false;
         }
+    } else {
+        container.classList.add('hidden');
     }
 }
 
@@ -3094,7 +3161,7 @@ function playPlaylist(event, plId) {
     }
 }
 
-function showToast(m, t = 'success') {
+function showToast(m, t = 'success', duration = 4000) {
     if (t === 'error') return; // Do not show error toasts as requested
 
     const c = document.getElementById('toastContainer');
@@ -3106,7 +3173,7 @@ function showToast(m, t = 'success') {
 
     c.innerHTML = `<div class="px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-2xl animate-fade-in ${bgColor} backdrop-blur-md border border-white/10 text-center min-w-[200px]">${m}</div>`;
     clearTimeout(window.toastT);
-    window.toastT = setTimeout(() => c.innerHTML = '', 4000);
+    window.toastT = setTimeout(() => c.innerHTML = '', duration);
 }
 
 let progressUpdaterInterval; // Renamed from progressInterval to avoid conflict and be more descriptive
@@ -3855,7 +3922,8 @@ Object.assign(window, {
     showReport,
     hideReport,
     updateReportPeriod,
-    updateReportCustomRange
+    updateReportCustomRange,
+    loadMoreNews
 });
 
 console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE");
