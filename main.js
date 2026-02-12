@@ -1576,7 +1576,8 @@ async function searchPiped(query) {
                     title: item.title,
                     channel: item.uploaderName,
                     thumbnail: item.thumbnail,
-                    duration: item.duration ? formatPipedDuration(item.duration) : '0:00'
+                    duration: item.duration ? formatPipedDuration(item.duration) : '0:00',
+                    durationSec: item.duration || 0
                 };
             });
 
@@ -1754,6 +1755,7 @@ async function searchMusic(pageToken = '', retryCount = 0) {
                     const video = videos.find(v => v.id === item.id);
                     if (video) {
                         video.duration = parseISO8601Duration(item.contentDetails.duration);
+                        video.durationSec = parseISO8601DurationInSeconds(item.contentDetails.duration);
                     }
                 });
             }
@@ -1761,7 +1763,10 @@ async function searchMusic(pageToken = '', retryCount = 0) {
             console.warn("Failed to fetch durations, showing results without them.", durationError);
         }
 
-        renderSearchResults(videos);
+        // Filter out videos shorter than 2 minutes
+        const filteredVideos = videos.filter(v => v.durationSec >= 120);
+
+        renderSearchResults(filteredVideos);
         updateSearchPagination();
     } catch (error) {
         console.warn("Google API failed. Trying Piped Fallback...", error);
@@ -1771,7 +1776,8 @@ async function searchMusic(pageToken = '', retryCount = 0) {
 
         try {
             const pipedResults = await searchPiped(query);
-            renderSearchResults(pipedResults);
+            const filteredPipedResults = pipedResults.filter(v => v.durationSec >= 120);
+            renderSearchResults(filteredPipedResults);
 
             // Disable pagination buttons for Piped (shim)
             nextSearchToken = '';
