@@ -1803,9 +1803,20 @@ function renderSearchResults(videos) {
                 currentlyPlayingPlaylistId = null;
                 localStorage.removeItem('amaya_playing_pl_id');
                 renderHomePlaylists();
-                const nowCurrent = isMediaPlaying && currentTrack && String(currentTrack.id) === String(video.id);
-                if (nowCurrent && isMediaPlaying) {
-                    togglePlayPause();
+                const isCurrentSong = currentTrack && String(currentTrack.id) === String(video.id);
+                const playerState = player?.getPlayerState();
+                const isActuallyPlaying = playerState === YT.PlayerState.PLAYING || 
+                                         (isCurrentlyUsingNative && !nativeAudio?.paused);
+                
+                if (isCurrentSong && isActuallyPlaying) {
+                    // Pause current song
+                    if (isCurrentlyUsingNative) {
+                        nativeAudio?.pause();
+                    } else if (player && typeof player.pauseVideo === 'function') {
+                        player.pauseVideo();
+                    }
+                    isMediaPlaying = false;
+                    updatePlayPauseIcons(false);
                 } else {
                     playSong(video, [video]);
                 }
@@ -3652,11 +3663,25 @@ function renderNewsResults(videos, append = false) {
         
         // Toggle play/pause if same song, otherwise play new song
         card.onclick = () => {
-            const nowCurrent = isMediaPlaying && currentTrack && String(currentTrack.id) === String(video.id);
-            console.log('📱 Card click - nowCurrent:', nowCurrent);
-            if (nowCurrent && isMediaPlaying) {
-                togglePlayPause();
+            const isCurrentSong = currentTrack && String(currentTrack.id) === String(video.id);
+            const playerState = player?.getPlayerState();
+            const isActuallyPlaying = playerState === YT.PlayerState.PLAYING || 
+                                       (isCurrentlyUsingNative && !nativeAudio?.paused);
+            
+            console.log('📱 Click - isCurrentSong:', isCurrentSong, 'isActuallyPlaying:', isActuallyPlaying);
+            
+            if (isCurrentSong && isActuallyPlaying) {
+                // Pause current song
+                console.log('📱 Pausing...');
+                if (isCurrentlyUsingNative) {
+                    nativeAudio?.pause();
+                } else if (player && typeof player.pauseVideo === 'function') {
+                    player.pauseVideo();
+                }
+                isMediaPlaying = false;
+                updatePlayPauseIcons(false);
             } else {
+                console.log('📱 Playing...');
                 playSong(video);
             }
         };
