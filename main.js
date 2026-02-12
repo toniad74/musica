@@ -1818,6 +1818,12 @@ function renderSearchResults(videos) {
                     }
                     isMediaPlaying = false;
                     updatePlayPauseIcons(false);
+                } else if (isCurrentSong && player && typeof player.playVideo === 'function') {
+                    // Same song, just resume
+                    isUserPaused = false;
+                    player.playVideo();
+                    isMediaPlaying = true;
+                    updatePlayPauseIcons(true);
                 } else {
                     playSong(video, [video]);
                 }
@@ -3669,7 +3675,7 @@ function renderNewsResults(videos, append = false) {
             const isActuallyPlaying = playerState === YT.PlayerState.PLAYING || 
                                      (isCurrentlyUsingNative && !nativeAudio?.paused);
             
-            console.log('📱 Click - isCurrentSong:', isCurrentSong, 'isActuallyPlaying:', isActuallyPlaying);
+            console.log('📱 Click - isCurrentSong:', isCurrentSong, 'isActuallyPlaying:', isActuallyPlaying, 'state:', playerState);
             
             if (isCurrentSong && isActuallyPlaying) {
                 // Pause current song - mark as user intentional
@@ -3682,8 +3688,16 @@ function renderNewsResults(videos, append = false) {
                 }
                 isMediaPlaying = false;
                 updatePlayPauseIcons(false);
+            } else if (isCurrentSong && player && typeof player.playVideo === 'function') {
+                // Same song, just resume
+                console.log('📱 Resuming...');
+                isUserPaused = false;
+                player.playVideo();
+                isMediaPlaying = true;
+                updatePlayPauseIcons(true);
             } else {
-                console.log('📱 Playing...');
+                // Different song, play new
+                console.log('📱 Playing new song...');
                 playSong(video);
             }
         };
