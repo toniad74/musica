@@ -488,31 +488,6 @@ async function finalizeListenSession(finalSeconds) {
 
 // --- OTHER FUNCTIONS ---
 
-    currentListenSession = null;
-    lastRecordedSeconds = 0;
-}
-}
-
-// Finalize listening session when song ends or skips
-async function finalizeListenSession(finalSeconds) {
-    if (!currentListenSession || !currentUserUid) return;
-
-    currentListenSession.listenedSeconds = Math.floor(finalSeconds);
-
-    try {
-        const historyRef = doc(db, "users", currentUserUid, "history", currentListenSession.docId);
-        await updateDoc(historyRef, {
-            listenedSeconds: currentListenSession.listenedSeconds
-        });
-        console.log(`📊 Escucha finalizada: ${currentListenSession.listenedSeconds}s de "${currentListenSession.songId}"`);
-    } catch (e) {
-        console.warn("Error finalizing listen session:", e);
-    }
-
-    currentListenSession = null;
-    lastRecordedSeconds = 0;
-}
-
 // Show Brave browser recommendation
 function showBraveRecommendation() {
     // Check if we've already shown the message this session
