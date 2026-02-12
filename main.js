@@ -471,6 +471,7 @@ async function updateListenProgress(currentSeconds) {
         await updateDoc(historyRef, {
             listenedSeconds: lastRecordedSeconds
         });
+        console.log('📊 Progress saved:', lastRecordedSeconds, 's for', currentListenSession.songId);
     } catch (e) {
         console.warn("Error updating listen progress:", e);
     }
@@ -481,6 +482,7 @@ async function finalizeListenSession(finalSeconds) {
 
     const finalTime = Math.floor(finalSeconds);
     currentListenSession.listenedSeconds = finalTime;
+    console.log('📊 Finalizing session:', finalTime, 's for', currentListenSession.songId);
 
     try {
         const historyRef = doc(db, "users", currentUserUid, "history", currentListenSession.docId);
@@ -4326,9 +4328,13 @@ function calculateStatistics(history) {
     };
 
     history.forEach(item => {
+        // DEBUG: Log what we're receiving from Firestore
+        console.log('📊 Item:', item.title, 'listenedSeconds:', item.listenedSeconds, 'durationSeconds:', item.durationSeconds);
+        
         // Use actual listened time instead of full duration
         const listenedSecs = item.listenedSeconds || 0;
         const secs = listenedSecs > 0 ? listenedSecs : (item.durationSeconds || 0);
+        console.log('📊 Using secs:', secs, 'for:', item.title);
         stats.totalSeconds += secs;
         stats.uniqueArtists.add(item.artist);
 
