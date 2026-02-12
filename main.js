@@ -3142,11 +3142,16 @@ async function loadMoreNews() {
     if (isLoadingMoreNews || !newsNextPageToken) return;
     isLoadingMoreNews = true;
 
-    // Update button state
-    const btn = document.getElementById('loadMoreNewsBtn');
-    if (btn) {
-        btn.innerHTML = '<div class="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div> Cargando...';
-        btn.disabled = true;
+    // Show loading indicator
+    const container = document.getElementById('newsLoadMoreContainer');
+    if (container) {
+        container.innerHTML = `
+            <div class="flex items-center gap-2 text-gray-400">
+                <div class="w-6 h-6 border-2 border-gray-400 border-t-white rounded-full animate-spin"></div>
+                <span>Cargando más canciones...</span>
+            </div>
+        `;
+        container.classList.remove('hidden');
     }
 
     try {
@@ -3176,9 +3181,19 @@ async function loadMoreNews() {
         }
 
         renderNewsResults(newBatch, true);
+
+        // Re-setup infinite scroll observer after content is added
+        setupNewsInfiniteScroll();
     } catch (error) {
         console.error("Error loading more news:", error);
         showToast("Error al cargar más novedades", "warning");
+        if (container) {
+            container.innerHTML = `
+                <button onclick="loadMoreNews()" class="bg-white text-black px-6 py-2 rounded-full font-bold">
+                    Reintentar
+                </button>
+            `;
+        }
     } finally {
         isLoadingMoreNews = false;
         updateLoadMoreButton();
@@ -3186,10 +3201,24 @@ async function loadMoreNews() {
 }
 
 function setupNewsInfiniteScroll() {
-    const container = document.getElementById('newsLoadMoreContainer');
-    if (!container) return;
+    // Remove old container if exists and create new one at bottom of grid
+    const grid = document.getElementById('newsGrid');
+    const oldContainer = document.getElementById('newsLoadMoreContainer');
+    if (oldContainer) oldContainer.remove();
 
-    // Disconnect previous observer if exists to avoid duplicates
+    if (!grid) return;
+
+    // Create new observer container at the bottom
+    const observerContainer = document.createElement('div');
+    observerContainer.id = 'newsLoadMoreContainer';
+    observerContainer.className = 'col-span-full py-8 text-center';
+    observerContainer.innerHTML = newsNextPageToken 
+        ? `<div class="flex items-center justify-center gap-2 text-gray-400"><div class="w-5 h-5 border-2 border-gray-400 border-t-white rounded-full animate-spin"></div><span>Scroll para cargar más...</span></div>`
+        : `<span class="text-gray-500">No hay más contenido</span>`;
+    
+    grid.appendChild(observerContainer);
+
+    // Disconnect previous observer
     if (window.newsObserver) window.newsObserver.disconnect();
 
     window.newsObserver = new IntersectionObserver((entries) => {
@@ -3197,27 +3226,15 @@ function setupNewsInfiniteScroll() {
             loadMoreNews();
         }
     }, {
-        rootMargin: '400px', // Trigger loading well before reaching the bottom
-        threshold: 0.1
+        rootMargin: '600px', // Trigger loading well before reaching the bottom
+        threshold: 0
     });
 
-    window.newsObserver.observe(container);
+    window.newsObserver.observe(observerContainer);
 }
 
 function updateLoadMoreButton() {
-    const container = document.getElementById('newsLoadMoreContainer');
-    if (!container) return;
-
-    if (newsNextPageToken) {
-        container.classList.remove('hidden');
-        const btn = document.getElementById('loadMoreNewsBtn');
-        if (btn) {
-            btn.innerHTML = 'Cargar más canciones';
-            btn.disabled = false;
-        }
-    } else {
-        container.classList.add('hidden');
-    }
+    // Button is now handled by setupNewsInfiniteScroll
 }
 
 // --- LYRICS SYSTEM ---
