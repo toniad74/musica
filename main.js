@@ -459,20 +459,32 @@ async function addToHistory(song) {
 async function updateListenProgress(currentSeconds) {
     if (!currentListenSession || !currentUserUid) return;
 
-    // Only update if we've advanced at least 5 seconds to avoid excessive writes
-    if (currentSeconds - lastRecordedSeconds < 5) return;
+    // Only update if we've advanced at least 10 seconds to avoid excessive writes
+    if (currentSeconds - lastRecordedSeconds < 10) return;
 
-    lastRecordedSeconds = currentSeconds;
-    currentListenSession.listenedSeconds = Math.floor(currentSeconds);
+    lastRecordedSeconds = Math.floor(currentSeconds);
+    currentListenSession.listenedSeconds = lastRecordedSeconds;
+}
+
+async function finalizeListenSession(finalSeconds) {
+    if (!currentListenSession || !currentUserUid) return;
+
+    const finalTime = Math.floor(finalSeconds);
+    currentListenSession.listenedSeconds = finalTime;
 
     try {
         const historyRef = doc(db, "users", currentUserUid, "history", currentListenSession.docId);
         await updateDoc(historyRef, {
-            listenedSeconds: currentListenSession.listenedSeconds
+            listenedSeconds: finalTime
         });
+        console.log(`📊 Escucha finalizada: ${Math.floor(finalTime/60)}m ${finalTime%60}s de "${currentListenSession.songId}"`);
     } catch (e) {
-        console.warn("Error updating listen progress:", e);
+        console.warn("Error finalizing listen session:", e);
     }
+
+    currentListenSession = null;
+    lastRecordedSeconds = 0;
+}
 }
 
 // Finalize listening session when song ends or skips
@@ -4306,11 +4318,13 @@ function calculateStatistics(history) {
         uniqueArtists: new Set(),
         artistsMap: {}, // artist -> seconds
         genresMap: {},  // genre -> count
+        songsData: [] // Store individual song data for display
     };
 
     history.forEach(item => {
         // Use actual listened time instead of full duration
-        const secs = item.listenedSeconds || item.durationSeconds || 0;
+        const listenedSecs = item.listenedSeconds || 0;
+        const secs = listenedSecs > 0 ? listenedSecs : (item.durationSeconds || 0);
         stats.totalSeconds += secs;
         stats.uniqueArtists.add(item.artist);
 
@@ -4319,6 +4333,14 @@ function calculateStatistics(history) {
         if (item.genre && item.genre !== "Unknown") {
             stats.genresMap[item.genre] = (stats.genresMap[item.genre] || 0) + 1;
         }
+
+        // Store individual song data
+        stats.songsData.push({
+            title: item.title,
+            artist: item.artist,
+            listenedSeconds: listenedSecs,
+            durationSeconds: item.durationSeconds || 0
+        });
     });
 
     stats.totalSeconds = Math.round(stats.totalSeconds);
@@ -4331,8 +4353,9 @@ function calculateStatistics(history) {
         .map(([name, seconds]) => ({
             name,
             seconds,
-            min: Math.floor(seconds / 60),
-            sec: Math.floor(seconds % 60)
+            hours: Math.floor(seconds / 3600),
+            min: Math.floor((seconds % 3600) / 60),
+            sec: seconds % 60
         }));
 
     // Sort genres by count
@@ -4347,9 +4370,23 @@ function calculateStatistics(history) {
     return stats;
 }
 
+function formatTimeHMSS(totalSeconds) {
+    if (!totalSeconds || isNaN(totalSeconds)) return '0:00';
+    const hours = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = Math.floor(totalSeconds % 60);
+    
+    if (hours > 0) {
+        return `${hours}h ${mins}m ${secs}s`;
+    } else {
+        return `${mins}m ${secs}s`;
+    }
+}
+
 function renderReport(stats, history) {
-    // Show only minutes as requested
-    document.getElementById('stat-total-minutes').innerText = stats.totalMin.toLocaleString();
+    // Show total time in hours:minutes:seconds
+    const totalTimeDisplay = formatTimeHMSS(stats.totalSeconds);
+    document.getElementById('stat-total-minutes').innerText = totalTimeDisplay;
     document.getElementById('stat-total-songs').innerText = stats.totalSongs.toLocaleString();
     document.getElementById('stat-unique-artists').innerText = stats.uniqueArtistsCount.toLocaleString();
 
@@ -4364,9 +4401,8 @@ function renderReport(stats, history) {
         item.className = 'stat-item';
         const percent = (artist.seconds / maxSeconds) * 100;
 
-        // Show simplified minutes (rounded)
-        const mins = Math.round(artist.seconds / 60);
-        const artistTime = `${mins} min`;
+        // Show hours:minutes:seconds format
+        const artistTime = formatTimeHMSS(artist.seconds);
 
         item.innerHTML = `
             <div class="stat-rank">${i + 1}</div>
@@ -4429,11 +4465,17 @@ function renderReport(stats, history) {
         const row = document.createElement('div');
         row.className = 'flex items-center gap-4 p-3 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer';
 
-        // Calculate duration display
+        // Calculate duration display - show actual listened time
         let durationDisplay = '';
-        if (item.durationSeconds) {
-            const m = Math.round(item.durationSeconds / 60);
-            durationDisplay = `<span class="text-xs text-green-500 font-mono">${m} min</span>`;
+        const listenedSecs = item.listenedSeconds || 0;
+        const durationSecs = item.durationSeconds || 0;
+        
+        if (listenedSecs > 0) {
+            // Show listened time
+            durationDisplay = `<span class="text-xs text-green-500 font-mono">${formatTimeHMSS(listenedSecs)}</span>`;
+        } else if (durationSecs > 0) {
+            // Fallback to full duration if no listened time recorded yet
+            durationDisplay = `<span class="text-xs text-gray-500 font-mono">${formatTimeHMSS(durationSecs)}</span>`;
         }
 
         row.innerHTML = `
