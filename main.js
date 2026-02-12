@@ -1537,17 +1537,19 @@ async function searchPiped(query) {
     console.log("🕵️ Iniciando búsqueda de respaldo en Piped para:", query);
     console.log("Usando buscador alternativo...");
 
+    // CORS proxy to avoid browser blocking
+    const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+    
     // Try multiple instances until one works
-    // We reuse the PIPED_INSTANCES list
-    // Shuffle slightly to distribute load, but keep "heroes" often
     const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
 
     for (let instance of candidates) {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
 
-            const response = await fetch(`${instance}/search?q=${encodeURIComponent(query)}&filter=music_videos`, {
+            const pipedUrl = `${instance}/search?q=${encodeURIComponent(query)}&filter=music_videos`;
+            const response = await fetch(CORS_PROXY + encodeURIComponent(pipedUrl), {
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
@@ -1829,6 +1831,7 @@ function renderSearchResults(videos) {
                 }
             };
 
+            const isCurrentSong = isMediaPlaying && currentTrack && String(currentTrack.id) === String(video.id);
             row.innerHTML = `
                 <div class="w-10 text-center text-sm text-[#b3b3b3] track-number group-hover:hidden">${(currentSearchPage - 1) * 20 + index + 1}</div>
                 <div class="hidden group-hover:block w-10 text-center">
@@ -1837,7 +1840,7 @@ function renderSearchResults(videos) {
                 <img src="${video.thumbnail}" class="w-10 h-10 rounded object-cover">
                 <div class="flex-1 min-w-0">
                     <div class="marquee-container">
-                        <h3 class="text-white font-medium marquee-content">${video.title}${isCurrent ? ' <span class="playing-badge">SONANDO</span>' : ''}</h3>
+                        <h3 class="text-white font-medium marquee-content">${video.title}${isCurrentSong ? ' <span class="playing-badge">SONANDO</span>' : ''}</h3>
                     </div>
                     <p class="text-[#b3b3b3] text-sm truncate">${video.channel}</p>
                 </div>
