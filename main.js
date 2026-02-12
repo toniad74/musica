@@ -460,8 +460,8 @@ async function addToHistory(song) {
 async function updateListenProgress(currentSeconds) {
     if (!currentListenSession || !currentUserUid) return;
 
-    // Only update if we've advanced at least 10 seconds to avoid excessive writes
-    if (currentSeconds - lastRecordedSeconds < 10) return;
+    // Only update if we've advanced at least 2 seconds to avoid excessive writes
+    if (currentSeconds - lastRecordedSeconds < 2) return;
 
     lastRecordedSeconds = Math.floor(currentSeconds);
     currentListenSession.listenedSeconds = lastRecordedSeconds;
