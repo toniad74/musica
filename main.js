@@ -485,6 +485,12 @@ async function finalizeListenSession(finalSeconds) {
     currentListenSession = null;
     lastRecordedSeconds = 0;
 }
+
+// --- OTHER FUNCTIONS ---
+
+    currentListenSession = null;
+    lastRecordedSeconds = 0;
+}
 }
 
 // Finalize listening session when song ends or skips
