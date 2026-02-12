@@ -3985,17 +3985,12 @@ function hideReport() {
 async function updateReportPeriod(period) {
     currentReportPeriod = period;
 
-    // Update tabs UI - usando inline styles para máxima confiabilidad
+    // Update tabs UI - solo clases CSS
     document.querySelectorAll('.report-tab').forEach(tab => {
-        const isActive = tab.dataset.period === period;
-        if (isActive) {
+        if (tab.dataset.period === period) {
             tab.classList.add('active');
-            tab.style.backgroundColor = 'white';
-            tab.style.color = 'black';
         } else {
             tab.classList.remove('active');
-            tab.style.backgroundColor = 'black';
-            tab.style.color = 'white';
         }
     });
 

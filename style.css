@@ -795,6 +795,26 @@ button,
 }
 
 .report-tab:hover {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.report-tab.active,
+#reportModal .report-tab.active,
+#reportModal button.report-tab.active {
+    background-color: white !important;
+    color: black !important;
+    border-color: white !important;
+}
+
+@media (max-width: 768px) {
+    #reportModal button.report-tab.active:hover,
+    #reportModal button.report-tab.active:active {
+        color: black !important;
+        background-color: white !important;
+    }
+}
+
+.report-tab:hover {
     background-color: rgba(255, 255, 255, 0.1) !important;
 }
 
