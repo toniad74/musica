@@ -3967,15 +3967,15 @@ let currentReportPeriod = '7d';
 async function showReport() {
     if (!currentUserUid) return;
     document.getElementById('reportModal').classList.remove('hidden');
-    // Set default dates
+    // Set default dates (1 day)
     const end = new Date();
     const start = new Date();
-    start.setDate(start.getDate() - 7);
+    start.setDate(start.getDate() - 1);
 
     document.getElementById('reportEndDate').value = end.toISOString().split('T')[0];
     document.getElementById('reportStartDate').value = start.toISOString().split('T')[0];
 
-    await updateReportPeriod('7d');
+    await updateReportPeriod('1d');
 }
 
 function hideReport() {
