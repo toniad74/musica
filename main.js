@@ -3654,9 +3654,12 @@ function renderNewsResults(videos, append = false) {
         
         // Toggle play/pause if same song, otherwise play new song
         card.onclick = () => {
+            console.log('📱 Card click - isCurrent:', isCurrent, 'isMediaPlaying:', isMediaPlaying, 'video.id:', video.id, 'currentTrack?.id:', currentTrack?.id);
             if (isCurrent && isMediaPlaying) {
+                console.log('📱 Toggling pause');
                 togglePlayPause();
             } else {
+                console.log('📱 Playing new song');
                 playSong(video);
             }
         };
