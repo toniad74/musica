@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs, orderBy, limit, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -458,7 +458,14 @@ async function addToHistory(song) {
 
 // Update listening progress while song plays
 async function updateListenProgress(currentSeconds) {
-    if (!currentListenSession || !currentUserUid) return;
+    if (!currentListenSession) {
+        console.warn('📊 updateListenProgress: No session');
+        return;
+    }
+    if (!currentUserUid) {
+        console.warn('📊 updateListenProgress: No user');
+        return;
+    }
 
     // Only update if we've advanced at least 2 seconds to avoid excessive writes
     if (currentSeconds - lastRecordedSeconds < 2) return;
@@ -474,7 +481,7 @@ async function updateListenProgress(currentSeconds) {
         });
         console.log('📊 Progress saved:', lastRecordedSeconds, 's for', currentListenSession.songId);
     } catch (e) {
-        console.warn("Error updating listen progress:", e);
+        console.error('❌ Firestore update error:', e.code, e.message);
     }
 }
 
