@@ -4292,6 +4292,7 @@ Object.assign(window, {
     moveSongInPlaylist,
     showReport,
     hideReport,
+    updateReportPeriod,
     updateReportCustomRange,
     loadMoreNews,
     toggleLyrics
