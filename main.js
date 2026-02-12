@@ -237,11 +237,24 @@ window.onload = () => {
                 };
             };
 
-            // 3. Periodic background check every 30s
+            // 3. Periodic background check every 10s
             setInterval(() => {
-                reg.update();
+                reg.update().then(() => {
+                    if (reg.waiting) {
+                        console.log('🔄 Nueva versión detectada, actualizando...');
+                        updateApp();
+                    }
+                });
                 console.log('🔍 Buscando actualizaciones...');
-            }, 30000);
+            }, 10000);
+            
+            // 4. Immediate update check on load
+            reg.update().then(() => {
+                if (reg.waiting) {
+                    console.log('🔄 Nueva versión detectada al cargar, actualizando...');
+                    updateApp();
+                }
+            });
         }).catch(e => console.error('SW registration error:', e));
     }
 };
