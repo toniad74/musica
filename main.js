@@ -3989,13 +3989,11 @@ async function updateReportPeriod(period) {
     document.querySelectorAll('.report-tab').forEach(tab => {
         const isActive = tab.dataset.period === period;
 
-        // Hard reset of classes and styles
-        tab.className = 'report-tab';
-        tab.style.cssText = '';
-
+        // Simple class toggle - CSS handles all styling with !important
         if (isActive) {
-            tab.classList.add('active', 'bg-white', 'text-black');
-            tab.style.cssText = "background-color: white !important; color: black !important;";
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
         }
     });
 
