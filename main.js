@@ -437,6 +437,7 @@ async function addToHistory(song) {
         });
 
         console.log("📊 Historia guardada:", song.title);
+        console.log("📊 Session created:", docRef.id, "durationSeconds:", parseDurationToSeconds(song.duration));
 
         // Track listening session
         currentListenSession = {
@@ -1326,11 +1327,27 @@ document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState === 'visible') {
         await requestWakeLock();
     } else {
-        // App went to background
+        // App went to background - save listen session
+        if (currentListenSession) {
+            const currentTime = isCurrentlyUsingNative ? (nativeAudio?.currentTime || 0) : (player?.getCurrentTime() || 0);
+            console.log('📊 Visibility change - saving session:', currentTime, 's');
+            finalizeListenSession(currentTime);
+        }
         // Ensure audio context is passing time to keep the thread alive
         if (audioCtx && audioCtx.state === 'suspended') {
             audioCtx.resume();
         }
+    }
+});
+
+// Save listen session when user closes tab or navigates away
+window.addEventListener('beforeunload', () => {
+    if (currentListenSession) {
+        const currentTime = isCurrentlyUsingNative ? (nativeAudio?.currentTime || 0) : (player?.getCurrentTime() || 0);
+        console.log('📊 beforeunload - saving session:', currentTime, 's');
+        // Use synchronous write for beforeunload
+        const historyRef = doc(db, "users", currentUserUid, "history", currentListenSession.docId);
+        updateDoc(historyRef, { listenedSeconds: Math.floor(currentTime) });
     }
 });
 
@@ -1863,7 +1880,10 @@ async function playSong(song, list = [], fromQueue = false) {
         // Finalize previous listen session before starting new song
         if (currentListenSession) {
             const lastPlayerTime = isCurrentlyUsingNative ? (nativeAudio?.currentTime || 0) : (player?.getCurrentTime() || 0);
+            console.log('📊 playSong - Finalizing previous session:', lastPlayerTime, 's');
             finalizeListenSession(lastPlayerTime);
+        } else {
+            console.log('📊 playSong - No previous session to finalize');
         }
 
         // Highlight in UI
@@ -2247,12 +2267,16 @@ function playPrevious() {
 }
 
 function handleTrackEnded() {
+    console.log('📊 handleTrackEnded called');
     // Finalize listen session with actual listened time
     if (currentListenSession) {
         const currentPlayerTime = isCurrentlyUsingNative ? (nativeAudio?.currentTime || 0) : (player?.getCurrentTime() || 0);
+        console.log('📊 handleTrackEnded - currentTime:', currentPlayerTime);
         // Update listenedSeconds with the final player time before finalizing
         currentListenSession.listenedSeconds = Math.floor(currentPlayerTime);
         finalizeListenSession(currentListenSession.listenedSeconds);
+    } else {
+        console.warn('📊 handleTrackEnded - No currentListenSession');
     }
     playNext();
 }
