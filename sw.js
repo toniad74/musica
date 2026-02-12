@@ -1,5 +1,5 @@
-const CACHE_NAME = 'amaya-music-v91';
-// SW Version: 1.7.61 - Time: 21:27 (GMT+1) - Auto-actualización
+const CACHE_NAME = 'amaya-music-v92';
+// SW Version: 1.7.62 - Time: 21:27 (GMT+1) - Auto-actualización forzada
 const urlsToCache = [
     './',
     './index.html',
@@ -16,7 +16,7 @@ self.addEventListener('install', event => {
         caches.open(CACHE_NAME)
             .then(cache => cache.addAll(urlsToCache))
     );
-    self.skipWaiting();
+    self.skipWaiting(); // Force immediate activation
 });
 
 // Activate event - clean old caches
@@ -33,7 +33,7 @@ self.addEventListener('activate', event => {
             );
         })
     );
-    return self.clients.claim();
+    return self.clients.claim(); // Take control immediately
 });
 
 // Fetch event - Network First for core files, Cache First for others
