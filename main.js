@@ -4386,7 +4386,7 @@ function formatTimeHMSS(totalSeconds) {
 function renderReport(stats, history) {
     // Show total time in hours:minutes:seconds
     const totalTimeDisplay = formatTimeHMSS(stats.totalSeconds);
-    document.getElementById('stat-total-minutes').innerText = totalTimeDisplay;
+    document.getElementById('stat-total-time').innerText = totalTimeDisplay;
     document.getElementById('stat-total-songs').innerText = stats.totalSongs.toLocaleString();
     document.getElementById('stat-unique-artists').innerText = stats.uniqueArtistsCount.toLocaleString();
 
