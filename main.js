@@ -47,6 +47,10 @@ const DEFAULT_KEYS = _D_K.map(k => atob(k));
 let isShuffle = false;
 let repeatMode = 0; // 0: No repeat, 1: Repeat playlist, 2: Repeat one
 let nextSearchToken = '';
+
+// Real listening tracking
+let currentListenSession = null; // { docId, songId, startTime, listenedSeconds }
+let lastRecordedSeconds = 0;
 let prevSearchToken = '';
 let currentSearchQuery = '';
 let currentSearchPage = 1;
@@ -380,7 +384,7 @@ async function loadPlaylistsFromCloud() {
 }
 
 async function addToHistory(song) {
-    if (!currentUserUid || !song) return;
+    if (!currentUserUid || !song) return null;
 
     try {
         // Try to get more metadata (like genres/topics) if they are missing
@@ -405,20 +409,75 @@ async function addToHistory(song) {
         } catch (e) { console.warn("Failed to fetch genre metadata:", e); }
 
         const historyRef = collection(db, "users", currentUserUid, "history");
-        await addDoc(historyRef, {
+        const docRef = await addDoc(historyRef, {
             songId: song.id,
             title: song.title,
             artist: song.channel,
             thumbnail: song.thumbnail,
             duration: song.duration,
             durationSeconds: parseDurationToSeconds(song.duration),
+            listenedSeconds: 0, // Will be updated with actual listening time
             genre: genre,
             timestamp: serverTimestamp()
         });
+
         console.log("📊 Historia guardada:", song.title);
+
+        // Track listening session
+        currentListenSession = {
+            docId: docRef.id,
+            songId: song.id,
+            startTime: Date.now(),
+            listenedSeconds: 0,
+            durationSeconds: parseDurationToSeconds(song.duration)
+        };
+        lastRecordedSeconds = 0;
+
+        return docRef.id;
     } catch (e) {
         console.error("Error al guardar en el historial:", e);
     }
+    return null;
+}
+
+// Update listening progress while song plays
+async function updateListenProgress(currentSeconds) {
+    if (!currentListenSession || !currentUserUid) return;
+
+    // Only update if we've advanced at least 5 seconds to avoid excessive writes
+    if (currentSeconds - lastRecordedSeconds < 5) return;
+
+    lastRecordedSeconds = currentSeconds;
+    currentListenSession.listenedSeconds = Math.floor(currentSeconds);
+
+    try {
+        const historyRef = doc(db, "users", currentUserUid, "history", currentListenSession.docId);
+        await updateDoc(historyRef, {
+            listenedSeconds: currentListenSession.listenedSeconds
+        });
+    } catch (e) {
+        console.warn("Error updating listen progress:", e);
+    }
+}
+
+// Finalize listening session when song ends or skips
+async function finalizeListenSession(finalSeconds) {
+    if (!currentListenSession || !currentUserUid) return;
+
+    currentListenSession.listenedSeconds = Math.floor(finalSeconds);
+
+    try {
+        const historyRef = doc(db, "users", currentUserUid, "history", currentListenSession.docId);
+        await updateDoc(historyRef, {
+            listenedSeconds: currentListenSession.listenedSeconds
+        });
+        console.log(`📊 Escucha finalizada: ${currentListenSession.listenedSeconds}s de "${currentListenSession.songId}"`);
+    } catch (e) {
+        console.warn("Error finalizing listen session:", e);
+    }
+
+    currentListenSession = null;
+    lastRecordedSeconds = 0;
 }
 
 // Show Brave browser recommendation
@@ -1775,6 +1834,12 @@ async function playSong(song, list = [], fromQueue = false) {
         isMediaPlaying = true;
         isUserPaused = false;
 
+        // Finalize previous listen session before starting new song
+        if (currentListenSession) {
+            const lastPlayerTime = isCurrentlyUsingNative ? (nativeAudio?.currentTime || 0) : (player?.getCurrentTime() || 0);
+            finalizeListenSession(lastPlayerTime);
+        }
+
         // Highlight in UI
         highlightCurrentTrack(song.id);
         updateQueueIcons();
@@ -2156,6 +2221,10 @@ function playPrevious() {
 }
 
 function handleTrackEnded() {
+    // Finalize listen session with full duration
+    if (currentListenSession) {
+        finalizeListenSession(currentListenSession.durationSeconds);
+    }
     playNext();
 }
 
@@ -3535,6 +3604,9 @@ function updateProgressBar() {
     document.getElementById('currentTime').textContent = formatTime(currentTime);
     document.getElementById('remainingTime').textContent = '-' + formatTime(duration - currentTime);
 
+    // Update listen progress for stats
+    updateListenProgress(currentTime);
+
     const mobileCurrentTime = document.getElementById('mobileCurrentTime');
     const mobileRemainingTime = document.getElementById('mobileRemainingTime');
     if (mobileCurrentTime) mobileCurrentTime.textContent = formatTime(currentTime);
@@ -4080,7 +4152,8 @@ function calculateStatistics(history) {
     };
 
     history.forEach(item => {
-        const secs = item.durationSeconds || 0;
+        // Use actual listened time instead of full duration
+        const secs = item.listenedSeconds || item.durationSeconds || 0;
         stats.totalSeconds += secs;
         stats.uniqueArtists.add(item.artist);
 
