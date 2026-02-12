@@ -1796,15 +1796,15 @@ function renderSearchResults(videos) {
             const inQueue = isSongInQueue(video.id);
             const inQueueClass = inQueue ? 'in-queue' : 'text-[#b3b3b3]';
 
-            const isCurrent = isMediaPlaying && currentTrack && String(currentTrack.id) === String(video.id);
             const row = document.createElement('div');
-            row.className = `result-row flex items-center gap-4 p-3 cursor-pointer group ${isCurrent ? 'is-playing' : ''}`;
+            row.className = `result-row flex items-center gap-4 p-3 cursor-pointer group ${isMediaPlaying && currentTrack && String(currentTrack.id) === String(video.id) ? 'is-playing' : ''}`;
             row.dataset.videoId = video.id;
             row.onclick = () => {
                 currentlyPlayingPlaylistId = null;
                 localStorage.removeItem('amaya_playing_pl_id');
                 renderHomePlaylists();
-                if (isCurrent && isMediaPlaying) {
+                const nowCurrent = isMediaPlaying && currentTrack && String(currentTrack.id) === String(video.id);
+                if (nowCurrent && isMediaPlaying) {
                     togglePlayPause();
                 } else {
                     playSong(video, [video]);
@@ -3645,8 +3645,6 @@ function renderNewsResults(videos, append = false) {
         const inQueue = isSongInQueue(video.id);
         const inQueueClass = inQueue ? 'in-queue-active' : 'bg-black/60 hover:bg-green-500';
 
-        const isCurrent = isMediaPlaying && currentTrack && String(currentTrack.id) === String(video.id);
-
         const card = document.createElement('div');
         card.className = 'news-card animate-fade-in group';
         card.setAttribute('data-video-id', video.id);
@@ -3654,43 +3652,26 @@ function renderNewsResults(videos, append = false) {
         
         // Toggle play/pause if same song, otherwise play new song
         card.onclick = () => {
-            console.log('📱 Card click - isCurrent:', isCurrent, 'isMediaPlaying:', isMediaPlaying, 'video.id:', video.id, 'currentTrack?.id:', currentTrack?.id);
-            if (isCurrent && isMediaPlaying) {
-                console.log('📱 Toggling pause');
+            const nowCurrent = isMediaPlaying && currentTrack && String(currentTrack.id) === String(video.id);
+            console.log('📱 Card click - nowCurrent:', nowCurrent);
+            if (nowCurrent && isMediaPlaying) {
                 togglePlayPause();
             } else {
-                console.log('📱 Playing new song');
                 playSong(video);
             }
         };
 
-        // Play/Pause icon based on current state
-        const playPauseIcon = isCurrent && isMediaPlaying 
-            ? '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>'  // Pause icon
-            : '<path d="M8 5v14l11-7z"/>';  // Play icon
-        
-        const cardOpacity = isCurrent && isMediaPlaying ? 'opacity-100' : 'opacity-0';
-        
         card.innerHTML = `
             <div class="thumbnail-container relative overflow-hidden rounded-xl shadow-2xl">
                 <img src="${video.thumbnail}" alt="${video.title}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy">
-                <div class="play-btn-overlay absolute bottom-4 right-4 bg-green-500 w-12 h-12 rounded-full flex items-center justify-center text-black ${cardOpacity} transform translate-y-0 shadow-2xl transition-all duration-300">
+                <div class="play-btn-overlay absolute bottom-4 right-4 bg-green-500 w-12 h-12 rounded-full flex items-center justify-center text-black opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 shadow-2xl transition-all duration-300">
                     <svg class="w-8 h-8 card-play-icon transition-all duration-300" fill="currentColor" viewBox="0 0 24 24">
-                        ${playPauseIcon}
+                        <path d="M8 5v14l11-7z" />
                     </svg>
                 </div>
                 <div class="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md border border-white/10 px-2 py-0.5 rounded text-[11px] font-bold text-white">
                     ${video.duration}
                 </div>
-                
-                <!-- Playing indicator overlay -->
-                ${isCurrent && isMediaPlaying ? `
-                <div class="absolute bottom-4 left-4 bg-green-500 w-10 h-10 rounded-full flex items-center justify-center text-black shadow-xl animate-pulse">
-                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-                    </svg>
-                </div>
-                ` : ''}
                 
                 <!-- Action Buttons Overlay (Split: Queue Left, Playlist Right) -->
                 <div class="absolute top-2 left-2 z-10">
