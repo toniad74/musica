@@ -1123,7 +1123,7 @@
         <div class="drag-handle mb-8 md:hidden" onclick="toggleLyrics()"></div>
 
         <!-- Desktop Header -->
-        <div class="w-full max-w-4xl flex items-center justify-between mb-8">
+        <div class="w-full max-w-4xl flex items-center justify-between mb-8 z-10">
             <div class="flex items-center gap-4">
                 <img id="lyricsArt" src="" class="w-16 h-16 rounded-lg shadow-2xl object-cover">
                 <div class="min-w-0">
@@ -1139,21 +1139,18 @@
             </button>
         </div>
 
+        <!-- Gradient Overlays for Scroll Effect -->
+        <div class="absolute top-32 left-0 right-0 h-32 bg-gradient-to-b from-black/80 to-transparent pointer-events-none z-10 lyrics-scroll-top"></div>
+        <div class="absolute bottom-32 left-0 right-0 h-32 bg-gradient-to-t from-black/80 to-transparent pointer-events-none z-10 lyrics-scroll-bottom"></div>
+
         <!-- Lyrics Container -->
-        <div id="lyricsContainer" class="w-full max-w-4xl flex-1 overflow-y-auto lyrics-scroller custom-scrollbar px-4">
-            <div id="lyricsContent" class="py-[20vh] space-y-6 text-center md:text-left">
-                <!-- Lyrics lines will be injected here -->
-                <div class="animate-pulse space-y-4">
-                    <div class="h-8 bg-white/5 rounded-lg w-3/4 mx-auto md:mx-0"></div>
-                    <div class="h-8 bg-white/5 rounded-lg w-1/2 mx-auto md:mx-0"></div>
-                    <div class="h-8 bg-white/5 rounded-lg w-2/3 mx-auto md:mx-0"></div>
-                </div>
-            </div>
+        <div id="lyricsContainer" class="w-full max-w-4xl flex-1 overflow-y-auto lyrics-scroller custom-scrollbar px-4 relative">
+            <div id="lyricsContent" class="py-[20vh] space-y-6 text-center md:text-left"></div>
         </div>
 
         <!-- Footer indicator -->
-        <div class="mt-8 text-gray-500 text-[10px] font-black tracking-widest uppercase opacity-40">
-            Powered by LRCLib & Spotify
+        <div class="mt-8 text-gray-500 text-[10px] font-black tracking-widest z-10">
+            Powered by LR uppercase opacity-40CLib, Musixmatch & Genius
         </div>
     </div>
 </body>

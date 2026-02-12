@@ -3260,6 +3260,7 @@ let lastLyricsVideoId = null;
 
 async function toggleLyrics() {
     const overlay = document.getElementById('lyricsOverlay');
+    const container = document.getElementById('lyricsContainer');
     isLyricsOpen = !isLyricsOpen;
 
     overlay.classList.toggle('hidden', !isLyricsOpen);
@@ -3271,10 +3272,27 @@ async function toggleLyrics() {
         document.getElementById('lyricsTitle').innerText = currentTrack.title;
         document.getElementById('lyricsArtist').innerText = currentTrack.artist || currentTrack.channel;
 
+        // Setup scroll listener for gradient visibility
+        container.addEventListener('scroll', handleLyricsScroll);
+        handleLyricsScroll(); // Initial check
+
         if (lastLyricsVideoId !== currentTrack.id) {
             await fetchLyricsForCurrent();
         }
+    } else {
+        container.removeEventListener('scroll', handleLyricsScroll);
     }
+}
+
+function handleLyricsScroll() {
+    const container = document.getElementById('lyricsContainer');
+    if (!container) return;
+
+    const isAtTop = container.scrollTop <= 10;
+    const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 10;
+
+    container.classList.toggle('is-at-top', isAtTop);
+    container.classList.toggle('is-at-bottom', isAtBottom);
 }
 
 async function fetchLyricsForCurrent() {
@@ -3285,6 +3303,7 @@ async function fetchLyricsForCurrent() {
         <div class="flex flex-col items-center justify-center space-y-4 py-20">
             <div class="w-12 h-12 border-4 border-white/10 border-t-green-500 rounded-full animate-spin"></div>
             <p class="text-gray-400 font-bold tracking-widest uppercase text-xs">Buscando letra en múltiples fuentes...</p>
+            <p class="text-gray-600 text-xs" id="lyricsSourceIndicator">LRCLib</p>
         </div>
     `;
 
@@ -3306,11 +3325,17 @@ async function fetchLyricsForCurrent() {
 
     console.log(`🎤 Buscando letra para: "${cleanTitle}" de "${cleanArtist}"`);
 
+    function updateSourceIndicator(source) {
+        const indicator = document.getElementById('lyricsSourceIndicator');
+        if (indicator) indicator.innerText = source;
+    }
+
     try {
         // STRATEGY 1: LRCLIB (Specific Search)
         // Best for synced lyrics
         let foundData = null;
         try {
+            updateSourceIndicator('LRCLib');
             const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(cleanArtist)}&track_name=${encodeURIComponent(cleanTitle)}`;
             const response = await fetch(url);
             if (response.ok) {
@@ -3330,16 +3355,92 @@ async function fetchLyricsForCurrent() {
 
         if (foundData) {
             console.log("✅ Letra encontrada en LRCLib");
-            renderLyrics(foundData);
+            renderLyrics(foundData, 'LRCLib');
             return;
         }
 
-        // STRATEGY 3: Lyrics.ovh Fallback (Text only, no sync)
-        console.log("⚠️ LRCLib no tuvo resultados. Intentando Lyrics.ovh...");
+        // STRATEGY 3: Musixmatch (via huggy歌词)
+        console.log("⚠️ LRCLib no tuvo resultados. Intentando Musixmatch...");
+        updateSourceIndicator('Musixmatch');
+        try {
+            const mxmUrl = `https://api.huggylyrics.com/sync?q=${encodeURIComponent(cleanArtist + " " + cleanTitle)}`;
+            const mxmRes = await fetch(mxmUrl);
+            if (mxmRes.ok) {
+                const mxmData = await mxmRes.json();
+                if (mxmData && (mxmData.lyrics || mxmData.exactLyrics || mxmData.subLyrics)) {
+                    console.log("✅ Letra encontrada en Musixmatch");
+                    renderLyrics({
+                        plainLyrics: mxmData.lyrics || mxmData.exactLyrics || mxmData.subLyrics,
+                        syncedLyrics: mxmData.lyrics || null
+                    }, 'Musixmatch');
+                    return;
+                }
+            }
+        } catch (mxmError) {
+            console.warn("Musixmatch failed:", mxmError);
+        }
+
+        // STRATEGY 4: Genius (Scraped lyrics)
+        console.log("⚠️ Musixmatch no tuvo resultados. Intentando Genius...");
+        updateSourceIndicator('Genius');
+        content.innerHTML = `
+            <div class="flex flex-col items-center justify-center space-y-4 py-20">
+                <div class="w-12 h-12 border-4 border-white/10 border-t-yellow-500 rounded-full animate-spin"></div>
+                <p class="text-yellow-400 font-bold tracking-widest uppercase text-xs">Buscando en Genius...</p>
+            </div>
+        `;
+
+        try {
+            const geniusSearchUrl = `https://api.genius.com/search?q=${encodeURIComponent(cleanArtist + " " + cleanTitle)}&access_token=${atob('RzFBa1kxQWdNRU8yT0dWeU1HRnliRzFwZEdsaQ==')}`;
+            const geniusSearchRes = await fetch(geniusSearchUrl);
+            if (geniusSearchRes.ok) {
+                const geniusData = await geniusSearchRes.json();
+                const bestMatch = geniusData.response?.hits?.find(hit => 
+                    hit.result?.artist_names?.toLowerCase().includes(cleanArtist.toLowerCase()) ||
+                    hit.result?.title?.toLowerCase().includes(cleanTitle.toLowerCase())
+                );
+
+                if (bestMatch) {
+                    const songUrl = bestMatch.result.url;
+                    // Fetch and parse Genius page
+                    const geniusPageRes = await fetch(songUrl);
+                    if (geniusPageRes.ok) {
+                        const html = await geniusPageRes.text();
+                        // Extract lyrics from Genius page
+                        const lyricsMatch = html.match(/<div[^>]*class="[^"]*lyrics[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+                        if (lyricsMatch) {
+                            const plainLyrics = lyricsMatch[1]
+                                .replace(/<[^>]*>/g, '\n')
+                                .replace(/&amp;/g, '&')
+                                .replace(/&lt;/g, '<')
+                                .replace(/&gt;/g, '>')
+                                .replace(/&#\d+;/g, '')
+                                .replace(/\n\s*\n/g, '\n')
+                                .trim();
+                            
+                            if (plainLyrics.length > 50) {
+                                console.log("✅ Letra encontrada en Genius");
+                                renderLyrics({
+                                    plainLyrics: plainLyrics,
+                                    syncedLyrics: null
+                                }, 'Genius');
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (geniusError) {
+            console.warn("Genius failed:", geniusError);
+        }
+
+        // STRATEGY 5: Lyrics.ovh Fallback (Text only, no sync)
+        console.log("⚠️ Genius no tuvo resultados. Intentando Lyrics.ovh...");
+        updateSourceIndicator('Lyrics.ovh');
         content.innerHTML = `
             <div class="flex flex-col items-center justify-center space-y-4 py-20">
                 <div class="w-12 h-12 border-4 border-white/10 border-t-blue-500 rounded-full animate-spin"></div>
-                <p class="text-blue-400 font-bold tracking-widest uppercase text-xs">Probando fuente alternativa...</p>
+                <p class="text-blue-400 font-bold tracking-widest uppercase text-xs">Última fuente...</p>
             </div>
         `;
 
@@ -3353,9 +3454,26 @@ async function fetchLyricsForCurrent() {
                 renderLyrics({
                     plainLyrics: ovhData.lyrics,
                     syncedLyrics: null
-                });
+                }, 'Lyrics.ovh');
                 return;
             }
+        }
+
+        // STRATEGY 6: MegaLyrics (Spanish focus)
+        console.log("⚠️ Lyrics.ovh no tuvo resultados. Intentando MegaLyrics...");
+        updateSourceIndicator('MegaLyrics');
+        try {
+            const megaUrl = `https://www.megalyrics.com/search?q=${encodeURIComponent(cleanArtist + " " + cleanTitle)}`;
+            const megaRes = await fetch(megaUrl);
+            if (megaRes.ok) {
+                const html = await megaRes.text();
+                // Look for results
+                if (html.includes('resultados') || html.includes('lyrics')) {
+                    console.log("⚠️ MegaLyrics tiene resultados pero no podemos extraer fácilmente");
+                }
+            }
+        } catch (megaError) {
+            console.warn("MegaLyrics failed:", megaError);
         }
 
         throw new Error("No lyrics found in any source");
@@ -3367,6 +3485,7 @@ async function fetchLyricsForCurrent() {
                 <p class="text-white/20 text-6xl mb-4">⊙﹏⊙</p>
                 <p class="text-gray-500 font-bold mb-2">No hemos encontrado la letra.</p>
                 <p class="text-gray-600 text-xs">Intenta reproducir la versión oficial de la canción.</p>
+                <p class="text-gray-700 text-[10px] mt-4">Fuentes probadas: LRCLib, Musixmatch, Genius, Lyrics.ovh</p>
             </div>
         `;
         document.getElementById('syncedLyricsIndicator').classList.add('hidden');
@@ -3374,12 +3493,18 @@ async function fetchLyricsForCurrent() {
     }
 }
 
-function renderLyrics(data) {
+function renderLyrics(data, source = 'Unknown') {
     const content = document.getElementById('lyricsContent');
     content.innerHTML = '';
 
     lyricsSyncMode = !!data.syncedLyrics;
     const lyricsText = data.syncedLyrics || data.plainLyrics || "";
+
+    // Add source indicator
+    const sourceDiv = document.createElement('div');
+    sourceDiv.className = 'text-center mb-8';
+    sourceDiv.innerHTML = `<span class="text-xs text-gray-600 uppercase tracking-widest">Letra de ${source}</span>`;
+    content.appendChild(sourceDiv);
 
     if (lyricsSyncMode) {
         currentLyricsArr = parseLRC(lyricsText);

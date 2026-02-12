@@ -922,8 +922,48 @@ button,
 }
 
 .lyrics-scroller {
-    mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
-    -webkit-mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.lyrics-scroller::-webkit-scrollbar {
+    width: 6px;
+}
+
+.lyrics-scroller::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.lyrics-scroller::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+.lyrics-scroller::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Gradient overlays for scroll effect */
+.lyrics-scroll-top {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.lyrics-scroll-bottom {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#lyricsOverlay.visible .lyrics-scroll-top,
+#lyricsOverlay.visible .lyrics-scroll-bottom {
+    opacity: 1;
+}
+
+/* Hide gradients when at top/bottom */
+.lyrics-scroller.is-at-top .lyrics-scroll-top,
+.lyrics-scroller.is-at-bottom .lyrics-scroll-bottom {
+    opacity: 0;
 }
 
 .lyric-line {
@@ -942,6 +982,7 @@ button,
 
 .lyric-line:hover {
     color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .lyric-line.active {
@@ -956,6 +997,30 @@ button,
     text-shadow: 0 0 40px rgba(30, 215, 96, 0.6);
 }
 
+/* Animation for lyrics appearance */
+@keyframes lyricsFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.lyric-line {
+    animation: lyricsFadeIn 0.5s ease forwards;
+    opacity: 0;
+}
+
+.lyric-line:nth-child(1) { animation-delay: 0.05s; }
+.lyric-line:nth-child(2) { animation-delay: 0.1s; }
+.lyric-line:nth-child(3) { animation-delay: 0.15s; }
+.lyric-line:nth-child(4) { animation-delay: 0.2s; }
+.lyric-line:nth-child(5) { animation-delay: 0.25s; }
+.lyric-line:nth-child(n+6) { animation-delay: 0.3s; }
+
 @media (max-width: 768px) {
     .lyric-line {
         font-size: 1.5rem;
@@ -965,10 +1030,11 @@ button,
     .lyric-line.active {
         transform: scale(1.05);
     }
-}
 
-.lyrics-scroller::-webkit-scrollbar {
-    width: 0px;
+    .lyrics-scroll-top,
+    .lyrics-scroll-bottom {
+        height: 24px !important;
+    }
 }
 
 /* Desktop Full Player Support */
