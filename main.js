@@ -464,6 +464,16 @@ async function updateListenProgress(currentSeconds) {
 
     lastRecordedSeconds = Math.floor(currentSeconds);
     currentListenSession.listenedSeconds = lastRecordedSeconds;
+
+    // Also save to Firestore to ensure we don't lose data if user closes app
+    try {
+        const historyRef = doc(db, "users", currentUserUid, "history", currentListenSession.docId);
+        await updateDoc(historyRef, {
+            listenedSeconds: lastRecordedSeconds
+        });
+    } catch (e) {
+        console.warn("Error updating listen progress:", e);
+    }
 }
 
 async function finalizeListenSession(finalSeconds) {
