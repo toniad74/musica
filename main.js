@@ -478,7 +478,10 @@ async function updateListenProgress(currentSeconds) {
 }
 
 async function finalizeListenSession(finalSeconds) {
-    if (!currentListenSession || !currentUserUid) return;
+    if (!currentListenSession || !currentUserUid) {
+        console.warn('📊 finalizeListenSession: No hay sesión activa o usuario no logueado');
+        return;
+    }
 
     const finalTime = Math.floor(finalSeconds);
     currentListenSession.listenedSeconds = finalTime;
@@ -489,9 +492,12 @@ async function finalizeListenSession(finalSeconds) {
         await updateDoc(historyRef, {
             listenedSeconds: finalTime
         });
+        console.log(`✅ Firestore actualizado: listenedSeconds = ${finalTime}`);
         console.log(`📊 Escucha finalizada: ${Math.floor(finalTime/60)}m ${finalTime%60}s de "${currentListenSession.songId}"`);
     } catch (e) {
-        console.warn("Error finalizing listen session:", e);
+        console.error(`❌ Error actualizando Firestore:`, e.message);
+        console.error(`📊 Doc ID:`, currentListenSession.docId);
+        console.error(`📊 User ID:`, currentUserUid);
     }
 
     currentListenSession = null;
