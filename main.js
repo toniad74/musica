@@ -1809,7 +1809,8 @@ function renderSearchResults(videos) {
                                          (isCurrentlyUsingNative && !nativeAudio?.paused);
                 
                 if (isCurrentSong && isActuallyPlaying) {
-                    // Pause current song
+                    // Pause current song - mark as user intentional
+                    isUserPaused = true;
                     if (isCurrentlyUsingNative) {
                         nativeAudio?.pause();
                     } else if (player && typeof player.pauseVideo === 'function') {
@@ -3666,13 +3667,14 @@ function renderNewsResults(videos, append = false) {
             const isCurrentSong = currentTrack && String(currentTrack.id) === String(video.id);
             const playerState = player?.getPlayerState();
             const isActuallyPlaying = playerState === YT.PlayerState.PLAYING || 
-                                       (isCurrentlyUsingNative && !nativeAudio?.paused);
+                                     (isCurrentlyUsingNative && !nativeAudio?.paused);
             
             console.log('📱 Click - isCurrentSong:', isCurrentSong, 'isActuallyPlaying:', isActuallyPlaying);
             
             if (isCurrentSong && isActuallyPlaying) {
-                // Pause current song
+                // Pause current song - mark as user intentional
                 console.log('📱 Pausing...');
+                isUserPaused = true;
                 if (isCurrentlyUsingNative) {
                     nativeAudio?.pause();
                 } else if (player && typeof player.pauseVideo === 'function') {
