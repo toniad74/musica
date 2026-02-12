@@ -798,10 +798,10 @@ function setupNativeAudioHandlers() {
                 console.error("Reintento fallido:", retryError);
             }
         }
-
+        
         // Final fallback if all native attempts fail
         console.log('📡 Fallback final a YouTube por fallo crítico de audio nativo');
-        showToast(`Cambiando a reproductor secundario (${errorMsg})`, 'error');
+        console.warn('Cambiando a reproductor secundario:', errorMsg);
         if (currentTrack) {
             loadYouTubeIFrame(currentTrack.id);
         }
@@ -1496,7 +1496,7 @@ async function onPlayerError(event) {
     // Restrictions (External playback forbidden)
     if (event.data === 101 || event.data === 150) {
         if (currentTrack && !currentTrack.isFallback) {
-            showToast("Canción restringida. Buscando versión de audio compatible...", "error");
+            console.warn('Canción restringida. Buscando versión de audio compatible...');
 
             try {
                 // Background search for audio version - prioritize "Topic" and "Lyrics" for better compatibility
@@ -1504,7 +1504,7 @@ async function onPlayerError(event) {
                 const fallbackSongResult = await findPipedFallback(currentTrack);
 
                 if (fallbackSongResult) {
-                    showToast("Reproduciendo versión alternativa");
+                    console.log('Reproduciendo versión alternativa');
 
                     // Force native audio for the fallback, as IFrame will likely fail for the same reason (restriction)
                     useNativeAudio = true;
@@ -1517,13 +1517,11 @@ async function onPlayerError(event) {
                     return;
                 }
             } catch (fallbackError) {
-                console.error("Fallback search failed:", fallbackError);
+                console.warn("Fallback search failed:", fallbackError);
             }
         }
 
-        showToast("No se pudo encontrar una versión compatible. Saltando...", "error");
-    } else {
-        showToast("Error de reproducción", "error");
+        console.warn('Error de reproducción');
     }
 
     // Final fallback: skip to next
@@ -1535,7 +1533,7 @@ async function onPlayerError(event) {
 // --- PIPED SEARCH FALLBACK ---
 async function searchPiped(query) {
     console.log("🕵️ Iniciando búsqueda de respaldo en Piped para:", query);
-    showToast("Usando buscador alternativo...");
+    console.log("Usando buscador alternativo...");
 
     // Try multiple instances until one works
     // We reuse the PIPED_INSTANCES list
@@ -2076,7 +2074,7 @@ async function playSong(song, list = [], fromQueue = false) {
         }
     } catch (error) {
         console.error("Error playing song:", error);
-        showToast(`Error al reproducir: ${error.message}`, "error");
+        console.warn(`Error al reproducir: ${error.message}`);
         isMediaPlaying = false;
         updatePlayPauseIcons(false);
     }
@@ -2229,8 +2227,8 @@ function togglePlayPause() {
                 console.log("  ✅ nativeAudio.play() success");
                 isUserPaused = false;
             }).catch(e => {
-                console.error("  ❌ nativeAudio.play() error:", e);
-                showToast("Error al reproducir. Reintentando...", "error");
+                console.error("  nativeAudio.play() error:", e);
+                console.warn("Error al reproducir. Reintentando...");
             });
         } else {
             console.log("  Attempting nativeAudio.pause()...");
