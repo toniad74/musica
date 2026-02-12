@@ -198,7 +198,22 @@ window.onload = () => {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').then(reg => {
             const updateApp = () => {
-                showToast("¡Nueva versión disponible! El sistema se reiniciará en 10 segundos para aplicar los cambios...", "info", 10000);
+                let countdown = 10;
+                const message = "¡Nueva versión disponible! Actualizando en ";
+                
+                // Initial message
+                showToast(message + countdown + " segundos...", "info", 12000);
+                
+                // Countdown interval
+                const countdownInterval = setInterval(() => {
+                    countdown--;
+                    if (countdown > 0) {
+                        showToast(message + countdown + " segundos...", "info", 12000);
+                    } else {
+                        clearInterval(countdownInterval);
+                    }
+                }, 1000);
+                
                 setTimeout(() => window.location.reload(), 10000);
             };
 
