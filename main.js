@@ -3983,6 +3983,7 @@ function hideReport() {
 }
 
 async function updateReportPeriod(period) {
+    console.log('updateReportPeriod called:', period);
     currentReportPeriod = period;
 
     // Update tabs UI - solo clases CSS
@@ -4036,11 +4037,9 @@ async function updateReportCustomRange() {
     const end = new Date(endStr);
     end.setHours(23, 59, 59, 999);
 
-    // Clear active period tags as this is custom but preserve their base style
+    // Clear active period tags
     document.querySelectorAll('.report-tab').forEach(tab => {
-        tab.classList.remove('active', 'bg-white', 'text-black');
-        tab.style.removeProperty('color');
-        tab.style.removeProperty('background-color');
+        tab.classList.remove('active');
     });
 
     await fetchAndRenderReport(start, end);
