@@ -2229,9 +2229,12 @@ function playPrevious() {
 }
 
 function handleTrackEnded() {
-    // Finalize listen session with full duration
+    // Finalize listen session with actual listened time
     if (currentListenSession) {
-        finalizeListenSession(currentListenSession.durationSeconds);
+        const currentPlayerTime = isCurrentlyUsingNative ? (nativeAudio?.currentTime || 0) : (player?.getCurrentTime() || 0);
+        // Update listenedSeconds with the final player time before finalizing
+        currentListenSession.listenedSeconds = Math.floor(currentPlayerTime);
+        finalizeListenSession(currentListenSession.listenedSeconds);
     }
     playNext();
 }
