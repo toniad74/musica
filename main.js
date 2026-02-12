@@ -4300,14 +4300,24 @@ async function fetchAndRenderReport(startDate, endDate) {
             orderBy("timestamp", "desc")
         );
 
+        console.log('📊 Fetching history data from Firebase...');
         const snapshot = await getDocs(q);
+        console.log('📊 Found', snapshot.size, 'history entries');
+        
+        if (snapshot.empty) {
+            console.log('📊 No history data found');
+            renderReport(null, []);
+            return;
+        }
+
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('📊 Sample data:', data[0]);
 
         const stats = calculateStatistics(data);
         renderReport(stats, data);
     } catch (e) {
         console.error("Error fetching report data:", e);
-        showToast("Error al obtener datos", "error");
+        showToast("Error al obtener datos: " + e.message, "error");
     }
 }
 
@@ -4384,6 +4394,17 @@ function formatTimeHMSS(totalSeconds) {
 }
 
 function renderReport(stats, history) {
+    // Handle empty or null data
+    if (!stats) {
+        document.getElementById('stat-total-time').innerText = '0:00';
+        document.getElementById('stat-total-songs').innerText = '0';
+        document.getElementById('stat-unique-artists').innerText = '0';
+        document.getElementById('top-artists-list').innerHTML = '<p class="text-gray-500 italic">No hay datos para este periodo.</p>';
+        document.getElementById('top-genres-list').innerHTML = '<p class="text-gray-500 italic">No hay datos para este periodo.</p>';
+        document.getElementById('recent-activity-list').innerHTML = '<p class="text-gray-500 italic p-4 text-sm text-center">Sin actividad reciente</p>';
+        return;
+    }
+
     // Show total time in hours:minutes:seconds
     const totalTimeDisplay = formatTimeHMSS(stats.totalSeconds);
     document.getElementById('stat-total-time').innerText = totalTimeDisplay;
