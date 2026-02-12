@@ -782,34 +782,34 @@ button,
 }
 
 .report-tab {
-    padding: 8px 16px;
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 700;
-    color: white;
-    background: black;
-    transition: all 0.3s ease;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px 16px !important;
+    border-radius: 12px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: white !important;
+    background-color: black !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    transition: all 0.3s ease !important;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
 .report-tab:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 #reportModal .report-tab.active,
 #reportModal button.report-tab.active {
-    background: white !important;
     background-color: white !important;
     color: black !important;
     border-color: white !important;
 }
 
 @media (max-width: 768px) {
-
     #reportModal button.report-tab.active:hover,
     #reportModal button.report-tab.active:active {
         color: black !important;
-        background: white !important;
+        background-color: white !important;
     }
 }
 
