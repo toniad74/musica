@@ -33,8 +33,9 @@ let currentKeyIndex = parseInt(localStorage.getItem('amaya_yt_key_index')) || 0;
 // Internal API keys (Obfuscated to avoid GitHub detection)
 const _D_K = [
     "QUl6YVN5RG9idGhLY3VXS05US2M0d0VSYWQwQnB0S1hKVUNPaE93",
+    "QUl6YVN5QjNmdXFKZTJOYmJaZjVPc185NGtQTkxjMG9JamFtUk1J",
     "QUl6YVN5Q2xGQ090eUxjellQSm12NGxrVzRxM01aZFhuVlh0YWkxRQ==",
-    "QUl6YVN5QnUyWnk0N0FuOGlzYnIwUHB6UlZKNUdPd2RqWTNvc0FN",
+    "QUl6YVN5QTcyLXdLY0ZRcndIQzJTVG1MYktKZHYzUEJDT0ZiV25z",
     "QUl6YVN5QTlOa3h6dE1MY3k5SG9tY1JfOE1NcTdCQU1BbWRjTms=",
     "QUl6YVN5Q2tVN0poLXM1d0NZN203UUVXVEdrSFh6UFBuQkh6MVhB",
     "QUl6YVN5Q0owU1l3TDBybTFYU0p2cUNIb3VPb19LQXQtTW1wcF9Z",
