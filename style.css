@@ -786,24 +786,24 @@ button,
     border-radius: 12px;
     font-size: 14px;
     font-weight: 700;
-    color: #b3b3b3;
+    color: white;
+    background: black;
     transition: all 0.3s ease;
-    border: 1px solid transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .report-tab:hover {
-    color: white;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 #reportModal .report-tab.active,
 #reportModal button.report-tab.active {
     background: white !important;
     background-color: white !important;
-    color: #000000 !important;
+    color: black !important;
+    border-color: white !important;
 }
 
-/* Specific mobile override for when hover rules kick in or selectors are broad */
 @media (max-width: 768px) {
 
     #reportModal button.report-tab.active:hover,
