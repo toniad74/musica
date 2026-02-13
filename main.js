@@ -2126,27 +2126,40 @@ function isSongInQueue(songId) {
 }
 
 function updateQueueIcons() {
+    const queueAddIcon = '<path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/>';
+    const queueCheckIcon = '<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>';
+
     // 1. Update standard .queue-btn (Search & Playlists)
     document.querySelectorAll('.queue-btn').forEach(btn => {
         const songId = btn.getAttribute('data-song-id');
-        if (isSongInQueue(songId)) {
+        const inQueue = isSongInQueue(songId);
+        const svg = btn.querySelector('svg');
+
+        if (inQueue) {
             btn.classList.add('in-queue');
             btn.classList.remove('text-[#b3b3b3]');
+            if (svg) svg.innerHTML = queueCheckIcon;
         } else {
             btn.classList.remove('in-queue');
             btn.classList.add('text-[#b3b3b3]');
+            if (svg) svg.innerHTML = queueAddIcon;
         }
     });
 
     // 2. Update News Cards buttons
     document.querySelectorAll('.news-card-queue-btn').forEach(btn => {
         const songId = btn.getAttribute('data-song-id');
-        if (isSongInQueue(songId)) {
+        const inQueue = isSongInQueue(songId);
+        const svg = btn.querySelector('svg');
+
+        if (inQueue) {
             btn.classList.add('in-queue-active');
             btn.classList.remove('bg-black/60', 'hover:bg-green-500');
+            if (svg) svg.innerHTML = queueCheckIcon;
         } else {
             btn.classList.remove('in-queue-active');
             btn.classList.add('bg-black/60', 'hover:bg-green-500');
+            if (svg) svg.innerHTML = queueAddIcon;
         }
     });
 }
@@ -3739,6 +3752,7 @@ function renderNewsResults(videos, append = false) {
     videos.forEach((video, index) => {
         const inQueue = isSongInQueue(video.id);
         const inQueueClass = inQueue ? 'in-queue-active' : 'bg-black/60 hover:bg-green-500';
+        const queueIcon = inQueue ? '<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>' : '<path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/>';
 
         const card = document.createElement('div');
         card.className = 'news-card animate-fade-in group cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all duration-300';
@@ -3797,7 +3811,7 @@ function renderNewsResults(videos, append = false) {
                         class="p-2 news-card-queue-btn ${inQueueClass} rounded-full text-white backdrop-blur-sm transition-colors"
                         title="Añadir a la cola"
                         data-song-id="${video.id}">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/></svg>
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">${queueIcon}</svg>
                     </button>
                 </div>
                 <div class="absolute top-2 right-2 z-10">
