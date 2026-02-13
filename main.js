@@ -2140,13 +2140,7 @@ function updateQueueIcons() {
 
     document.querySelectorAll('.news-card-queue-btn').forEach(btn => {
         const songId = btn.getAttribute('data-song-id');
-        if (isSongInQueue(songId)) {
-            btn.classList.add('in-queue-active');
-            btn.classList.remove('bg-black/60', 'hover:bg-green-500', 'text-white');
-        } else {
-            btn.classList.remove('in-queue-active');
-            btn.classList.add('bg-black/60', 'hover:bg-green-500', 'text-white');
-        }
+        btn.classList.toggle('in-queue-active', isSongInQueue(songId));
     });
 }
 
@@ -3737,7 +3731,7 @@ function renderNewsResults(videos, append = false) {
     if (!append) grid.innerHTML = '';
     videos.forEach((video, index) => {
         const inQueue = isSongInQueue(video.id);
-        const inQueueClass = inQueue ? 'in-queue-active' : 'bg-black/60 hover:bg-green-500';
+        const inQueueClass = inQueue ? 'in-queue-active' : '';
 
         const card = document.createElement('div');
         card.className = 'news-card animate-fade-in group cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all duration-300';
@@ -3793,7 +3787,7 @@ function renderNewsResults(videos, append = false) {
                 <!-- Action Buttons Overlay (Split: Queue Left, Playlist Right) -->
                 <div class="absolute top-2 left-2 z-10">
                     <button onclick="event.stopPropagation(); toggleQueue(${JSON.stringify(video).replace(/"/g, '&quot;')})" 
-                        class="p-2 news-card-queue-btn ${inQueueClass} rounded-full text-white backdrop-blur-sm transition-colors"
+                        class="p-2 news-card-queue-btn ${inQueueClass} rounded-full"
                         title="Añadir a la cola"
                         data-song-id="${video.id}">
                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/></svg>

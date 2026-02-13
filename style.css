@@ -916,11 +916,33 @@ button,
     /* Blue for genres */
 }
 
-/* Fix for News Cards Queue Icon */
-.news-card .in-queue-active {
+/* News Cards Queue Button Styles */
+.news-card-queue-btn {
+    background: rgba(0, 0, 0, 0.6) !important;
+    color: white !important;
+    backdrop-filter: blur(4px);
+    transition: all 0.2s ease !important;
+}
+
+.news-card-queue-btn:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: white !important;
+}
+
+.news-card-queue-btn.in-queue-active {
     background: var(--accent-color) !important;
     color: black !important;
-    box-shadow: 0 0 15px rgba(30, 215, 96, 0.5);
+    box-shadow: 0 0 15px rgba(30, 215, 96, 0.4);
+}
+
+.news-card-queue-btn.in-queue-active:hover {
+    background: var(--accent-color) !important;
+    opacity: 0.9;
+    color: black !important;
+}
+
+.news-card-queue-btn svg {
+    fill: currentColor !important;
 }
 
 /* --- LYRICS SYSTEM --- */
