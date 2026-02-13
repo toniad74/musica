@@ -1,5 +1,5 @@
-const CACHE_NAME = 'amaya-music-v104';
-// SW Version: 1.7.74 - Time: 10:51 (GMT+1) - Auto-actualización
+const CACHE_NAME = 'amaya-music-v105';
+// SW Version: 1.7.75 - Time: 11:00 (GMT+1) - Auto-actualización
 const urlsToCache = [
     './',
     './index.html',

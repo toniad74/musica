@@ -3741,7 +3741,7 @@ function renderNewsResults(videos, append = false) {
         const inQueueClass = inQueue ? 'in-queue-active' : 'bg-black/60 hover:bg-green-500';
 
         const card = document.createElement('div');
-        card.className = 'news-card animate-fade-in group';
+        card.className = 'news-card animate-fade-in group cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all duration-300';
         card.setAttribute('data-video-id', video.id);
         card.style.animationDelay = `${index * 50}ms`;
 
@@ -3775,7 +3775,7 @@ function renderNewsResults(videos, append = false) {
             } else {
                 // Different song, play new
                 console.log('📱 Playing new song...');
-                playSong(video);
+                playSong(video, videos); // Pass the current videos list for context
             }
         };
 
