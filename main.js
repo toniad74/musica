@@ -3769,7 +3769,8 @@ function renderNewsResults(videos, append = false) {
         card.style.animationDelay = `${index * 50}ms`;
 
         // Toggle play/pause if same song, otherwise play new song
-        card.onclick = () => {
+        card.onclick = (e) => {
+            if (e.target.closest('button')) return; // Prioritize button actions over card playback
             const isCurrentSong = currentTrack && String(currentTrack.id) === String(video.id);
             const playerState = player?.getPlayerState();
             const isActuallyPlaying = playerState === YT.PlayerState.PLAYING ||
