@@ -46,6 +46,8 @@ const _D_K = [
 ];
 const DEFAULT_KEYS = _D_K.map(k => atob(k));
 
+const APP_LOGO_URL = 'https://raw.githubusercontent.com/handbolmolins/URLimagenes/refs/heads/main/LOGO%20MUSICA.png';
+
 let isShuffle = false;
 let repeatMode = 0; // 0: No repeat, 1: Repeat playlist, 2: Repeat one
 let nextSearchToken = '';
@@ -2415,7 +2417,7 @@ function createPlaylist() {
         id: 'pl_' + Date.now(),
         name: name,
         description: '',
-        cover: '',
+        cover: APP_LOGO_URL,
         songs: []
     };
 
@@ -2583,7 +2585,7 @@ function renderPlaylists() {
         sideItem.className = 'playlist-item flex items-center gap-3 p-2 rounded-lg hover:bg-[#1a1a1a] cursor-pointer group transition-colors';
         sideItem.onclick = () => openPlaylist(pl.id);
 
-        const coverImg = pl.cover || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=100&h=100&fit=crop';
+        const coverImg = pl.cover || APP_LOGO_URL;
         sideItem.innerHTML = `
             <img src="${coverImg}" class="w-12 h-12 rounded object-cover shadow-md">
             <div class="flex-1 min-w-0">
@@ -2685,7 +2687,7 @@ function openPlaylist(id) {
 
             row.innerHTML = `
                 <div class="w-10 text-center text-sm text-[#b3b3b3] group-hover:hidden">${index + 1}</div>
-                <div class="hidden group-hover:block w-10 text-center">
+                <div class="hidden group-hover:flex w-8 justify-center">
                     <svg class="w-4 h-4 text-white mx-auto" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 </div>
                 <img src="${song.thumbnail}" class="w-10 h-10 rounded object-cover drag-handle-thumbnail pointer-events-auto">
@@ -3108,7 +3110,7 @@ function renderHomePlaylists() {
     playlists.forEach(pl => {
         const totalSeconds = getPlaylistTotalDuration(pl);
         const durationStr = formatDuration(totalSeconds, true);
-        const coverImg = pl.cover || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=300&h=300&fit=crop';
+        const coverImg = pl.cover || APP_LOGO_URL;
 
         const isPlaying = isMediaPlaying && currentlyPlayingPlaylistId && String(currentlyPlayingPlaylistId) === String(pl.id);
         const row = document.createElement('div');
@@ -3123,11 +3125,8 @@ function renderHomePlaylists() {
                     <div class="absolute inset-0 bg-green-500/20 rounded-lg flex items-center justify-center">
                         <div class="flex gap-1 items-end h-4">
                             <div class="playing-bar"></div>
-                            <p class="text-white text-sm">v1.4.8</p>
-                            <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
-                                Actualizado
-                            </p>
-                            <p class="text-white text-sm">11 feb 2026 01:30</p>
+                            <div class="playing-bar"></div>
+                            <div class="playing-bar"></div>
                         </div>
                     </div>` : ''}
                 </div>
