@@ -202,10 +202,10 @@ window.onload = () => {
             const updateApp = () => {
                 let countdown = 10;
                 const message = "¡Nueva versión disponible! Actualizando en ";
-                
+
                 // Initial message
                 showToast(message + countdown + " segundos...", "info", 12000);
-                
+
                 // Countdown interval
                 const countdownInterval = setInterval(() => {
                     countdown--;
@@ -215,7 +215,7 @@ window.onload = () => {
                         clearInterval(countdownInterval);
                     }
                 }, 1000);
-                
+
                 setTimeout(() => window.location.reload(), 10000);
             };
 
@@ -247,7 +247,7 @@ window.onload = () => {
                 });
                 console.log('🔍 Buscando actualizaciones...');
             }, 10000);
-            
+
             // 4. Immediate update check on load
             reg.update().then(() => {
                 if (reg.waiting) {
@@ -516,7 +516,7 @@ async function finalizeListenSession(finalSeconds) {
             listenedSeconds: finalTime
         });
         console.log(`✅ Firestore actualizado: listenedSeconds = ${finalTime}`);
-        console.log(`📊 Escucha finalizada: ${Math.floor(finalTime/60)}m ${finalTime%60}s de "${currentListenSession.songId}"`);
+        console.log(`📊 Escucha finalizada: ${Math.floor(finalTime / 60)}m ${finalTime % 60}s de "${currentListenSession.songId}"`);
     } catch (e) {
         console.error(`❌ Error actualizando Firestore:`, e.message);
         console.error(`📊 Doc ID:`, currentListenSession.docId);
@@ -813,7 +813,7 @@ function setupNativeAudioHandlers() {
                 console.error("Reintento fallido:", retryError);
             }
         }
-        
+
         // Final fallback if all native attempts fail
         console.log('📡 Fallback final a YouTube por fallo crítico de audio nativo');
         console.warn('Cambiando a reproductor secundario:', errorMsg);
@@ -968,6 +968,21 @@ function updatePlayPauseIcons(isPlaying) {
     if (playPauseIcon) playPauseIcon.setAttribute('d', path);
     if (mobilePlayPauseIcon) mobilePlayPauseIcon.innerHTML = `<path d="${path}"/>`;
     if (mobileMainPlayIcon) mobileMainPlayIcon.innerHTML = `<path d="${path}"/>`;
+
+    // Update all play/pause buttons color (Desktop, Mini, Full)
+    const playButtons = ['playPauseBtn', 'mobilePlayPauseBtn', 'mobileMainPlayBtn'];
+    playButtons.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            if (isPlaying) {
+                btn.classList.remove('text-black');
+                btn.classList.add('text-green-500');
+            } else {
+                btn.classList.remove('text-green-500');
+                btn.classList.add('text-black');
+            }
+        }
+    });
 
     const equalizer = document.getElementById('equalizer');
     const equalizerBars = document.querySelector('.equalizer-bars');
@@ -1552,7 +1567,7 @@ async function searchPiped(query) {
 
     // CORS proxy to avoid browser blocking
     const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
-    
+
     // Try multiple instances until one works
     const candidates = [...PIPED_INSTANCES].sort(() => 0.5 - Math.random());
 
@@ -1826,9 +1841,9 @@ function renderSearchResults(videos) {
                 renderHomePlaylists();
                 const isCurrentSong = currentTrack && String(currentTrack.id) === String(video.id);
                 const playerState = player?.getPlayerState();
-                const isActuallyPlaying = playerState === YT.PlayerState.PLAYING || 
-                                         (isCurrentlyUsingNative && !nativeAudio?.paused);
-                
+                const isActuallyPlaying = playerState === YT.PlayerState.PLAYING ||
+                    (isCurrentlyUsingNative && !nativeAudio?.paused);
+
                 if (isCurrentSong && isActuallyPlaying) {
                     // Pause current song - mark as user intentional
                     isUserPaused = true;
@@ -3316,10 +3331,10 @@ function setupNewsInfiniteScroll() {
     const observerContainer = document.createElement('div');
     observerContainer.id = 'newsLoadMoreContainer';
     observerContainer.className = 'col-span-full py-8 text-center';
-    observerContainer.innerHTML = newsNextPageToken 
+    observerContainer.innerHTML = newsNextPageToken
         ? `<div class="flex items-center justify-center gap-2 text-gray-400"><div class="w-5 h-5 border-2 border-gray-400 border-t-white rounded-full animate-spin"></div><span>Scroll para cargar más...</span></div>`
         : `<span class="text-gray-500">No hay más contenido</span>`;
-    
+
     grid.appendChild(observerContainer);
 
     // Disconnect previous observer
@@ -3484,7 +3499,7 @@ async function fetchLyricsForCurrent() {
             const geniusSearchRes = await fetch(geniusSearchUrl);
             if (geniusSearchRes.ok) {
                 const geniusData = await geniusSearchRes.json();
-                const bestMatch = geniusData.response?.hits?.find(hit => 
+                const bestMatch = geniusData.response?.hits?.find(hit =>
                     hit.result?.artist_names?.toLowerCase().includes(cleanArtist.toLowerCase()) ||
                     hit.result?.title?.toLowerCase().includes(cleanTitle.toLowerCase())
                 );
@@ -3506,7 +3521,7 @@ async function fetchLyricsForCurrent() {
                                 .replace(/&#\d+;/g, '')
                                 .replace(/\n\s*\n/g, '\n')
                                 .trim();
-                            
+
                             if (plainLyrics.length > 50) {
                                 console.log("✅ Letra encontrada en Genius");
                                 renderLyrics({
@@ -3689,16 +3704,16 @@ function renderNewsResults(videos, append = false) {
         card.className = 'news-card animate-fade-in group';
         card.setAttribute('data-video-id', video.id);
         card.style.animationDelay = `${index * 50}ms`;
-        
+
         // Toggle play/pause if same song, otherwise play new song
         card.onclick = () => {
             const isCurrentSong = currentTrack && String(currentTrack.id) === String(video.id);
             const playerState = player?.getPlayerState();
-            const isActuallyPlaying = playerState === YT.PlayerState.PLAYING || 
-                                     (isCurrentlyUsingNative && !nativeAudio?.paused);
-            
+            const isActuallyPlaying = playerState === YT.PlayerState.PLAYING ||
+                (isCurrentlyUsingNative && !nativeAudio?.paused);
+
             console.log('📱 Click - isCurrentSong:', isCurrentSong, 'isActuallyPlaying:', isActuallyPlaying, 'state:', playerState);
-            
+
             if (isCurrentSong && isActuallyPlaying) {
                 // Pause current song - mark as user intentional
                 console.log('📱 Pausing...');
@@ -4413,7 +4428,7 @@ async function fetchAndRenderReport(startDate, endDate) {
         console.log('📊 Fetching history data from Firebase...');
         const snapshot = await getDocs(q);
         console.log('📊 Found', snapshot.size, 'history entries');
-        
+
         if (snapshot.empty) {
             console.log('📊 No history data found');
             renderReport(null, []);
@@ -4444,7 +4459,7 @@ function calculateStatistics(history) {
     history.forEach(item => {
         // DEBUG: Log what we're receiving from Firestore
         console.log('📊 Item:', item.title, 'listenedSeconds:', item.listenedSeconds, 'durationSeconds:', item.durationSeconds);
-        
+
         // Use actual listened time instead of full duration
         const listenedSecs = item.listenedSeconds || 0;
         const secs = listenedSecs > 0 ? listenedSecs : (item.durationSeconds || 0);
@@ -4499,7 +4514,7 @@ function formatTimeHMSS(totalSeconds) {
     const hours = Math.floor(totalSeconds / 3600);
     const mins = Math.floor((totalSeconds % 3600) / 60);
     const secs = Math.floor(totalSeconds % 60);
-    
+
     if (hours > 0) {
         return `${hours}h ${mins}m ${secs}s`;
     } else {
@@ -4604,7 +4619,7 @@ function renderReport(stats, history) {
         let durationDisplay = '';
         const listenedSecs = item.listenedSeconds || 0;
         const durationSecs = item.durationSeconds || 0;
-        
+
         if (listenedSecs > 0) {
             // Show listened time
             durationDisplay = `<span class="text-xs text-green-500 font-mono">${formatTimeHMSS(listenedSecs)}</span>`;
