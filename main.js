@@ -975,11 +975,9 @@ function updatePlayPauseIcons(isPlaying) {
         const btn = document.getElementById(id);
         if (btn) {
             if (isPlaying) {
-                btn.classList.remove('text-black');
-                btn.classList.add('text-green-500');
+                btn.classList.add('is-playing-icon');
             } else {
-                btn.classList.remove('text-green-500');
-                btn.classList.add('text-black');
+                btn.classList.remove('is-playing-icon');
             }
         }
     });
