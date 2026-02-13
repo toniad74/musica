@@ -2561,7 +2561,11 @@ function importSharedPlaylist() {
         return;
     }
 
-    const newPl = { ...sharedPlaylistData, id: 'pl_' + Date.now() }; // New ID for personal copy
+    const newPl = {
+        ...sharedPlaylistData,
+        id: 'pl_' + Date.now(),
+        cover: sharedPlaylistData.cover || APP_LOGO_URL
+    };
     playlists.push(newPl);
     savePlaylists();
     renderPlaylists();
@@ -2655,8 +2659,9 @@ function openPlaylist(id) {
 
     const coverImg = document.getElementById('playlistCoverImage');
     const coverIcon = document.getElementById('playlistCoverIcon');
-    if (pl.cover) {
-        coverImg.src = pl.cover;
+    const displayCover = pl.cover || APP_LOGO_URL;
+    if (displayCover) {
+        coverImg.src = displayCover;
         coverImg.classList.remove('hidden');
         coverIcon.classList.add('hidden');
     } else {
