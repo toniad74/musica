@@ -2935,8 +2935,9 @@ function showQueue() {
         content.innerHTML = '<p class="text-center text-gray-500 py-8">La cola está vacía</p>';
     } else {
         queue.forEach((song, index) => {
+            const isPlaying = index === currentQueueIndex;
             const row = document.createElement('div');
-            row.className = `flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer group ${index === currentQueueIndex ? 'bg-green-500/10' : ''}`;
+            row.className = `flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer group ${isPlaying ? 'bg-green-500/10' : ''}`;
 
             // Clicking the row plays the song
             row.onclick = () => {
@@ -2947,10 +2948,10 @@ function showQueue() {
 
             row.innerHTML = `
                 <span class="text-xs text-gray-500 w-4">${index + 1}</span>
-                <img src="${song.thumbnail}" class="w-10 h-10 rounded object-cover">
+                <img src="${song.thumbnail}" class="w-10 h-10 rounded object-cover drag-handle-thumbnail pointer-events-auto">
                 <div class="flex-1 min-w-0">
                     <div class="marquee-container">
-                        <p class="text-white text-sm font-medium marquee-content ${index === currentQueueIndex ? 'text-green-500' : ''}">${song.title}</p>
+                        <p class="text-white text-sm font-medium marquee-content ${isPlaying ? 'text-green-500' : ''}">${song.title}</p>
                     </div>
                     <p class="text-gray-400 text-xs truncate">${song.channel}</p>
                 </div>
@@ -2964,6 +2965,43 @@ function showQueue() {
             `;
             content.appendChild(row);
         });
+
+        // Initialize Sortable for the queue
+        if (typeof Sortable !== 'undefined') {
+            if (window.queueSortable) {
+                try { window.queueSortable.destroy(); } catch (e) { }
+            }
+            window.queueSortable = new Sortable(content, {
+                handle: '.drag-handle-thumbnail',
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                dragClass: 'sortable-drag',
+                forceFallback: true,
+                fallbackTolerance: 3,
+                onEnd: function (evt) {
+                    if (evt.oldIndex === evt.newIndex) return;
+
+                    // Reorder the array
+                    const [movedSong] = queue.splice(evt.oldIndex, 1);
+                    queue.splice(evt.newIndex, 0, movedSong);
+
+                    // Update currentQueueIndex to match the new position of the playing song
+                    if (currentQueueIndex === evt.oldIndex) {
+                        currentQueueIndex = evt.newIndex;
+                    } else if (currentQueueIndex > evt.oldIndex && currentQueueIndex <= evt.newIndex) {
+                        currentQueueIndex--;
+                    } else if (currentQueueIndex < evt.oldIndex && currentQueueIndex >= evt.newIndex) {
+                        currentQueueIndex++;
+                    }
+
+                    // Refresh after a tiny delay
+                    setTimeout(() => {
+                        showQueue();
+                    }, 50);
+                }
+            });
+        }
     }
 
     modal.classList.remove('hidden');
