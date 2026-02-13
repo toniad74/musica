@@ -575,7 +575,7 @@ input[type="search"]:focus {
     display: none !important;
 }
 
-/* Keep Youtube Hidden */
+/* Keep Youtube Hidden by default */
 .yt-stage {
     position: fixed;
     top: 0;
@@ -585,6 +585,65 @@ input[type="search"]:focus {
     opacity: 0.01;
     pointer-events: none;
     z-index: -9999;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Video Mode Active Styling */
+body.video-mode-active .yt-stage {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    background: black;
+    z-index: 250 !important;
+    /* Above mobilePlayerFull (z-200) */
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+}
+
+body.video-mode-active #youtubePlayer {
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 16/9 !important;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+}
+
+/* Close Video Button */
+#closeVideoBtn {
+    position: fixed;
+    top: calc(20px + env(safe-area-inset-top));
+    right: 20px;
+    z-index: 260;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    transition: all 0.2s ease;
+}
+
+body.video-mode-active #closeVideoBtn {
+    display: flex;
+}
+
+#closeVideoBtn:active {
+    transform: scale(0.9);
+    background: rgba(0, 0, 0, 0.8);
+}
+
+#toggleVideoBtn.active {
+    color: var(--accent-color) !important;
+    filter: drop-shadow(0 0 5px var(--accent-color));
 }
 
 /* Anti-Ad */

@@ -62,6 +62,7 @@ let currentSearchPage = 1;
 // Track user intent to distinguish between unwanted background pauses and clicks
 let isUserPaused = false;
 let songsToAddToNewPlaylist = null; // Temp storage for queue -> playlist conversion
+let isVideoModeActive = false; // Video mode state
 
 // Native audio player
 let nativeAudio = null;
@@ -2050,7 +2051,7 @@ async function playSong(song, list = [], fromQueue = false, singlePlay = false) 
         fetchSponsorSegments(song.id);
 
         // Primary Execution (PROXIED AUDIO + ADS SYNC)
-        if (useNativeAudio && nativeAudio) {
+        if (useNativeAudio && nativeAudio && !isVideoModeActive) {
             isCurrentlyUsingNative = true;
             try {
                 showToast("⏳ Verificando anuncios...", "info");
@@ -3425,6 +3426,36 @@ let lyricsSyncMode = false;
 let isLyricsOpen = false;
 let lastLyricsVideoId = null;
 
+function toggleVideoMode() {
+    if (!currentTrack) return;
+
+    isVideoModeActive = !isVideoModeActive;
+    document.body.classList.toggle('video-mode-active', isVideoModeActive);
+
+    // Toggle button active state
+    const btn = document.getElementById('toggleVideoBtn');
+    if (btn) btn.classList.toggle('active', isVideoModeActive);
+
+    if (isVideoModeActive) {
+        // Switch to YouTube if using native audio
+        if (isCurrentlyUsingNative) {
+            console.log("📺 Switching to YouTube engine for Video Mode...");
+            const currentTime = nativeAudio ? nativeAudio.currentTime : 0;
+
+            isCurrentlyUsingNative = false;
+            if (nativeAudio) nativeAudio.pause();
+
+            if (player && typeof player.loadVideoById === 'function') {
+                player.loadVideoById(currentTrack.id, currentTime);
+                player.playVideo();
+            }
+        }
+        showToast("Modo Videoclip activado", "info");
+    } else {
+        showToast("Modo Videoclip desactivado", "info");
+    }
+}
+
 async function toggleLyrics() {
     const overlay = document.getElementById('lyricsOverlay');
     const container = document.getElementById('lyricsContainer');
@@ -4068,6 +4099,9 @@ function closeMobilePlayer() {
 
     // Re-enable body scroll
     document.body.style.overflow = '';
+
+    // Exit video mode if active
+    if (isVideoModeActive) toggleVideoMode();
 }
 
 // --- USER SWITCHER FUNCTIONS ---
@@ -4789,7 +4823,8 @@ Object.assign(window, {
     updateReportPeriod,
     updateReportCustomRange,
     loadMoreNews,
-    toggleLyrics
+    toggleLyrics,
+    toggleVideoMode
 });
 
 console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE");
