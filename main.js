@@ -3775,7 +3775,7 @@ function renderNewsResults(videos, append = false) {
             } else {
                 // Different song, play new
                 console.log('📱 Playing new song...');
-                playSong(video, videos); // Pass the current videos list for context
+                playSong(video, [video]); // Play ONLY this video, don't load the whole list
             }
         };
 
