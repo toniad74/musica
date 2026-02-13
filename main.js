@@ -2126,27 +2126,32 @@ function isSongInQueue(songId) {
 }
 
 function updateQueueIcons() {
+    const queuePlusIcon = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/></svg>';
+    const checkmarkIcon = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>';
+
     // 1. Update standard .queue-btn (Search & Playlists)
     document.querySelectorAll('.queue-btn').forEach(btn => {
         const songId = btn.getAttribute('data-song-id');
-        if (isSongInQueue(songId)) {
-            btn.classList.add('in-queue');
-            btn.classList.remove('text-[#b3b3b3]');
-        } else {
-            btn.classList.remove('in-queue');
-            btn.classList.add('text-[#b3b3b3]');
+        const inQueue = isSongInQueue(songId);
+        btn.classList.toggle('in-queue', inQueue);
+        btn.classList.toggle('text-[#b3b3b3]', !inQueue);
+        if (btn.querySelector('svg')) {
+            btn.innerHTML = inQueue ? checkmarkIcon : queuePlusIcon;
         }
     });
 
     // 2. Update News Cards buttons
     document.querySelectorAll('.news-card-queue-btn').forEach(btn => {
         const songId = btn.getAttribute('data-song-id');
-        if (isSongInQueue(songId)) {
-            btn.classList.add('in-queue-active');
+        const inQueue = isSongInQueue(songId);
+        btn.classList.toggle('in-queue-active', inQueue);
+
+        if (inQueue) {
             btn.classList.remove('bg-black/60', 'hover:bg-green-500');
+            btn.innerHTML = checkmarkIcon;
         } else {
-            btn.classList.remove('in-queue-active');
             btn.classList.add('bg-black/60', 'hover:bg-green-500');
+            btn.innerHTML = queuePlusIcon;
         }
     });
 }
