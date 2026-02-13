@@ -4392,20 +4392,20 @@ async function updateReportPeriod(period) {
     console.log('updateReportPeriod called:', period);
     currentReportPeriod = period;
 
-    // Update tabs UI - solo clases CSS
+    // Update tabs UI
     document.querySelectorAll('.report-tab').forEach(tab => {
-        if (tab.dataset.period === period) {
-            tab.classList.add('active');
-        } else {
-            tab.classList.remove('active');
-        }
+        tab.classList.toggle('active', tab.dataset.period === period);
     });
 
-    let startDate;
     const now = new Date();
+    let startDate;
+    let endDate = new Date(now);
 
     if (period === '1d') {
+        // Full current day: from 00:00:00 to 23:59:59
         startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        endDate.setHours(23, 59, 59, 999);
     } else if (period === '7d') {
         startDate = new Date();
         startDate.setDate(now.getDate() - 7);
@@ -4413,22 +4413,32 @@ async function updateReportPeriod(period) {
         startDate = new Date();
         startDate.setDate(now.getDate() - 30);
     } else if (period === 'all') {
-        startDate = new Date(2024, 0, 1); // Way back
+        startDate = new Date(2024, 0, 1);
+        endDate.setHours(23, 59, 59, 999); // Ensure it covers everything today too
     }
 
     if (startDate) {
-        // Programmatic value change does NOT trigger onchange, so this is safe
         const startInput = document.getElementById('reportStartDate');
         const endInput = document.getElementById('reportEndDate');
 
         if (startInput && endInput) {
             window.isUpdatingDatesProgrammatically = true;
-            startInput.value = startDate.toISOString().split('T')[0];
-            endInput.value = now.toISOString().split('T')[0];
+
+            // Fix: Use local date parts instead of toISOString() which shifts date to UTC (yesterday in some cases)
+            const toLocalYYYYMMDD = (d) => {
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}`;
+            };
+
+            startInput.value = toLocalYYYYMMDD(startDate);
+            endInput.value = toLocalYYYYMMDD(endDate);
+
             setTimeout(() => { window.isUpdatingDatesProgrammatically = false; }, 500);
         }
 
-        await fetchAndRenderReport(startDate, now);
+        await fetchAndRenderReport(startDate, endDate);
     }
 }
 
