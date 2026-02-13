@@ -112,7 +112,7 @@
             </div>
 
             <!-- User Profile Section -->
-            <div id="userSection" class="px-4 mb-3">
+            <div id="userSection" class="pl-2 pr-4 mb-3">
                 <div id="loggedOutUI" class="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
                     <p class="text-xs text-gray-400 mb-3">Inicia sesión para guardar tus listas en la nube</p>
                     <button onclick="loginWithGoogle()"
@@ -126,11 +126,11 @@
                 </div>
                 <div id="loggedInUI" class="hidden relative">
                     <div onclick="toggleProfileDropdown()"
-                        class="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3 cursor-pointer hover:bg-white/10 transition-colors">
-                        <img id="userAvatar" src="" class="w-10 h-10 rounded-full border border-white/20">
+                        class="p-4 rounded-xl bg-white/5 border border-white/10 flex items-center gap-4 cursor-pointer hover:bg-white/10 transition-colors">
+                        <img id="userAvatar" src="" class="w-12 h-12 rounded-full border border-white/20">
                         <div class="flex-1 min-w-0">
-                            <p id="userName" class="text-white text-sm font-bold truncate"></p>
-                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Perfil</p>
+                            <p id="userName" class="text-white text-base font-bold truncate"></p>
+                            <p class="text-[11px] text-gray-400 uppercase font-bold tracking-wider">Perfil</p>
                         </div>
                         <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -142,11 +142,11 @@
                         class="hidden absolute top-full left-0 right-0 mt-2 bg-[#282828] rounded-xl shadow-2xl border border-white/10 z-50 overflow-hidden">
                         <div class="p-4 border-b border-white/5">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Versión</p>
-                            <p class="text-white text-sm">v1.7.67</p>
+                            <p class="text-white text-sm">v1.7.68</p>
                             <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                 Actualizado
                             </p>
-                            <p class="text-white text-sm">13 feb 2026 09:44</p>
+                            <p class="text-white text-sm">13 feb 2026 10:25</p>
                         </div>
                         <button onclick="showReport()"
                             class="w-full text-left px-4 py-3 text-sm text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -246,13 +246,13 @@
                                     Entrar
                                 </button>
                             </div>
-                            <div id="loggedInUIMobile" class="hidden relative">
+                            <div id="loggedInUIMobile" class="hidden relative mr-2">
                                 <div onclick="toggleProfileDropdownMobile()"
-                                    class="flex items-center gap-2 cursor-pointer">
+                                    class="flex items-center gap-3 cursor-pointer">
                                     <span id="userNameMobile"
-                                        class="text-xs font-bold text-white truncate max-w-[80px]"></span>
+                                        class="text-sm font-bold text-white truncate max-w-[100px]"></span>
                                     <img id="userAvatarMobile" src=""
-                                        class="w-8 h-8 rounded-full border border-white/20">
+                                        class="w-10 h-10 rounded-full border border-white/20">
                                 </div>
                                 <!-- Profile Dropdown Mobile -->
                                 <div id="profileDropdownMobile"
@@ -260,11 +260,11 @@
                                     <div class="p-3 border-b border-white/5">
                                         <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">
                                             Versión</p>
-                                        <p class="text-white text-xs">v1.7.67</p>
+                                        <p class="text-white text-xs">v1.7.68</p>
                                         <p
                                             class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                             Actualizado</p>
-                                        <p class="text-white text-xs">13 feb 2026 09:44</p>
+                                        <p class="text-white text-xs">13 feb 2026 10:25</p>
                                     </div>
                                     <button onclick="showReport()"
                                         class="w-full text-left px-3 py-3 text-xs text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
