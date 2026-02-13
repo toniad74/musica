@@ -388,6 +388,13 @@ body {
     gap: 12px;
 }
 
+@media (max-width: 768px) {
+    .news-card {
+        padding: 8px !important;
+        gap: 8px !important;
+    }
+}
+
 .news-card:hover {
     background: rgba(255, 255, 255, 0.08);
     transform: translateY(-8px);
