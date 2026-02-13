@@ -61,6 +61,7 @@ let currentSearchPage = 1;
 
 // Track user intent to distinguish between unwanted background pauses and clicks
 let isUserPaused = false;
+let songsToAddToNewPlaylist = null; // Temp storage for queue -> playlist conversion
 
 // Native audio player
 let nativeAudio = null;
@@ -2403,28 +2404,52 @@ function showCreatePlaylistModal() {
     document.getElementById('newPlaylistName').focus();
 }
 
+function saveQueueAsPlaylist() {
+    if (!queue || queue.length === 0) {
+        showToast("La cola está vacía", "warning");
+        return;
+    }
+    songsToAddToNewPlaylist = [...queue];
+    showCreatePlaylistModal();
+    // Update modal title temporarily
+    const modalTitle = document.querySelector('#createPlaylistModal h3');
+    if (modalTitle) modalTitle.innerText = "Guardar cola como lista";
+}
+
 function hideCreatePlaylistModal() {
     document.getElementById('createPlaylistModal').classList.add('hidden');
+    document.getElementById('newPlaylistName').value = '';
+    songsToAddToNewPlaylist = null; // Reset
+    // Reset title
+    const modalTitle = document.querySelector('#createPlaylistModal h3');
+    if (modalTitle) modalTitle.innerText = "Crear lista";
 }
 
 function createPlaylist() {
-    const name = document.getElementById('newPlaylistName').value.trim();
+    const nameInput = document.getElementById('newPlaylistName');
+    const name = nameInput.value.trim();
     if (!name) return;
 
     const newPlaylist = {
         id: 'pl_' + Date.now(),
         name: name,
-        description: '',
+        description: songsToAddToNewPlaylist ? 'Lista creada desde la cola de reproducción' : '',
         cover: APP_LOGO_URL,
-        songs: []
+        songs: songsToAddToNewPlaylist || []
     };
 
     playlists.push(newPlaylist);
     savePlaylists();
     renderPlaylists();
     hideCreatePlaylistModal();
-    document.getElementById('newPlaylistName').value = '';
-    showToast(`Lista "${name}" creada`);
+
+    if (songsToAddToNewPlaylist) {
+        showToast(`Lista "${name}" creada con ${songsToAddToNewPlaylist.length} canciones`);
+    } else {
+        showToast(`Lista "${name}" creada`);
+    }
+
+    songsToAddToNewPlaylist = null;
 }
 
 async function savePlaylists() {
