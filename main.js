@@ -1923,7 +1923,7 @@ function updateSearchPagination() {
 }
 
 // --- PLAYBACK ---
-async function playSong(song, list = [], fromQueue = false) {
+async function playSong(song, list = [], fromQueue = false, singlePlay = false) {
     try {
         if (!currentUserUid) {
             showToast("Inicia sesión para reproducir canciones", "warning");
@@ -1932,8 +1932,13 @@ async function playSong(song, list = [], fromQueue = false) {
 
         isUserPaused = false; // Reset intent state: starting a song implies active user intent
         currentTrack = song;
-        // Initialize session state if not from queue
-        if (!fromQueue) {
+
+        // If singlePlay is true, we play ONLY this song without touching the main queue flow
+        if (singlePlay) {
+            // No need to change the global queue or currentQueueIndex
+            // The logic below will handle the playback of 'song'
+        } else if (!fromQueue) {
+            // Standard behavior: load the provided list into the queue
             queue = [...list];
             currentQueueIndex = list.findIndex(s => String(s.id) === String(song.id));
             if (currentQueueIndex === -1) currentQueueIndex = 0;
@@ -3768,7 +3773,7 @@ function renderNewsResults(videos, append = false) {
             } else {
                 // Different song, play new
                 console.log('📱 Playing new song...');
-                playSong(video, [video]); // Play ONLY this video, don't load the whole list
+                playSong(video, [], false, true); // Play ONLY this song as a one-off
             }
         };
 
