@@ -3764,53 +3764,19 @@ function renderNewsResults(videos, append = false) {
         const inQueueClass = inQueue ? 'in-queue-active' : '';
 
         const card = document.createElement('div');
-        card.className = 'news-card animate-fade-in group cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all duration-300';
+        card.className = 'news-card animate-fade-in group hover:scale-[1.02] transition-all duration-300';
         card.setAttribute('data-video-id', video.id);
         card.style.animationDelay = `${index * 50}ms`;
-
-        // Toggle play/pause if same song, otherwise play new song
-        card.onclick = (e) => {
-            if (e.target.closest('button')) return; // Prioritize button actions over card playback
-            const isCurrentSong = currentTrack && String(currentTrack.id) === String(video.id);
-            const playerState = player?.getPlayerState();
-            const isActuallyPlaying = playerState === YT.PlayerState.PLAYING ||
-                (isCurrentlyUsingNative && !nativeAudio?.paused);
-
-            console.log('📱 Click - isCurrentSong:', isCurrentSong, 'isActuallyPlaying:', isActuallyPlaying, 'state:', playerState);
-
-            if (isCurrentSong && isActuallyPlaying) {
-                // Pause current song - mark as user intentional
-                console.log('📱 Pausing...');
-                isUserPaused = true;
-                if (isCurrentlyUsingNative) {
-                    nativeAudio?.pause();
-                } else if (player && typeof player.pauseVideo === 'function') {
-                    player.pauseVideo();
-                }
-                isMediaPlaying = false;
-                updatePlayPauseIcons(false);
-            } else if (isCurrentSong && player && typeof player.playVideo === 'function') {
-                // Same song, just resume
-                console.log('📱 Resuming...');
-                isUserPaused = false;
-                player.playVideo();
-                isMediaPlaying = true;
-                updatePlayPauseIcons(true);
-            } else {
-                // Different song, play new
-                console.log('📱 Playing new song...');
-                playSong(video, [], false, true); // Play ONLY this song as a one-off
-            }
-        };
 
         card.innerHTML = `
             <div class="thumbnail-container relative overflow-hidden rounded-xl shadow-2xl">
                 <img src="${video.thumbnail}" alt="${video.title}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy">
-                <div class="play-btn-overlay absolute bottom-4 right-4 bg-green-500 w-12 h-12 rounded-full flex items-center justify-center text-black opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 shadow-2xl transition-all duration-300">
+                <button onclick="event.stopPropagation(); handleNewsPlay(${JSON.stringify(video).replace(/"/g, '&quot;')})" 
+                    class="play-btn-overlay absolute bottom-4 right-4 bg-green-500 w-12 h-12 rounded-full flex items-center justify-center text-black opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 shadow-2xl transition-all duration-300 hover:scale-110 active:scale-90">
                     <svg class="w-8 h-8 card-play-icon transition-all duration-300" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z" />
                     </svg>
-                </div>
+                </button>
                 <div class="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md border border-white/10 px-2 py-0.5 rounded text-[11px] font-bold text-white">
                     ${video.duration}
                 </div>
@@ -3839,6 +3805,36 @@ function renderNewsResults(videos, append = false) {
         `;
         grid.appendChild(card);
     });
+}
+
+function handleNewsPlay(video) {
+    const isCurrentSong = currentTrack && String(currentTrack.id) === String(video.id);
+    const playerState = player?.getPlayerState();
+    const isActuallyPlaying = playerState === YT.PlayerState.PLAYING ||
+        (isCurrentlyUsingNative && !nativeAudio?.paused);
+
+    console.log('📱 handleNewsPlay - isCurrentSong:', isCurrentSong, 'isActuallyPlaying:', isActuallyPlaying);
+
+    if (isCurrentSong && isActuallyPlaying) {
+        // Pause current song
+        isUserPaused = true;
+        if (isCurrentlyUsingNative) {
+            nativeAudio?.pause();
+        } else if (player && typeof player.pauseVideo === 'function') {
+            player.pauseVideo();
+        }
+        isMediaPlaying = false;
+        updatePlayPauseIcons(false);
+    } else if (isCurrentSong && player && typeof player.playVideo === 'function') {
+        // Same song, just resume
+        isUserPaused = false;
+        player.playVideo();
+        isMediaPlaying = true;
+        updatePlayPauseIcons(true);
+    } else {
+        // Play as one-off
+        playSong(video, [], false, true);
+    }
 }
 
 function getPlaylistTotalDuration(pl) {
