@@ -142,11 +142,11 @@
                         class="hidden absolute top-full left-0 right-0 mt-2 bg-[#282828] rounded-xl shadow-2xl border border-white/10 z-50 overflow-hidden">
                         <div class="p-4 border-b border-white/5">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Versión</p>
-                            <p class="text-white text-sm">v1.7.94</p>
+                            <p class="text-white text-sm">v1.8.0</p>
                             <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                 Actualizado
                             </p>
-                            <p class="text-white text-sm">14 feb 2026 16:50</p>
+                            <p class="text-white text-sm">14 feb 2026 17:00</p>
                         </div>
                         <button onclick="showReport()"
                             class="w-full text-left px-4 py-3 text-sm text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -155,6 +155,14 @@
                                     d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                             </svg>
                             Reporte de escucha
+                        </button>
+                        <button onclick="document.getElementById('djModeModal').classList.remove('hidden')"
+                            class="w-full text-left px-4 py-3 text-sm text-purple-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                            </svg>
+                            Modo DJ
                         </button>
                         <button onclick="logout()"
                             class="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-white/5 flex items-center gap-2 transition-colors">
@@ -260,11 +268,11 @@
                                     <div class="p-3 border-b border-white/5">
                                         <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">
                                             Versión</p>
-                                        <p class="text-white text-xs">v1.7.94</p>
+                                        <p class="text-white text-xs">v1.8.0</p>
                                         <p
                                             class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                             Actualizado</p>
-                                        <p class="text-white text-xs">14 feb 2026 16:50</p>
+                                        <p class="text-white text-xs">14 feb 2026 17:00</p>
                                     </div>
                                     <button onclick="showReport()"
                                         class="w-full text-left px-3 py-3 text-xs text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -273,6 +281,14 @@
                                                 d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                         </svg>
                                         Reporte de escucha
+                                    </button>
+                                    <button onclick="document.getElementById('djModeModal').classList.remove('hidden')"
+                                        class="w-full text-left px-3 py-3 text-xs text-purple-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                                        </svg>
+                                        Modo DJ
                                     </button>
                                     <button onclick="logout()"
                                         class="w-full text-left px-3 py-3 text-xs text-red-400 hover:bg-white/5 flex items-center gap-2 transition-colors">
@@ -784,6 +800,71 @@
                     class="px-6 py-3 rounded-full font-semibold hover:bg-[#3e3e3e]">Cancelar</button>
                 <button onclick="deleteCurrentPlaylist()"
                     class="bg-red-600 hover:bg-red-500 px-8 py-3 rounded-full font-bold text-white">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DJ Mode Modal -->
+    <div id="djModeModal" class="hidden fixed inset-0 z-[120] bg-black/90 flex items-center justify-center p-4">
+        <div class="bg-[#282828] rounded-2xl w-full max-w-sm p-5 relative overflow-y-auto max-h-[90vh]">
+            <div class="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-green-500/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="relative z-10">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-black flex items-center gap-3">
+                        <span class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-black">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                            </svg>
+                        </span>
+                        Modo DJ
+                    </h3>
+                    <button onclick="document.getElementById('djModeModal').classList.add('hidden')" class="p-2 hover:bg-white/10 rounded-full transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div id="djInitialView">
+                    <p class="text-gray-400 text-sm mb-6">Escucha música en sincronía con tus amigos.</p>
+                    <div class="grid gap-3">
+                        <button onclick="createDJSession()" class="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all group">
+                            <div class="text-left">
+                                <p class="font-bold">Crear Sala</p>
+                                <p class="text-xs text-gray-500">Sé el anfitrión</p>
+                            </div>
+                            <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-black transform group-hover:scale-110 transition-transform">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                            </div>
+                        </button>
+                        <div class="relative my-2">
+                            <div class="absolute inset-0 flex items-center" aria-hidden="true"><div class="w-full border-t border-gray-700"></div></div>
+                            <div class="relative flex justify-center"><span class="bg-[#282828] px-2 text-xs text-gray-500">O únete</span></div>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="djSessionCodeInput" placeholder="CÓDIGO" class="flex-1 bg-[#1a1a1a] border border-white/10 rounded-xl px-3 py-2 text-center font-mono tracking-widest uppercase focus:outline-none focus:border-green-500 transition-colors text-sm">
+                            <button onclick="joinDJSession()" class="bg-white text-black font-bold px-4 py-2 rounded-xl text-sm hover:bg-gray-200 transition-colors">Entrar</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="djActiveView" class="hidden text-center">
+                    <div class="mb-5">
+                        <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">CÓDIGO DE SALA</p>
+                        <div class="text-3xl font-black font-mono text-green-500 tracking-widest bg-black/30 p-3 rounded-xl select-all cursor-pointer" onclick="navigator.clipboard.writeText(this.innerText); showToast('Código copiado')">
+                            <span id="djSessionCodeDisplay">??????</span>
+                        </div>
+                    </div>
+                    <div id="djHostControls" class="hidden mb-5">
+                        <p class="text-sm text-yellow-500 font-bold mb-1">👑 Eres el Anfitrión</p>
+                    </div>
+                    <div id="djGuestControls" class="hidden mb-5">
+                        <p class="text-sm text-blue-400 font-bold mb-1">🎧 Modo Invitado</p>
+                    </div>
+                    <button onclick="leaveDJSession()" class="w-full py-3 rounded-xl bg-red-500/10 text-red-400 font-bold hover:bg-red-500/20 border border-red-500/20 transition-all">Salir de la Sala</button>
+                </div>
             </div>
         </div>
     </div>

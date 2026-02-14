@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs, orderBy, limit, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs, orderBy, limit, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -29,6 +29,11 @@ let currentlyPlayingPlaylistId = localStorage.getItem('amaya_playing_pl_id') || 
 let playlists = JSON.parse(localStorage.getItem('amaya_playlists')) || [];
 let apiKeys = JSON.parse(localStorage.getItem('amaya_yt_keys')) || [];
 let currentKeyIndex = parseInt(localStorage.getItem('amaya_yt_key_index')) || 0;
+
+// DJ Mode / Shared Sessions
+let djSessionId = null;
+let djSessionUnsubscribe = null;
+let isDjHost = false;
 
 // Internal API keys (Obfuscated to avoid GitHub detection)
 const _D_K = [
@@ -265,6 +270,15 @@ window.onload = () => {
             });
         }).catch(e => console.error('SW registration error:', e));
     }
+
+    // Check if coming from a shared DJ session link
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionCode = urlParams.get('join_session');
+    if (sessionCode) {
+        document.getElementById('djSessionCodeInput').value = sessionCode;
+        document.getElementById('djModeModal').classList.remove('hidden');
+        joinDJSession();
+    }
 };
 
 
@@ -333,6 +347,211 @@ function setupAuthListener() {
         }
     });
 }
+
+// --- DJ MODE / SHARED SESSIONS ---
+
+async function createDJSession() {
+    if (!currentUserUid) {
+        showToast("Debes iniciar sesión para crear una sala", "warning");
+        loginWithGoogle();
+        return;
+    }
+
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const sessionRef = doc(db, "sessions", code);
+
+    const sessionData = {
+        hostId: currentUserUid,
+        hostName: document.getElementById('userName').innerText,
+        code: code,
+        currentTrack: currentTrack ? {
+            id: currentTrack.id,
+            title: currentTrack.title,
+            artist: currentTrack.artist || 'Desconocido',
+            thumbnail: currentTrack.thumbnail,
+            duration: currentTrack.duration
+        } : null,
+        queue: queue || [],
+        isPlaying: isMediaPlaying,
+        timestamp: serverTimestamp(),
+        members: [currentUserUid]
+    };
+
+    try {
+        await setDoc(sessionRef, sessionData);
+        djSessionId = code;
+        isDjHost = true;
+
+        document.getElementById('djInitialView').classList.add('hidden');
+        document.getElementById('djActiveView').classList.remove('hidden');
+        document.getElementById('djSessionCodeDisplay').innerText = code;
+        document.getElementById('djHostControls').classList.remove('hidden');
+        document.getElementById('djGuestControls').classList.add('hidden');
+
+        showToast(`Sala creada: ${code}`);
+        subscribeToDJSession(code);
+    } catch (e) {
+        console.error("Error creating session:", e);
+        showToast("Error al crear la sala", "error");
+    }
+}
+
+async function joinDJSession() {
+    const codeInput = document.getElementById('djSessionCodeInput');
+    let code = codeInput.value.toUpperCase().trim();
+
+    if (!code) {
+        const urlParams = new URLSearchParams(window.location.search);
+        code = urlParams.get('join_session') || '';
+    }
+
+    if (!code) {
+        showToast("Introduce un código válido", "warning");
+        return;
+    }
+
+    const sessionRef = doc(db, "sessions", code);
+
+    try {
+        const docSnap = await getDoc(sessionRef);
+        if (docSnap.exists()) {
+            djSessionId = code;
+            isDjHost = (docSnap.data().hostId === currentUserUid);
+
+            document.getElementById('djInitialView').classList.add('hidden');
+            document.getElementById('djActiveView').classList.remove('hidden');
+            document.getElementById('djSessionCodeDisplay').innerText = code;
+
+            if (isDjHost) {
+                document.getElementById('djHostControls').classList.remove('hidden');
+                document.getElementById('djGuestControls').classList.add('hidden');
+            } else {
+                document.getElementById('djHostControls').classList.add('hidden');
+                document.getElementById('djGuestControls').classList.remove('hidden');
+                showToast("Conectado a la sala. Sincronizando...", "success");
+            }
+
+            subscribeToDJSession(code);
+        } else {
+            showToast("Sala no encontrada", "error");
+        }
+    } catch (e) {
+        console.error("Error joining session:", e);
+        showToast("Error al unirse", "error");
+    }
+}
+
+function leaveDJSession() {
+    if (djSessionUnsubscribe) {
+        djSessionUnsubscribe();
+        djSessionUnsubscribe = null;
+    }
+
+    djSessionId = null;
+    isDjHost = false;
+
+    document.getElementById('djInitialView').classList.remove('hidden');
+    document.getElementById('djActiveView').classList.add('hidden');
+    document.getElementById('djSessionCodeInput').value = '';
+
+    showToast("Has salido de la sala");
+    document.getElementById('djModeModal').classList.add('hidden');
+
+    const url = new URL(window.location);
+    url.searchParams.delete('join_session');
+    window.history.pushState({}, '', url);
+}
+
+function subscribeToDJSession(code) {
+    if (djSessionUnsubscribe) djSessionUnsubscribe();
+
+    const sessionRef = doc(db, "sessions", code);
+
+    djSessionUnsubscribe = onSnapshot(sessionRef, (doc) => {
+        if (!doc.exists()) {
+            leaveDJSession();
+            showToast("La sala ha sido cerrada por el anfitrión", "error");
+            return;
+        }
+
+        const data = doc.data();
+
+        // Queue sync
+        const remoteQueue = data.queue || [];
+        const localIds = queue.map(s => s.id).join(',');
+        const remoteIds = remoteQueue.map(s => s.id).join(',');
+
+        if (localIds !== remoteIds || queue.length !== remoteQueue.length) {
+            console.log("DJ Mode: Syncing queue from host", remoteQueue.length, "songs");
+            queue = remoteQueue;
+            updateQueueCount();
+            updateQueueIcons();
+        }
+
+        // Playback sync for guests
+        if (!isDjHost && data.currentTrack && (!currentTrack || currentTrack.id !== data.currentTrack.id)) {
+            console.log("DJ Mode: Host changed track to", data.currentTrack.title);
+            playSong(data.currentTrack, queue, true, true);
+        }
+
+        if (!isDjHost && data.isPlaying !== isMediaPlaying) {
+            if (data.isPlaying) {
+                if (isCurrentlyUsingNative && nativeAudio) nativeAudio.play().catch(e => { });
+                else if (player && player.playVideo) player.playVideo();
+            } else {
+                if (isCurrentlyUsingNative && nativeAudio) nativeAudio.pause();
+                else if (player && player.pauseVideo) player.pauseVideo();
+            }
+        }
+    });
+}
+
+async function updateDJSessionState() {
+    if (!djSessionId || !isDjHost) return;
+
+    const sessionRef = doc(db, "sessions", djSessionId);
+    try {
+        const trackData = currentTrack ? {
+            id: currentTrack.id,
+            title: currentTrack.title,
+            artist: currentTrack.artist || 'Desconocido',
+            thumbnail: currentTrack.thumbnail,
+            duration: currentTrack.duration
+        } : null;
+
+        await updateDoc(sessionRef, {
+            currentTrack: trackData,
+            queue: queue,
+            isPlaying: isMediaPlaying,
+            timestamp: serverTimestamp()
+        });
+    } catch (e) {
+        console.warn("Error updating session state:", e);
+    }
+}
+
+async function addSongToDJQueue(song) {
+    if (!djSessionId) return;
+
+    const sessionRef = doc(db, "sessions", djSessionId);
+    try {
+        const docSnap = await getDoc(sessionRef);
+        if (docSnap.exists()) {
+            const currentQueue = docSnap.data().queue || [];
+
+            if (!currentQueue.some(s => s.id === song.id)) {
+                const newQueue = [...currentQueue, song];
+                await updateDoc(sessionRef, { queue: newQueue });
+                showToast("Añadido a la cola compartida");
+            } else {
+                showToast("Ya está en la cola", "warning");
+            }
+        }
+    } catch (e) {
+        console.error("Error adding to DJ queue:", e);
+    }
+}
+
 
 async function loginWithGoogle() {
     try {
@@ -2140,6 +2359,11 @@ async function playSong(song, list = [], fromQueue = false, singlePlay = false) 
             // Track listening history
             addToHistory(song);
         }
+
+        // DJ Mode sync (host only)
+        if (djSessionId && isDjHost) {
+            updateDJSessionState();
+        }
     } catch (error) {
         console.error("Error playing song:", error);
         console.warn(`Error al reproducir: ${error.message}`);
@@ -2174,6 +2398,41 @@ function updateQueueIcons() {
 }
 
 function toggleQueue(song) {
+    // DJ Mode logic
+    if (djSessionId) {
+        if (isDjHost) {
+            // Host: modify local queue and sync
+            const index = queue.findIndex(s => String(s.id) === String(song.id));
+            if (index !== -1) {
+                if (currentTrack && index === currentQueueIndex) {
+                    showToast("No puedes eliminar la canción que está sonando", "warning");
+                    return;
+                }
+                queue.splice(index, 1);
+                showToast(`- ${song.title}`);
+            } else {
+                queue.push(song);
+                showToast(`+ ${song.title}`);
+            }
+            updateQueueCount();
+            updateQueueIcons();
+            const modal = document.getElementById('queueModal');
+            if (modal && !modal.classList.contains('hidden')) showQueue();
+            updateDJSessionState();
+            return;
+        } else {
+            // Guest: request add to host's queue
+            const index = queue.findIndex(s => String(s.id) === String(song.id));
+            if (index !== -1) {
+                showToast("Solo el anfitrión puede eliminar canciones", "warning");
+            } else {
+                addSongToDJQueue(song);
+            }
+            return;
+        }
+    }
+
+    // Standard offline logic
     const index = queue.findIndex(s => String(s.id) === String(song.id));
 
     if (index !== -1) {
@@ -4846,7 +5105,10 @@ Object.assign(window, {
     updateReportCustomRange,
     loadMoreNews,
     toggleLyrics,
-    toggleVideoMode
+    toggleVideoMode,
+    createDJSession,
+    joinDJSession,
+    leaveDJSession
 });
 
 console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE");
