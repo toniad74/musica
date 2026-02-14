@@ -1904,16 +1904,21 @@ function renderSearchResults(videos) {
     grid.querySelectorAll('.marquee-content').forEach(el => updateMarquee(el));
 }
 
-function searchNextPage() {
+async function searchNextPage() {
     if (nextSearchToken) {
         currentSearchPage++;
-        searchMusic(nextSearchToken);
+        await searchMusic(nextSearchToken);
+        const main = document.querySelector('main');
+        if (main) main.scrollTo({ top: 0, behavior: 'smooth' });
     }
 }
-function searchPrevPage() {
+
+async function searchPrevPage() {
     if (prevSearchToken) {
         currentSearchPage--;
-        searchMusic(prevSearchToken);
+        await searchMusic(prevSearchToken);
+        const main = document.querySelector('main');
+        if (main) main.scrollTo({ top: 0, behavior: 'smooth' });
     }
 }
 
