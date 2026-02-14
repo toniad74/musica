@@ -2400,36 +2400,33 @@ function updateQueueIcons() {
 function toggleQueue(song) {
     // DJ Mode logic
     if (djSessionId) {
-        if (isDjHost) {
-            // Host: modify local queue and sync
-            const index = queue.findIndex(s => String(s.id) === String(song.id));
-            if (index !== -1) {
-                if (currentTrack && index === currentQueueIndex) {
-                    showToast("No puedes eliminar la canción que está sonando", "warning");
-                    return;
-                }
-                queue.splice(index, 1);
-                showToast(`- ${song.title}`);
-            } else {
-                queue.push(song);
-                showToast(`+ ${song.title}`);
+        const index = queue.findIndex(s => String(s.id) === String(song.id));
+        
+        if (index !== -1) {
+            // Song is in queue - remove it
+            if (currentTrack && index === currentQueueIndex) {
+                showToast("No puedes eliminar la canción que está sonando", "warning");
+                return;
             }
-            updateQueueCount();
-            updateQueueIcons();
-            const modal = document.getElementById('queueModal');
-            if (modal && !modal.classList.contains('hidden')) showQueue();
-            updateDJSessionState();
-            return;
+            
+            // Remove from local queue
+            queue.splice(index, 1);
+            if (index < currentQueueIndex) currentQueueIndex--;
+            showToast(`- ${song.title}`);
         } else {
-            // Guest: request add to host's queue
-            const index = queue.findIndex(s => String(s.id) === String(song.id));
-            if (index !== -1) {
-                showToast("Solo el anfitrión puede eliminar canciones", "warning");
-            } else {
-                addSongToDJQueue(song);
-            }
-            return;
+            // Song not in queue - add it
+            queue.push(song);
+            showToast(`+ ${song.title}`);
         }
+        
+        updateQueueCount();
+        updateQueueIcons();
+        const modal = document.getElementById('queueModal');
+        if (modal && !modal.classList.contains('hidden')) showQueue();
+        
+        // Sync to Firestore (works for both host and guests)
+        updateDJSessionState();
+        return;
     }
 
     // Standard offline logic
@@ -3320,12 +3317,6 @@ function removeFromQueue(index) {
         return;
     }
 
-    // DJ Mode - Guest can't remove directly
-    if (djSessionId && !isDjHost) {
-        showToast("Solo el anfitrión puede eliminar canciones", "warning");
-        return;
-    }
-
     const removedSong = queue.splice(index, 1)[0];
 
     // Adjust currentQueueIndex if needed
@@ -3338,8 +3329,8 @@ function removeFromQueue(index) {
     updateQueueIcons();
     showQueue(); // Refresh the list
 
-    // DJ Mode sync (host only)
-    if (djSessionId && isDjHost) {
+    // DJ Mode sync (both host and guests can remove)
+    if (djSessionId) {
         updateDJSessionState();
     }
 }
@@ -3356,8 +3347,8 @@ function clearQueue() {
     hideQueue();
     showToast("Cola vacía");
 
-    // DJ Mode sync (host only)
-    if (djSessionId && isDjHost) {
+    // DJ Mode sync (both host and guests can clear)
+    if (djSessionId) {
         updateDJSessionState();
     }
 }

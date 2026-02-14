@@ -1,5 +1,5 @@
-const CACHE_NAME = 'amaya-music-v131';
-// SW Version: 1.8.1 - Time: 17:10 (GMT+1) - Fix DJ Mode queue sync
+const CACHE_NAME = 'amaya-music-v132';
+// SW Version: 1.8.2 - Time: 17:15 (GMT+1) - Allow guests to remove songs
 const urlsToCache = [
     './',
     './index.html',
