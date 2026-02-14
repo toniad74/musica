@@ -507,7 +507,7 @@ function subscribeToDJSession(code) {
 }
 
 async function updateDJSessionState() {
-    if (!djSessionId || !isDjHost) return;
+    if (!djSessionId) return;
 
     const sessionRef = doc(db, "sessions", djSessionId);
     try {

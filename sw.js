@@ -1,5 +1,5 @@
-const CACHE_NAME = 'amaya-music-v132';
-// SW Version: 1.8.2 - Time: 17:15 (GMT+1) - Allow guests to remove songs
+const CACHE_NAME = 'amaya-music-v133';
+// SW Version: 1.8.3 - Time: 17:20 (GMT+1) - Allow guests to update queue
 const urlsToCache = [
     './',
     './index.html',
