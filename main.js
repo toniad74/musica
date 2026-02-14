@@ -402,7 +402,6 @@ async function createDJSession() {
         document.getElementById('djSessionNameDisplay').innerText = sessionName;
         document.getElementById('djHostControls').classList.remove('hidden');
         document.getElementById('djGuestControls').classList.add('hidden');
-        document.getElementById('editSessionNameBtn').classList.remove('hidden');
 
         showToast(`Sala "${sessionName}" creada: ${code}`);
         subscribeToDJSession(code);
@@ -455,11 +454,9 @@ async function joinDJSession() {
             if (isDjHost) {
                 document.getElementById('djHostControls').classList.remove('hidden');
                 document.getElementById('djGuestControls').classList.add('hidden');
-                document.getElementById('editSessionNameBtn').classList.remove('hidden');
             } else {
                 document.getElementById('djHostControls').classList.add('hidden');
                 document.getElementById('djGuestControls').classList.remove('hidden');
-                document.getElementById('editSessionNameBtn').classList.add('hidden');
                 showToast("Conectado a la sala. Sincronizando...", "success");
             }
 
@@ -476,19 +473,16 @@ async function joinDJSession() {
 function editDJSessionName() {
     const nameDisplay = document.getElementById('djSessionNameDisplay');
     const nameInput = document.getElementById('djSessionNameInputEdit');
-    const editBtn = document.getElementById('editSessionNameBtn');
 
     if (nameInput.classList.contains('hidden')) {
         nameInput.value = nameDisplay.innerText;
         nameDisplay.classList.add('hidden');
-        editBtn.classList.add('hidden');
         nameInput.classList.remove('hidden');
         nameInput.focus();
     } else {
         const newName = nameInput.value.trim() || "Sala sin nombre";
         nameInput.classList.add('hidden');
         nameDisplay.classList.remove('hidden');
-        editBtn.classList.remove('hidden');
 
         if (djSessionId && isDjHost) {
             const sessionRef = doc(db, "sessions", djSessionId);
@@ -514,7 +508,6 @@ function leaveDJSession() {
     document.getElementById('djSessionNameInput').value = '';
     document.getElementById('djSessionNameInputEdit').classList.add('hidden');
     document.getElementById('djSessionNameDisplay').classList.remove('hidden');
-    document.getElementById('editSessionNameBtn').classList.add('hidden');
 
     showToast("Has salido de la sala");
     document.getElementById('djModeModal').classList.add('hidden');
