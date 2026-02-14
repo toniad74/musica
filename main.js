@@ -42,7 +42,10 @@ const _D_K = [
     "QUl6YVN5RDlSNkE2QXR2bThDS3BRUEl3a0NLWFdpRHd5NFNwS2lv",
     "QUl6YVN5RDhCZTZxU1lUVlRQdHFvNzBXeTlyQ3BqNV9Ebld3THFj",
     "QUl6YVN5RFhTcFZkN01CT1FFdThQbXFCYnU4ZXdYMUNKV2w3M1Vz",
-    "QUl6YVN5QjU5S19Ka2tqdkNZUS15U0E3UF9GMDF6UlF0SGRXUkhR"
+    "QUl6YVN5QjU5S19Ka2tqdkNZUS15U0E3UF9GMDF6UlF0SGRXUkhR",
+    "QUl6YVN5QVNmeGt5V3RfcXdpM180X0NEUE5MbFV2ckVTX0xpSTlV",
+    "QUl6YVN5QjNmbzJPZ0w5U3BhVkxnNEJIVmhNTUJoLXBUNU1yQzVR",
+    "QUl6YVN5Qm52SU9ONHBJTXZCTmgtQUtRODkxZk5ETWwtSElSeF9R"
 ];
 const DEFAULT_KEYS = _D_K.map(k => atob(k));
 
@@ -58,6 +61,7 @@ let lastRecordedSeconds = 0;
 let prevSearchToken = '';
 let currentSearchQuery = '';
 let currentSearchPage = 1;
+let pageItemCounts = {}; // Store accumulated item counts per page for correct numbering
 
 // Track user intent to distinguish between unwanted background pauses and clicks
 let isUserPaused = false;
@@ -1741,7 +1745,11 @@ async function searchMusic(pageToken = '', retryCount = 0) {
     }
 
     currentSearchQuery = query;
-    if (!pageToken) currentSearchPage = 1;
+    currentSearchQuery = query;
+    if (!pageToken) {
+        currentSearchPage = 1;
+        pageItemCounts = {}; // Reset counts for new search
+    }
 
     switchTab('search');
     document.getElementById('loading').classList.remove('hidden');
@@ -1830,6 +1838,15 @@ function renderSearchResults(videos) {
     if (videos.length === 0) {
         grid.innerHTML = '<div class="p-8 text-center text-gray-400">No se han encontrado resultados</div>';
     } else {
+        // Store the count of items on this page
+        pageItemCounts[currentSearchPage] = videos.length;
+
+        // Calculate starting index based on previous pages
+        let startIndex = 0;
+        for (let i = 1; i < currentSearchPage; i++) {
+            startIndex += (pageItemCounts[i] || 0);
+        }
+
         videos.forEach((video, index) => {
             const inQueue = isSongInQueue(video.id);
             const inQueueClass = inQueue ? 'in-queue' : 'text-[#b3b3b3]';
@@ -1869,7 +1886,7 @@ function renderSearchResults(videos) {
 
             const isCurrentSong = isMediaPlaying && currentTrack && String(currentTrack.id) === String(video.id);
             row.innerHTML = `
-                <div class="w-10 text-center text-sm text-[#b3b3b3] track-number group-hover:hidden">${(currentSearchPage - 1) * 20 + index + 1}</div>
+                <div class="w-10 text-center text-sm text-[#b3b3b3] track-number group-hover:hidden">${startIndex + index + 1}</div>
                 <div class="hidden group-hover:block w-10 text-center">
                     <svg class="w-4 h-4 text-white mx-auto" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 </div>
