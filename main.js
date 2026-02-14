@@ -5270,6 +5270,7 @@ Object.assign(window, {
     createDJSession,
     joinDJSession,
     leaveDJSession,
+    editDJSessionName,
     loadMySessions,
     rejoinSession,
     deleteSavedSession,
