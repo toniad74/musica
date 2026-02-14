@@ -3320,6 +3320,12 @@ function removeFromQueue(index) {
         return;
     }
 
+    // DJ Mode - Guest can't remove directly
+    if (djSessionId && !isDjHost) {
+        showToast("Solo el anfitrión puede eliminar canciones", "warning");
+        return;
+    }
+
     const removedSong = queue.splice(index, 1)[0];
 
     // Adjust currentQueueIndex if needed
@@ -3331,6 +3337,11 @@ function removeFromQueue(index) {
     updateQueueCount();
     updateQueueIcons();
     showQueue(); // Refresh the list
+
+    // DJ Mode sync (host only)
+    if (djSessionId && isDjHost) {
+        updateDJSessionState();
+    }
 }
 
 function hideQueue() {
@@ -3344,6 +3355,11 @@ function clearQueue() {
     updateQueueIcons();
     hideQueue();
     showToast("Cola vacía");
+
+    // DJ Mode sync (host only)
+    if (djSessionId && isDjHost) {
+        updateDJSessionState();
+    }
 }
 
 
