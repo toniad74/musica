@@ -1,5 +1,5 @@
-const CACHE_NAME = 'amaya-music-v133';
-// SW Version: 1.8.3 - Time: 17:20 (GMT+1) - Allow guests to update queue
+const CACHE_NAME = 'amaya-music-v134';
+// SW Version: 1.8.4 - Time: 17:30 (GMT+1) - Save and recover DJ sessions
 const urlsToCache = [
     './',
     './index.html',

@@ -374,11 +374,21 @@ async function createDJSession() {
         queue: queue || [],
         isPlaying: isMediaPlaying,
         timestamp: serverTimestamp(),
-        members: [currentUserUid]
+        members: [currentUserUid],
+        createdAt: serverTimestamp() // For sorting
     };
 
     try {
         await setDoc(sessionRef, sessionData);
+        
+        // Save to user's sessions list
+        const userSessionsRef = doc(db, "users", currentUserUid, "sessions", code);
+        await setDoc(userSessionsRef, {
+            code: code,
+            createdAt: serverTimestamp(),
+            isHost: true
+        });
+        
         djSessionId = code;
         isDjHost = true;
 
@@ -417,6 +427,19 @@ async function joinDJSession() {
         if (docSnap.exists()) {
             djSessionId = code;
             isDjHost = (docSnap.data().hostId === currentUserUid);
+
+            // Save to user's sessions list if not already saved
+            if (currentUserUid) {
+                const userSessionsRef = doc(db, "users", currentUserUid, "sessions", code);
+                const existingSnap = await getDoc(userSessionsRef);
+                if (!existingSnap.exists()) {
+                    await setDoc(userSessionsRef, {
+                        code: code,
+                        createdAt: serverTimestamp(),
+                        isHost: isDjHost
+                    });
+                }
+            }
 
             document.getElementById('djInitialView').classList.add('hidden');
             document.getElementById('djActiveView').classList.remove('hidden');
@@ -460,6 +483,97 @@ function leaveDJSession() {
     const url = new URL(window.location);
     url.searchParams.delete('join_session');
     window.history.pushState({}, '', url);
+}
+
+// --- SAVED SESSIONS ---
+async function loadMySessions() {
+    if (!currentUserUid) return;
+    
+    const container = document.getElementById('mySessionsList');
+    if (!container) return;
+    
+    container.innerHTML = '<div class="text-center text-gray-400 py-4">Cargando...</div>';
+    
+    try {
+        const sessionsRef = collection(db, "users", currentUserUid, "sessions");
+        const q = query(sessionsRef, orderBy("createdAt", "desc"));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+            container.innerHTML = '<div class="text-center text-gray-400 py-4">No tienes salas guardadas</div>';
+            return;
+        }
+        
+        container.innerHTML = '';
+        
+        for (const docSnap of snapshot.docs) {
+            const sessionData = docSnap.data();
+            const code = sessionData.code;
+            
+            // Check if session still exists
+            const sessionRef = doc(db, "sessions", code);
+            const sessionSnap = await getDoc(sessionRef);
+            
+            const sessionEl = document.createElement('div');
+            sessionEl.className = 'flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 mb-2';
+            
+            if (sessionSnap.exists()) {
+                const session = sessionSnap.data();
+                const isActive = session.members && session.members.includes(currentUserUid);
+                
+                sessionEl.innerHTML = `
+                    <div class="flex-1 cursor-pointer" onclick="rejoinSession('${code}')">
+                        <p class="font-bold text-white text-sm">${code}</p>
+                        <p class="text-xs ${sessionData.isHost ? 'text-yellow-400' : 'text-blue-400'}">${sessionData.isHost ? '👑 Anfitrión' : '🎧 Invitado'}</p>
+                        <p class="text-xs text-gray-500">${isActive ? '🟢 Activa' : '🔴 Inactiva'}</p>
+                    </div>
+                    <button onclick="deleteSavedSession('${code}')" class="text-red-400 hover:text-red-300 p-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                `;
+            } else {
+                // Session no longer exists, auto-delete
+                await deleteDoc(doc(db, "users", currentUserUid, "sessions", code));
+                continue;
+            }
+            
+            container.appendChild(sessionEl);
+        }
+    } catch (e) {
+        console.error("Error loading sessions:", e);
+        container.innerHTML = '<div class="text-center text-red-400 py-4">Error al cargar</div>';
+    }
+}
+
+async function rejoinSession(code) {
+    document.getElementById('djSessionCodeInput').value = code;
+    await joinDJSession();
+}
+
+async function deleteSavedSession(code) {
+    if (!currentUserUid) return;
+    
+    try {
+        await deleteDoc(doc(db, "users", currentUserUid, "sessions", code));
+        showToast("Sala eliminada");
+        loadMySessions(); // Refresh list
+    } catch (e) {
+        console.error("Error deleting session:", e);
+        showToast("Error al eliminar", "error");
+    }
+}
+
+function showMySessions() {
+    document.getElementById('djInitialView').classList.add('hidden');
+    document.getElementById('djMySessionsView').classList.remove('hidden');
+    loadMySessions();
+}
+
+function backToDJInitial() {
+    document.getElementById('djMySessionsView').classList.add('hidden');
+    document.getElementById('djInitialView').classList.remove('hidden');
 }
 
 function subscribeToDJSession(code) {
@@ -5115,7 +5229,12 @@ Object.assign(window, {
     toggleVideoMode,
     createDJSession,
     joinDJSession,
-    leaveDJSession
+    leaveDJSession,
+    loadMySessions,
+    rejoinSession,
+    deleteSavedSession,
+    showMySessions,
+    backToDJInitial
 });
 
 console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE");
