@@ -396,13 +396,13 @@ async function createDJSession() {
         djSessionId = code;
         isDjHost = true;
 
-            document.getElementById('djInitialView').classList.add('hidden');
-            document.getElementById('djActiveView').classList.remove('hidden');
-            document.getElementById('djSessionCodeDisplay').innerText = code;
-            document.getElementById('djSessionNameDisplay').innerText = docSnap.data().name || "Sala sin nombre";
+        document.getElementById('djInitialView').classList.add('hidden');
+        document.getElementById('djActiveView').classList.remove('hidden');
+        document.getElementById('djSessionCodeDisplay').innerText = code;
         document.getElementById('djSessionNameDisplay').innerText = sessionName;
         document.getElementById('djHostControls').classList.remove('hidden');
         document.getElementById('djGuestControls').classList.add('hidden');
+        document.getElementById('editSessionNameBtn').classList.remove('hidden');
 
         showToast(`Sala "${sessionName}" creada: ${code}`);
         subscribeToDJSession(code);
@@ -450,13 +450,16 @@ async function joinDJSession() {
             document.getElementById('djInitialView').classList.add('hidden');
             document.getElementById('djActiveView').classList.remove('hidden');
             document.getElementById('djSessionCodeDisplay').innerText = code;
+            document.getElementById('djSessionNameDisplay').innerText = docSnap.data().name || "Sala sin nombre";
 
             if (isDjHost) {
                 document.getElementById('djHostControls').classList.remove('hidden');
                 document.getElementById('djGuestControls').classList.add('hidden');
+                document.getElementById('editSessionNameBtn').classList.remove('hidden');
             } else {
                 document.getElementById('djHostControls').classList.add('hidden');
                 document.getElementById('djGuestControls').classList.remove('hidden');
+                document.getElementById('editSessionNameBtn').classList.add('hidden');
                 showToast("Conectado a la sala. Sincronizando...", "success");
             }
 
@@ -467,6 +470,32 @@ async function joinDJSession() {
     } catch (e) {
         console.error("Error joining session:", e);
         showToast("Error al unirse", "error");
+    }
+}
+
+function editDJSessionName() {
+    const nameDisplay = document.getElementById('djSessionNameDisplay');
+    const nameInput = document.getElementById('djSessionNameInputEdit');
+    const editBtn = document.getElementById('editSessionNameBtn');
+
+    if (nameInput.classList.contains('hidden')) {
+        nameInput.value = nameDisplay.innerText;
+        nameDisplay.classList.add('hidden');
+        editBtn.classList.add('hidden');
+        nameInput.classList.remove('hidden');
+        nameInput.focus();
+    } else {
+        const newName = nameInput.value.trim() || "Sala sin nombre";
+        nameInput.classList.add('hidden');
+        nameDisplay.classList.remove('hidden');
+        editBtn.classList.remove('hidden');
+
+        if (djSessionId && isDjHost) {
+            const sessionRef = doc(db, "sessions", djSessionId);
+            updateDoc(sessionRef, { name: newName });
+            nameDisplay.innerText = newName;
+            showToast("Nombre actualizado");
+        }
     }
 }
 
@@ -482,6 +511,10 @@ function leaveDJSession() {
     document.getElementById('djInitialView').classList.remove('hidden');
     document.getElementById('djActiveView').classList.add('hidden');
     document.getElementById('djSessionCodeInput').value = '';
+    document.getElementById('djSessionNameInput').value = '';
+    document.getElementById('djSessionNameInputEdit').classList.add('hidden');
+    document.getElementById('djSessionNameDisplay').classList.remove('hidden');
+    document.getElementById('editSessionNameBtn').classList.add('hidden');
 
     showToast("Has salido de la sala");
     document.getElementById('djModeModal').classList.add('hidden');
