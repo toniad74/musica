@@ -357,12 +357,16 @@ async function createDJSession() {
         return;
     }
 
+    const nameInput = document.getElementById('djSessionNameInput');
+    const sessionName = nameInput.value.trim() || "Sala sin nombre";
+
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     const sessionRef = doc(db, "sessions", code);
 
     const sessionData = {
         hostId: currentUserUid,
         hostName: document.getElementById('userName').innerText,
+        name: sessionName,
         code: code,
         currentTrack: currentTrack ? {
             id: currentTrack.id,
@@ -392,13 +396,15 @@ async function createDJSession() {
         djSessionId = code;
         isDjHost = true;
 
-        document.getElementById('djInitialView').classList.add('hidden');
-        document.getElementById('djActiveView').classList.remove('hidden');
-        document.getElementById('djSessionCodeDisplay').innerText = code;
+            document.getElementById('djInitialView').classList.add('hidden');
+            document.getElementById('djActiveView').classList.remove('hidden');
+            document.getElementById('djSessionCodeDisplay').innerText = code;
+            document.getElementById('djSessionNameDisplay').innerText = docSnap.data().name || "Sala sin nombre";
+        document.getElementById('djSessionNameDisplay').innerText = sessionName;
         document.getElementById('djHostControls').classList.remove('hidden');
         document.getElementById('djGuestControls').classList.add('hidden');
 
-        showToast(`Sala creada: ${code}`);
+        showToast(`Sala "${sessionName}" creada: ${code}`);
         subscribeToDJSession(code);
     } catch (e) {
         console.error("Error creating session:", e);
@@ -523,7 +529,8 @@ async function loadMySessions() {
                 
                 sessionEl.innerHTML = `
                     <div class="flex-1 cursor-pointer" onclick="rejoinSession('${code}')">
-                        <p class="font-bold text-white text-sm">${code}</p>
+                        <p class="font-bold text-white text-sm">${session.name || 'Sala sin nombre'}</p>
+                        <p class="text-xs text-gray-400">Código: ${code}</p>
                         <p class="text-xs ${sessionData.isHost ? 'text-yellow-400' : 'text-blue-400'}">${sessionData.isHost ? '👑 Anfitrión' : '🎧 Invitado'}</p>
                         <p class="text-xs text-gray-500">${isActive ? '🟢 Activa' : '🔴 Inactiva'}</p>
                     </div>

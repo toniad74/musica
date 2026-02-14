@@ -1,5 +1,5 @@
-const CACHE_NAME = 'amaya-music-v134';
-// SW Version: 1.8.4 - Time: 17:30 (GMT+1) - Save and recover DJ sessions
+const CACHE_NAME = 'amaya-music-v135';
+// SW Version: 1.8.5 - Time: 00:37 (GMT+1) - Auto-actualización
 const urlsToCache = [
     './',
     './index.html',
