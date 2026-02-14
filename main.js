@@ -379,6 +379,7 @@ async function createDJSession() {
         isPlaying: isMediaPlaying,
         timestamp: serverTimestamp(),
         members: [currentUserUid],
+        memberNames: [document.getElementById('userName').innerText],
         createdAt: serverTimestamp() // For sorting
     };
 
@@ -402,6 +403,7 @@ async function createDJSession() {
         document.getElementById('djSessionNameDisplay').innerText = sessionName;
         document.getElementById('djHostControls').classList.remove('hidden');
         document.getElementById('djGuestControls').classList.add('hidden');
+        updateDJMembersList([currentUserUid], [document.getElementById('userName').innerText]);
 
         showToast(`Sala "${sessionName}" creada: ${code}`);
         subscribeToDJSession(code);
@@ -433,6 +435,20 @@ async function joinDJSession() {
             djSessionId = code;
             isDjHost = (docSnap.data().hostId === currentUserUid);
 
+            // Add user to members list if not already there
+            const sessionData = docSnap.data();
+            const members = sessionData.members || [];
+            const memberNames = sessionData.memberNames || [];
+            
+            if (!members.includes(currentUserUid) && currentUserUid) {
+                members.push(currentUserUid);
+                memberNames.push(document.getElementById('userName').innerText);
+                await updateDoc(sessionRef, {
+                    members: members,
+                    memberNames: memberNames
+                });
+            }
+
             // Save to user's sessions list if not already saved
             if (currentUserUid) {
                 const userSessionsRef = doc(db, "users", currentUserUid, "sessions", code);
@@ -450,6 +466,7 @@ async function joinDJSession() {
             document.getElementById('djActiveView').classList.remove('hidden');
             document.getElementById('djSessionCodeDisplay').innerText = code;
             document.getElementById('djSessionNameDisplay').innerText = docSnap.data().name || "Sala sin nombre";
+            updateDJMembersList(docSnap.data().members || [], docSnap.data().memberNames || []);
 
             if (isDjHost) {
                 document.getElementById('djHostControls').classList.remove('hidden');
@@ -491,6 +508,31 @@ function editDJSessionName() {
             showToast("Nombre actualizado");
         }
     }
+}
+
+function updateDJMembersList(members, memberNames) {
+    const membersList = document.getElementById('djMembersList');
+    if (!membersList) return;
+    
+    membersList.innerHTML = '';
+    
+    if (!members || members.length === 0) {
+        membersList.innerHTML = '<p class="text-gray-500 text-sm">Sin integrantes</p>';
+        return;
+    }
+    
+    members.forEach((memberId, index) => {
+        const name = memberNames && memberNames[index] ? memberNames[index] : 'Usuario';
+        const isHost = memberId === members[0];
+        
+        const memberEl = document.createElement('div');
+        memberEl.className = 'flex items-center gap-1 bg-white/10 px-2 py-1 rounded-full text-xs';
+        memberEl.innerHTML = `
+            <span class="text-white">${name}</span>
+            ${isHost ? '<span class="text-yellow-400">👑</span>' : ''}
+        `;
+        membersList.appendChild(memberEl);
+    });
 }
 
 function leaveDJSession() {
@@ -649,6 +691,11 @@ function subscribeToDJSession(code) {
                 if (isCurrentlyUsingNative && nativeAudio) nativeAudio.pause();
                 else if (player && player.pauseVideo) player.pauseVideo();
             }
+        }
+
+        // Update members list
+        if (data.members) {
+            updateDJMembersList(data.members || [], data.memberNames || []);
         }
     });
 }
