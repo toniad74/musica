@@ -506,15 +506,15 @@ function editDJSessionName() {
         const newName = nameInput.value.trim() || "Sala sin nombre";
         nameInput.classList.add('hidden');
         nameDisplay.classList.remove('hidden');
+        
+        // Actualizar UI inmediatamente
+        nameDisplay.innerText = newName;
+        showToast("Nombre actualizado");
 
         if (djSessionId) {
             const sessionRef = doc(db, "sessions", djSessionId);
-            updateDoc(sessionRef, { name: newName }).then(() => {
-                nameDisplay.innerText = newName;
-                showToast("Nombre actualizado");
-            }).catch(e => {
+            updateDoc(sessionRef, { name: newName }).catch(e => {
                 console.error("Error updating name:", e);
-                showToast("Error al actualizar el nombre", "error");
             });
         }
     }
@@ -605,31 +605,6 @@ function loadMySessionsTab() {
     const container = document.getElementById('mySessionsListTab');
     if (!container) return;
     
-    // Si hay una sesión activa, mostrarla primero
-    if (djSessionId) {
-        getDoc(doc(db, "sessions", djSessionId)).then(sessionSnap => {
-            if (sessionSnap.exists()) {
-                const session = sessionSnap.data();
-                const isActive = session.members && session.members.includes(currentUserUid);
-                
-                container.innerHTML = '';
-                const el = document.createElement('div');
-                el.className = 'flex items-center justify-between p-3 rounded-lg bg-green-500/20 border border-green-500/30 mb-2';
-                el.innerHTML = `
-                    <div class="flex-1 cursor-pointer" onclick="showToast('Ya estás en esta sala')">
-                        <p class="font-bold text-white text-sm">${session.name || 'Sala sin nombre'}</p>
-                        <p class="text-xs text-gray-400">Código: ${djSessionId}</p>
-                        <p class="text-xs ${isDjHost ? 'text-yellow-400' : 'text-blue-400'}">${isDjHost ? '👑 Anfitrión' : '🎧 Invitado'}</p>
-                        <p class="text-xs text-green-400">🟢 Activa (actual)</p>
-                    </div>
-                `;
-                container.appendChild(el);
-            }
-        });
-        return;
-    }
-    
-    // Si no hay sesión activa, mostrar lista de salas guardadas
     container.innerHTML = '<div class="text-center text-gray-400 py-4">Cargando...</div>';
     
     getDocs(query(collection(db, "users", currentUserUid, "sessions"), orderBy("createdAt", "desc")))
@@ -643,6 +618,7 @@ function loadMySessionsTab() {
             snapshot.forEach(docSnap => {
                 const sessionData = docSnap.data();
                 const code = sessionData.code;
+                const isCurrentSession = (djSessionId === code);
                 
                 getDoc(doc(db, "sessions", code)).then(sessionSnap => {
                     // Only show sessions that still exist
@@ -654,9 +630,28 @@ function loadMySessionsTab() {
                     const isActive = session.members && session.members.includes(currentUserUid);
                     
                     const el = document.createElement('div');
-                    el.className = 'flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 mb-2';
+                    el.className = 'flex items-center justify-between p-3 rounded-lg mb-2 ' + (isCurrentSession ? 'bg-green-500/20 border border-green-500/30' : 'bg-white/5 hover:bg-white/10');
                     el.innerHTML = `
-                        <div class="flex-1 cursor-pointer" onclick="rejoinSessionTab('${code}')">
+                        <div class="flex-1 cursor-pointer" onclick="${isCurrentSession ? "showToast('Ya estás en esta sala')" : "rejoinSessionTab('" + code + "')"}">
+                            <p class="font-bold text-white text-sm">${session.name || 'Sala sin nombre'}</p>
+                            <p class="text-xs text-gray-400">Código: ${code}</p>
+                            <p class="text-xs ${sessionData.isHost ? 'text-yellow-400' : 'text-blue-400'}">${sessionData.isHost ? '👑 Anfitrión' : '🎧 Invitado'}</p>
+                            <p class="text-xs ${isActive ? 'text-green-400' : 'text-gray-500'}">${isActive ? '🟢 Activa' : '🔴 Inactiva'}</p>
+                        </div>
+                        <button onclick="deleteSavedSession('${code}')" class="text-red-400 hover:text-red-300 p-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    `;
+                    container.appendChild(el);
+                });
+            });
+        })
+        .catch(e => {
+            container.innerHTML = '<div class="text-center text-red-400 py-4">Error al cargar</div>';
+        });
+}>
                             <p class="font-bold text-white text-sm">${session.name || 'Sala sin nombre'}</p>
                             <p class="text-xs text-gray-400">Código: ${code}</p>
                             <p class="text-xs ${sessionData.isHost ? 'text-yellow-400' : 'text-blue-400'}">${sessionData.isHost ? '👑 Anfitrión' : '🎧 Invitado'}</p>
