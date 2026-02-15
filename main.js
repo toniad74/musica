@@ -384,10 +384,10 @@ async function createDJSession() {
         memberNames: [document.getElementById('userName').innerText],
         createdAt: serverTimestamp() // For sorting
     };
- 
+
     try {
         await setDoc(sessionRef, sessionData);
-        
+
         // Save to user's sessions list
         const userSessionsRef = doc(db, "users", currentUserUid, "sessions", code);
         await setDoc(userSessionsRef, {
@@ -395,7 +395,7 @@ async function createDJSession() {
             createdAt: serverTimestamp(),
             isHost: true
         });
-        
+
         djSessionId = code;
         isDjHost = true;
 
@@ -444,7 +444,7 @@ async function joinDJSession() {
             const sessionData = docSnap.data();
             const members = sessionData.members || [];
             const memberNames = sessionData.memberNames || [];
-            
+
             if (!members.includes(currentUserUid) && currentUserUid) {
                 members.push(currentUserUid);
                 memberNames.push(document.getElementById('userName').innerText);
@@ -497,25 +497,32 @@ function editDJSessionName() {
     const nameDisplay = document.getElementById('djSessionNameDisplayTab');
     const nameInput = document.getElementById('djSessionNameInputEditTab');
 
+    // If currently showing display (hidden input), switch to edit mode
     if (nameInput.classList.contains('hidden')) {
         nameInput.value = nameDisplay.innerText;
         nameDisplay.classList.add('hidden');
         nameInput.classList.remove('hidden');
         nameInput.focus();
+        nameInput.select();
     } else {
+        // If already in edit mode (visible input), save and exit
         const newName = nameInput.value.trim() || "Sala sin nombre";
-        nameInput.classList.add('hidden');
-        nameDisplay.classList.remove('hidden');
 
-        if (djSessionId) {
-            const sessionRef = doc(db, "sessions", djSessionId);
-            updateDoc(sessionRef, { name: newName }).then(() => {
-                nameDisplay.innerText = newName;
-                showToast("Nombre actualizado");
-            }).catch(e => {
-                console.error("Error updating name:", e);
-                showToast("Error al actualizar el nombre", "error");
-            });
+        // Prevent recursive calls if called from both Enter and Blur
+        if (nameDisplay.classList.contains('hidden')) {
+            nameInput.classList.add('hidden');
+            nameDisplay.classList.remove('hidden');
+            nameDisplay.innerText = newName;
+
+            if (djSessionId) {
+                const sessionRef = doc(db, "sessions", djSessionId);
+                updateDoc(sessionRef, { name: newName }).then(() => {
+                    showToast("Nombre actualizado");
+                }).catch(e => {
+                    console.error("Error updating name:", e);
+                    showToast("Error al actualizar el nombre", "error");
+                });
+            }
         }
     }
 }
@@ -523,18 +530,18 @@ function editDJSessionName() {
 function updateDJMembersList(members, memberNames) {
     const membersList = document.getElementById('djMembersList');
     if (!membersList) return;
-    
+
     membersList.innerHTML = '';
-    
+
     if (!members || members.length === 0) {
         membersList.innerHTML = '<p class="text-gray-500 text-sm">Sin integrantes</p>';
         return;
     }
-    
+
     members.forEach((memberId, index) => {
         const name = memberNames && memberNames[index] ? memberNames[index] : 'Usuario';
         const isHost = memberId === members[0];
-        
+
         const memberEl = document.createElement('div');
         memberEl.className = 'flex items-center gap-1 bg-white/10 px-2 py-1 rounded-full text-xs';
         memberEl.innerHTML = `
@@ -571,7 +578,7 @@ function djLeaveSession() {
     djSessionId = null;
     isDjHost = false;
 
-    var el = function(id) { return document.getElementById(id); };
+    var el = function (id) { return document.getElementById(id); };
     if (el('djInitialViewTab')) el('djInitialViewTab').classList.remove('hidden');
     if (el('djActiveViewTab')) el('djActiveViewTab').classList.add('hidden');
     if (el('djHostControlsTab')) el('djHostControlsTab').classList.add('hidden');
@@ -601,66 +608,48 @@ function backToDJInitialTab() {
 
 function loadMySessionsTab() {
     if (!currentUserUid) return;
-    
+
     const container = document.getElementById('mySessionsListTab');
     if (!container) return;
-    
-    // Si hay una sesión activa, mostrarla primero
-    if (djSessionId) {
-        getDoc(doc(db, "sessions", djSessionId)).then(sessionSnap => {
-            if (sessionSnap.exists()) {
-                const session = sessionSnap.data();
-                const isActive = session.members && session.members.includes(currentUserUid);
-                
-                container.innerHTML = '';
-                const el = document.createElement('div');
-                el.className = 'flex items-center justify-between p-3 rounded-lg bg-green-500/20 border border-green-500/30 mb-2';
-                el.innerHTML = `
-                    <div class="flex-1 cursor-pointer" onclick="showToast('Ya estás en esta sala')">
-                        <p class="font-bold text-white text-sm">${session.name || 'Sala sin nombre'}</p>
-                        <p class="text-xs text-gray-400">Código: ${djSessionId}</p>
-                        <p class="text-xs ${isDjHost ? 'text-yellow-400' : 'text-blue-400'}">${isDjHost ? '👑 Anfitrión' : '🎧 Invitado'}</p>
-                        <p class="text-xs text-green-400">🟢 Activa (actual)</p>
-                    </div>
-                `;
-                container.appendChild(el);
-            }
-        });
-        return;
-    }
-    
-    // Si no hay sesión activa, mostrar lista de salas guardadas
+
     container.innerHTML = '<div class="text-center text-gray-400 py-4">Cargando...</div>';
-    
+
     getDocs(query(collection(db, "users", currentUserUid, "sessions"), orderBy("createdAt", "desc")))
         .then(snapshot => {
             if (snapshot.empty) {
                 container.innerHTML = '<div class="text-center text-gray-400 py-4">No tienes salas guardadas</div>';
                 return;
             }
-            
+
             container.innerHTML = '';
-            snapshot.forEach(docSnap => {
+            // Using a Map to avoid duplicates and handle async fetching
+            const sessionPromises = snapshot.docs.map(docSnap => {
                 const sessionData = docSnap.data();
-                const code = sessionData.code;
-                
-                getDoc(doc(db, "sessions", code)).then(sessionSnap => {
-                    // Only show sessions that still exist
-                    if (!sessionSnap.exists()) {
-                        return; // Skip deleted sessions
-                    }
-                    
-                    const session = sessionSnap.data();
-                    const isActive = session.members && session.members.includes(currentUserUid);
-                    
+                return getDoc(doc(db, "sessions", sessionData.code)).then(snap => {
+                    return snap.exists() ? { ...snap.data(), isHost: sessionData.isHost } : null;
+                });
+            });
+
+            Promise.all(sessionPromises).then(sessions => {
+                const validSessions = sessions.filter(s => s !== null);
+                if (validSessions.length === 0) {
+                    container.innerHTML = '<div class="text-center text-gray-400 py-4">No tienes salas guardadas</div>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                validSessions.forEach(session => {
+                    const code = session.code;
+                    const isCurrent = code === djSessionId;
+
                     const el = document.createElement('div');
-                    el.className = 'flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 mb-2';
+                    el.className = `flex items-center justify-between p-3 rounded-lg mb-2 transition-all ${isCurrent ? 'bg-green-500/20 border border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.1)]' : 'bg-white/5 hover:bg-white/10'}`;
                     el.innerHTML = `
-                        <div class="flex-1 cursor-pointer" onclick="rejoinSessionTab('${code}')">
+                        <div class="flex-1 cursor-pointer" onclick="${isCurrent ? "showToast('Ya estás en esta sala')" : `rejoinSessionTab('${code}')`}">
                             <p class="font-bold text-white text-sm">${session.name || 'Sala sin nombre'}</p>
                             <p class="text-xs text-gray-400">Código: ${code}</p>
-                            <p class="text-xs ${sessionData.isHost ? 'text-yellow-400' : 'text-blue-400'}">${sessionData.isHost ? '👑 Anfitrión' : '🎧 Invitado'}</p>
-                            <p class="text-xs text-gray-500">${isActive ? '🟢 Activa' : '🔴 Inactiva'}</p>
+                            <p class="text-xs ${session.isHost ? 'text-yellow-400' : 'text-blue-400'}">${session.isHost ? '👑 Anfitrión' : '🎧 Invitado'}</p>
+                            <p class="text-xs ${isCurrent ? 'text-green-400' : 'text-gray-500'}">${isCurrent ? '🟢 Activa (actual)' : '🔴 Inactiva'}</p>
                         </div>
                         <button onclick="deleteSavedSession('${code}')" class="text-red-400 hover:text-red-300 p-2">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -673,6 +662,7 @@ function loadMySessionsTab() {
             });
         })
         .catch(e => {
+            console.error("Error loading sessions:", e);
             container.innerHTML = '<div class="text-center text-red-400 py-4">Error al cargar</div>';
         });
 }
@@ -684,17 +674,17 @@ function rejoinSessionTab(code) {
 
 function syncDJToTab() {
     if (!djSessionId) return;
-    
+
     document.getElementById('djInitialViewTab').classList.add('hidden');
     document.getElementById('djActiveViewTab').classList.remove('hidden');
     document.getElementById('djSessionCodeDisplayTab').innerText = djSessionId;
-    
+
     getDoc(doc(db, "sessions", djSessionId)).then(docSnap => {
         if (docSnap.exists()) {
             const data = docSnap.data();
             document.getElementById('djSessionNameDisplayTab').innerText = data.name || "Sala sin nombre";
             updateDJMembersListTab(data.members || [], data.memberNames || []);
-            
+
             if (isDjHost) {
                 document.getElementById('djHostControlsTab').classList.remove('hidden');
                 document.getElementById('djGuestControlsTab').classList.add('hidden');
@@ -709,18 +699,18 @@ function syncDJToTab() {
 function updateDJMembersListTab(members, memberNames) {
     const membersList = document.getElementById('djMembersListTab');
     if (!membersList) return;
-    
+
     membersList.innerHTML = '';
-    
+
     if (!members || members.length === 0) {
         membersList.innerHTML = '<p class="text-gray-500 text-sm">Sin integrantes</p>';
         return;
     }
-    
+
     members.forEach((memberId, index) => {
         const name = memberNames && memberNames[index] ? memberNames[index] : 'Usuario';
         const isHost = memberId === members[0];
-        
+
         const memberEl = document.createElement('div');
         memberEl.className = 'flex items-center gap-1 bg-white/10 px-2 py-1 rounded-full text-xs';
         memberEl.innerHTML = `
@@ -742,7 +732,7 @@ function leaveDJSession() {
 
     // Tab view - safely update
     const el = (id) => document.getElementById(id);
-    
+
     if (el('djInitialViewTab')) el('djInitialViewTab').classList.remove('hidden');
     if (el('djActiveViewTab')) el('djActiveViewTab').classList.add('hidden');
     if (el('djSessionCodeInputTab')) el('djSessionCodeInputTab').value = '';
@@ -761,39 +751,39 @@ function leaveDJSession() {
 // --- SAVED SESSIONS ---
 async function loadMySessions() {
     if (!currentUserUid) return;
-    
+
     const container = document.getElementById('mySessionsList');
     if (!container) return;
-    
+
     container.innerHTML = '<div class="text-center text-gray-400 py-4">Cargando...</div>';
-    
+
     try {
         const sessionsRef = collection(db, "users", currentUserUid, "sessions");
         const q = query(sessionsRef, orderBy("createdAt", "desc"));
         const snapshot = await getDocs(q);
-        
+
         if (snapshot.empty) {
             container.innerHTML = '<div class="text-center text-gray-400 py-4">No tienes salas guardadas</div>';
             return;
         }
-        
+
         container.innerHTML = '';
-        
+
         for (const docSnap of snapshot.docs) {
             const sessionData = docSnap.data();
             const code = sessionData.code;
-            
+
             // Check if session still exists
             const sessionRef = doc(db, "sessions", code);
             const sessionSnap = await getDoc(sessionRef);
-            
+
             const sessionEl = document.createElement('div');
             sessionEl.className = 'flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 mb-2';
-            
+
             if (sessionSnap.exists()) {
                 const session = sessionSnap.data();
                 const isActive = session.members && session.members.includes(currentUserUid);
-                
+
                 sessionEl.innerHTML = `
                     <div class="flex-1 cursor-pointer" onclick="rejoinSession('${code}')">
                         <p class="font-bold text-white text-sm">${session.name || 'Sala sin nombre'}</p>
@@ -812,7 +802,7 @@ async function loadMySessions() {
                 await deleteDoc(doc(db, "users", currentUserUid, "sessions", code));
                 continue;
             }
-            
+
             container.appendChild(sessionEl);
         }
     } catch (e) {
@@ -828,7 +818,7 @@ async function rejoinSession(code) {
 
 async function deleteSavedSession(code) {
     if (!currentUserUid) return;
-    
+
     try {
         await deleteDoc(doc(db, "users", currentUserUid, "sessions", code));
         showToast("Sala eliminada", "success", 2000);
@@ -2795,14 +2785,14 @@ function toggleQueue(song) {
     // DJ Mode logic
     if (djSessionId) {
         const index = queue.findIndex(s => String(s.id) === String(song.id));
-        
+
         if (index !== -1) {
             // Song is in queue - remove it
             if (currentTrack && index === currentQueueIndex) {
                 showToast("No puedes eliminar la canción que está sonando", "warning");
                 return;
             }
-            
+
             // Remove from local queue
             queue.splice(index, 1);
             if (index < currentQueueIndex) currentQueueIndex--;
@@ -2812,12 +2802,12 @@ function toggleQueue(song) {
             queue.push(song);
             showToast(`+ ${song.title}`);
         }
-        
+
         updateQueueCount();
         updateQueueIcons();
         const modal = document.getElementById('queueModal');
         if (modal && !modal.classList.contains('hidden')) showQueue();
-        
+
         // Sync to Firestore (works for both host and guests)
         updateDJSessionState();
         return;
@@ -4479,7 +4469,7 @@ function updateLyricsSync(currentTime) {
             // Only update if it's a new line
             const wasActive = document.querySelector('.lyric-line.active');
             const wasActiveIndex = wasActive ? parseInt(wasActive.dataset.index) : -1;
-            
+
             if (wasActiveIndex !== activeIndex) {
                 document.querySelectorAll('.lyric-line.active').forEach(l => l.classList.remove('active'));
                 activeLine.classList.add('active');
@@ -4491,7 +4481,7 @@ function updateLyricsSync(currentTime) {
                     const lineTop = activeLine.offsetTop;
                     const lineHeight = activeLine.clientHeight;
                     const targetScroll = lineTop - (containerHeight / 2) + (lineHeight / 2);
-                    
+
                     container.scrollTo({
                         top: targetScroll,
                         behavior: 'smooth'

@@ -1,5 +1,5 @@
-const CACHE_NAME = 'amaya-music-v165';
-// SW Version: 1.8.35 - Time: 13:47 (GMT+1) - Auto-actualización
+const CACHE_NAME = 'amaya-music-v166';
+// SW Version: 1.8.36 - Time: 15:20 (GMT+1) - Fixes Modo DJ y salas activas
 const urlsToCache = [
     './',
     './index.html',
