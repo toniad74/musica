@@ -276,7 +276,7 @@ window.onload = () => {
     const sessionCode = urlParams.get('join_session');
     if (sessionCode) {
         document.getElementById('djSessionCodeInput').value = sessionCode;
-        document.getElementById('djModeModal').classList.remove('hidden');
+        switchTab('dj');
         joinDJSession();
     }
 };
@@ -712,8 +712,6 @@ function leaveDJSession() {
     document.getElementById('djGuestControlsTab').classList.add('hidden');
 
     showToast("Has salido de la sala");
-    document.getElementById('djModeModal').classList.add('hidden');
-
     const url = new URL(window.location);
     url.searchParams.delete('join_session');
     window.history.pushState({}, '', url);
