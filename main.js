@@ -483,6 +483,12 @@ async function joinDJSession() {
                 showToast("Conectado a la sala. Sincronizando...", "success");
             }
 
+            // Limpiar estado local antes de unirse para evitar "fugas" entre salas
+            queue = [];
+            currentQueueIndex = -1;
+            updateQueueCount();
+            updateQueueIcons();
+
             subscribeToDJSession(code);
             // Refresh sessions list UI immediately if visible
             if (!document.getElementById('djMySessionsViewTab').classList.contains('hidden')) {
@@ -587,11 +593,24 @@ function leaveDJSession() {
     djSessionId = null;
     isDjHost = false;
 
-    // Resetear cola de reproducción
+    // Resetear cola de reproducción y estado de audio al salir
     queue = [];
     currentQueueIndex = -1;
+
+    // Detener reproducción si estábamos en una sala (opcional, pero recomendado para resetear el estado)
+    if (nativeAudio) {
+        nativeAudio.pause();
+        nativeAudio.src = "";
+    }
+    if (player && typeof player.stopVideo === 'function') {
+        player.stopVideo();
+    }
+    isMediaPlaying = false;
+    currentTrack = null;
+
     if (typeof updateQueueCount === 'function') updateQueueCount();
     if (typeof updateQueueIcons === 'function') updateQueueIcons();
+    if (typeof updatePlayPauseIcons === 'function') updatePlayPauseIcons(false);
     if (typeof refreshUIHighlights === 'function') refreshUIHighlights();
 
     // Helper para obtener elementos
@@ -869,6 +888,7 @@ function subscribeToDJSession(code) {
     if (djSessionUnsubscribe) djSessionUnsubscribe();
 
     const sessionRef = doc(db, "sessions", code);
+    let isFirstSnapshot = true;
 
     djSessionUnsubscribe = onSnapshot(sessionRef, (doc) => {
         if (!doc.exists()) {
@@ -879,23 +899,35 @@ function subscribeToDJSession(code) {
 
         const data = doc.data();
 
-        // Queue sync
+        // Sincronización de cola (Queue sync)
         const remoteQueue = data.queue || [];
         const localIds = queue.map(s => s.id).join(',');
         const remoteIds = remoteQueue.map(s => s.id).join(',');
 
-        if (localIds !== remoteIds || queue.length !== remoteQueue.length) {
-            console.log("DJ Mode: Syncing queue from host", remoteQueue.length, "songs");
+        // IMPORTANTE: Si es la primera carga (isFirstSnapshot), sincronizamos siempre 
+        // para que el host recupere la cola de la sala si ya existía.
+        if (isFirstSnapshot || localIds !== remoteIds || queue.length !== remoteQueue.length) {
+            console.log("DJ Mode: Syncing queue", remoteQueue.length, "songs");
             queue = remoteQueue;
             updateQueueCount();
             updateQueueIcons();
         }
 
         // Playback sync for guests
-        if (!isDjHost && data.currentTrack && (!currentTrack || currentTrack.id !== data.currentTrack.id)) {
-            console.log("DJ Mode: Host changed track to", data.currentTrack.title);
-            playSong(data.currentTrack, queue, true, true);
+        if (!isDjHost && data.currentTrack) {
+            if (!currentTrack || currentTrack.id !== data.currentTrack.id) {
+                console.log("DJ Mode: Host changed track to", data.currentTrack.title);
+                playSong(data.currentTrack, queue, true, true);
+            }
         }
+
+        // El host no sincroniza track de vuelta (él es el origen), pero sí carga el inicial si no tiene nada
+        if (isDjHost && isFirstSnapshot && data.currentTrack && !currentTrack) {
+            currentTrack = data.currentTrack;
+            refreshUIHighlights();
+        }
+
+        isFirstSnapshot = false;
 
         if (!isDjHost && data.isPlaying !== isMediaPlaying) {
             if (data.isPlaying) {
