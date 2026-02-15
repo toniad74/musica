@@ -507,11 +507,15 @@ function editDJSessionName() {
         nameInput.classList.add('hidden');
         nameDisplay.classList.remove('hidden');
 
-        if (djSessionId && isDjHost) {
+        if (djSessionId) {
             const sessionRef = doc(db, "sessions", djSessionId);
-            updateDoc(sessionRef, { name: newName });
-            nameDisplay.innerText = newName;
-            showToast("Nombre actualizado");
+            updateDoc(sessionRef, { name: newName }).then(() => {
+                nameDisplay.innerText = newName;
+                showToast("Nombre actualizado");
+            }).catch(e => {
+                console.error("Error updating name:", e);
+                showToast("Error al actualizar el nombre", "error");
+            });
         }
     }
 }
@@ -601,6 +605,31 @@ function loadMySessionsTab() {
     const container = document.getElementById('mySessionsListTab');
     if (!container) return;
     
+    // Si hay una sesión activa, mostrarla primero
+    if (djSessionId) {
+        getDoc(doc(db, "sessions", djSessionId)).then(sessionSnap => {
+            if (sessionSnap.exists()) {
+                const session = sessionSnap.data();
+                const isActive = session.members && session.members.includes(currentUserUid);
+                
+                container.innerHTML = '';
+                const el = document.createElement('div');
+                el.className = 'flex items-center justify-between p-3 rounded-lg bg-green-500/20 border border-green-500/30 mb-2';
+                el.innerHTML = `
+                    <div class="flex-1 cursor-pointer" onclick="showToast('Ya estás en esta sala')">
+                        <p class="font-bold text-white text-sm">${session.name || 'Sala sin nombre'}</p>
+                        <p class="text-xs text-gray-400">Código: ${djSessionId}</p>
+                        <p class="text-xs ${isDjHost ? 'text-yellow-400' : 'text-blue-400'}">${isDjHost ? '👑 Anfitrión' : '🎧 Invitado'}</p>
+                        <p class="text-xs text-green-400">🟢 Activa (actual)</p>
+                    </div>
+                `;
+                container.appendChild(el);
+            }
+        });
+        return;
+    }
+    
+    // Si no hay sesión activa, mostrar lista de salas guardadas
     container.innerHTML = '<div class="text-center text-gray-400 py-4">Cargando...</div>';
     
     getDocs(query(collection(db, "users", currentUserUid, "sessions"), orderBy("createdAt", "desc")))
