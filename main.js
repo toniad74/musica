@@ -417,8 +417,10 @@ async function createDJSession() {
 }
 
 async function joinDJSession() {
+    // Use tab input if available, otherwise use modal input
+    const codeInputTab = document.getElementById('djSessionCodeInputTab');
     const codeInput = document.getElementById('djSessionCodeInput');
-    let code = codeInput.value.toUpperCase().trim();
+    let code = (codeInputTab ? codeInputTab.value : (codeInput ? codeInput.value : '')).toUpperCase().trim();
 
     if (!code) {
         const urlParams = new URLSearchParams(window.location.search);
@@ -473,11 +475,11 @@ async function joinDJSession() {
             updateDJMembersListTab(docSnap.data().members || [], docSnap.data().memberNames || []);
 
             if (isDjHost) {
-                document.getElementById('djHostControls').classList.remove('hidden');
-                document.getElementById('djGuestControls').classList.add('hidden');
+                document.getElementById('djHostControlsTab').classList.remove('hidden');
+                document.getElementById('djGuestControlsTab').classList.add('hidden');
             } else {
-                document.getElementById('djHostControls').classList.add('hidden');
-                document.getElementById('djGuestControls').classList.remove('hidden');
+                document.getElementById('djHostControlsTab').classList.add('hidden');
+                document.getElementById('djGuestControlsTab').classList.remove('hidden');
                 showToast("Conectado a la sala. Sincronizando...", "success");
             }
 
@@ -492,8 +494,8 @@ async function joinDJSession() {
 }
 
 function editDJSessionName() {
-    const nameDisplay = document.getElementById('djSessionNameDisplay');
-    const nameInput = document.getElementById('djSessionNameInputEdit');
+    const nameDisplay = document.getElementById('djSessionNameDisplayTab');
+    const nameInput = document.getElementById('djSessionNameInputEditTab');
 
     if (nameInput.classList.contains('hidden')) {
         nameInput.value = nameDisplay.innerText;
@@ -550,11 +552,10 @@ function createDJSessionTab() {
 }
 
 function joinDJSessionTab() {
-    const codeInput = document.getElementById('djSessionCodeInputTab');
-    document.getElementById('djSessionCodeInput').value = codeInput.value;
-    
     joinDJSession().then(() => {
-        syncDJToTab();
+        // Clear input after joining
+        const codeInputTab = document.getElementById('djSessionCodeInputTab');
+        if (codeInputTab) codeInputTab.value = '';
     });
 }
 
