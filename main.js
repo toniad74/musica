@@ -3781,6 +3781,7 @@ function switchTab(tab) {
     if (tabDj) tabDj.classList.toggle('active', tab === 'dj');
 
     const searchInputSection = document.getElementById('searchInputSection');
+    const mainElement = document.querySelector('main');
 
     if (tab === 'playlists') {
         homeSection.classList.remove('hidden');
@@ -3789,6 +3790,7 @@ function switchTab(tab) {
         if (newsSection) newsSection.classList.add('hidden');
         if (searchInputSection) searchInputSection.classList.add('hidden');
         if (djSection) djSection.classList.add('hidden');
+        if (mainElement) mainElement.style.overflowY = 'auto';
         renderHomePlaylists();
         activePlaylistId = null;
     } else if (tab === 'search') {
@@ -3798,6 +3800,7 @@ function switchTab(tab) {
         if (newsSection) newsSection.classList.add('hidden');
         if (searchInputSection) searchInputSection.classList.remove('hidden');
         if (djSection) djSection.classList.add('hidden');
+        if (mainElement) mainElement.style.overflowY = 'auto';
     } else if (tab === 'news') {
         homeSection.classList.add('hidden');
         resultsSection.classList.add('hidden');
@@ -3805,6 +3808,7 @@ function switchTab(tab) {
         if (newsSection) newsSection.classList.remove('hidden');
         if (searchInputSection) searchInputSection.classList.add('hidden');
         if (djSection) djSection.classList.add('hidden');
+        if (mainElement) mainElement.style.overflowY = 'auto';
 
         // Auto-load news if section is now visible and not loaded
         if (!isNewsLoaded) {
@@ -3817,6 +3821,10 @@ function switchTab(tab) {
         if (newsSection) newsSection.classList.add('hidden');
         if (searchInputSection) searchInputSection.classList.add('hidden');
         if (djSection) djSection.classList.remove('hidden');
+        if (mainElement) {
+            mainElement.style.overflowY = 'hidden';
+            mainElement.scrollTop = 0;
+        }
     }
 }
 
