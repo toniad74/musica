@@ -11,6 +11,29 @@
     --accent-glow: 0 0 20px rgba(30, 215, 96, 0.4);
     --card-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
     --island-padding: 24px;
+    --gold-accent: #FFD700;
+}
+
+/* --- GOLD EDITION --- */
+.gold-edition-text {
+    color: var(--gold-accent) !important;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+
+.gold-edition-glow {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.3) !important;
+    border-color: rgba(255, 215, 0, 0.4) !important;
+}
+
+.badge-gold {
+    background: linear-gradient(135deg, #FFD700 0%, #B8860B 100%);
+    color: #000;
+    font-weight: 900;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
 }
 
 .text-green-500,
