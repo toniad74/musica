@@ -633,9 +633,20 @@ function showMySessionsTab() {
 }
 
 function backToDJInitialTab() {
-    document.getElementById('djMySessionsViewTab').classList.add('hidden');
-    document.getElementById('djInitialViewTab').classList.remove('hidden');
-    document.getElementById('djActiveViewTab').classList.add('hidden');
+    const djMySessionsViewTab = document.getElementById('djMySessionsViewTab');
+    const djInitialViewTab = document.getElementById('djInitialViewTab');
+    const djActiveViewTab = document.getElementById('djActiveViewTab');
+
+    if (djMySessionsViewTab) djMySessionsViewTab.classList.add('hidden');
+
+    if (djSessionId) {
+        if (djActiveViewTab) djActiveViewTab.classList.remove('hidden');
+        if (djInitialViewTab) djInitialViewTab.classList.add('hidden');
+        syncDJToTab();
+    } else {
+        if (djInitialViewTab) djInitialViewTab.classList.remove('hidden');
+        if (djActiveViewTab) djActiveViewTab.classList.add('hidden');
+    }
 }
 
 function loadMySessionsTab() {
@@ -3850,6 +3861,18 @@ function switchTab(tab) {
         if (mainElement) {
             mainElement.style.overflowY = 'hidden';
             mainElement.scrollTop = 0;
+        }
+
+        // Si hay una sesión activa, asegurar que vemos la vista activa
+        if (djSessionId) {
+            syncDJToTab();
+        } else {
+            // Si no hay sesión y no estamos explícitamente en "Mis Salas", volver al inicio
+            const mySessionsVisible = !document.getElementById('djMySessionsViewTab').classList.contains('hidden');
+            if (!mySessionsVisible) {
+                if (document.getElementById('djInitialViewTab')) document.getElementById('djInitialViewTab').classList.remove('hidden');
+                if (document.getElementById('djActiveViewTab')) document.getElementById('djActiveViewTab').classList.add('hidden');
+            }
         }
     }
 }
