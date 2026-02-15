@@ -3777,6 +3777,7 @@ function switchTab(tab) {
         playlistView.classList.add('hidden');
         if (newsSection) newsSection.classList.add('hidden');
         if (searchInputSection) searchInputSection.classList.add('hidden');
+        if (djSection) djSection.classList.add('hidden');
         renderHomePlaylists();
         activePlaylistId = null;
     } else if (tab === 'search') {
@@ -3785,12 +3786,13 @@ function switchTab(tab) {
         playlistView.classList.add('hidden');
         if (newsSection) newsSection.classList.add('hidden');
         if (searchInputSection) searchInputSection.classList.remove('hidden');
+        if (djSection) djSection.classList.add('hidden');
     } else if (tab === 'news') {
         homeSection.classList.add('hidden');
-        resultsSection.classList.add('hidden'); // Added
+        resultsSection.classList.add('hidden');
         playlistView.classList.add('hidden');
         if (newsSection) newsSection.classList.remove('hidden');
-        if (searchInputSection) searchInputSection.classList.add('hidden'); // Added
+        if (searchInputSection) searchInputSection.classList.add('hidden');
         if (djSection) djSection.classList.add('hidden');
 
         // Auto-load news if section is now visible and not loaded
