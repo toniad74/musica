@@ -1,5 +1,5 @@
-const CACHE_NAME = 'amaya-music-v177';
-// SW Version: 1.8.47 (GOLD) - Time: 16:57 (GMT+1) - Estabilidad Gold
+const CACHE_NAME = 'amaya-music-v178';
+// SW Version: 1.8.48 - Time: 17:11 (GMT+1)
 const urlsToCache = [
     './',
     './index.html',

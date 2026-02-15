@@ -14,7 +14,7 @@
     --gold-accent: #FFD700;
 }
 
-/* --- GOLD EDITION --- */
+/* --- EDITION --- */
 .gold-edition-text {
     color: var(--gold-accent) !important;
     text-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
