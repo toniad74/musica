@@ -559,9 +559,28 @@ function joinDJSessionTab() {
     });
 }
 
+function djLeaveSession() {
+    if (djSessionUnsubscribe) {
+        djSessionUnsubscribe();
+        djSessionUnsubscribe = null;
+    }
+    djSessionId = null;
+    isDjHost = false;
+
+    var el = function(id) { return document.getElementById(id); };
+    if (el('djInitialViewTab')) el('djInitialViewTab').classList.remove('hidden');
+    if (el('djActiveViewTab')) el('djActiveViewTab').classList.add('hidden');
+    if (el('djHostControlsTab')) el('djHostControlsTab').classList.add('hidden');
+    if (el('djGuestControlsTab')) el('djGuestControlsTab').classList.add('hidden');
+
+    showToast("Has salido de la sala");
+    var url = new URL(window.location);
+    url.searchParams.delete('join_session');
+    window.history.pushState({}, '', url);
+}
+
 function leaveDJSessionTab() {
-    leaveDJSession();
-    backToDJInitialTab();
+    djLeaveSession();
 }
 
 function showMySessionsTab() {
@@ -5488,6 +5507,7 @@ Object.assign(window, {
     leaveDJSessionTab,
     showMySessionsTab,
     backToDJInitialTab,
+    djLeaveSession,
     loadMySessionsTab,
     rejoinSessionTab,
     syncDJToTab,
