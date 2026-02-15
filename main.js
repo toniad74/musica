@@ -535,6 +535,155 @@ function updateDJMembersList(members, memberNames) {
     });
 }
 
+// --- DJ TAB FUNCTIONS ---
+
+function createDJSessionTab() {
+    const nameInput = document.getElementById('djSessionNameInputTab');
+    const sessionName = nameInput.value.trim() || "Sala sin nombre";
+    
+    // Set values for createDJSession to use
+    document.getElementById('djSessionNameInput').value = sessionName;
+    
+    createDJSession().then(() => {
+        // Sync to tab view
+        syncDJToTab();
+    });
+}
+
+function joinDJSessionTab() {
+    const codeInput = document.getElementById('djSessionCodeInputTab');
+    document.getElementById('djSessionCodeInput').value = codeInput.value;
+    
+    joinDJSession().then(() => {
+        syncDJToTab();
+    });
+}
+
+function leaveDJSessionTab() {
+    leaveDJSession();
+    backToDJInitialTab();
+}
+
+function showMySessionsTab() {
+    document.getElementById('djInitialViewTab').classList.add('hidden');
+    document.getElementById('djMySessionsViewTab').classList.remove('hidden');
+    loadMySessionsTab();
+}
+
+function backToDJInitialTab() {
+    document.getElementById('djMySessionsViewTab').classList.add('hidden');
+    document.getElementById('djInitialViewTab').classList.remove('hidden');
+    document.getElementById('djActiveViewTab').classList.add('hidden');
+}
+
+function loadMySessionsTab() {
+    if (!currentUserUid) return;
+    
+    const container = document.getElementById('mySessionsListTab');
+    if (!container) return;
+    
+    container.innerHTML = '<div class="text-center text-gray-400 py-4">Cargando...</div>';
+    
+    getDocs(query(collection(db, "users", currentUserUid, "sessions"), orderBy("createdAt", "desc")))
+        .then(snapshot => {
+            if (snapshot.empty) {
+                container.innerHTML = '<div class="text-center text-gray-400 py-4">No tienes salas guardadas</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            snapshot.forEach(docSnap => {
+                const sessionData = docSnap.data();
+                const code = sessionData.code;
+                
+                getDoc(doc(db, "sessions", code)).then(sessionSnap => {
+                    const el = document.createElement('div');
+                    el.className = 'flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 mb-2';
+                    
+                    if (sessionSnap.exists()) {
+                        const session = sessionSnap.data();
+                        const isActive = session.members && session.members.includes(currentUserUid);
+                        
+                        el.innerHTML = `
+                            <div class="flex-1 cursor-pointer" onclick="rejoinSessionTab('${code}')">
+                                <p class="font-bold text-white text-sm">${session.name || 'Sala sin nombre'}</p>
+                                <p class="text-xs text-gray-400">Código: ${code}</p>
+                                <p class="text-xs ${sessionData.isHost ? 'text-yellow-400' : 'text-blue-400'}">${sessionData.isHost ? '👑 Anfitrión' : '🎧 Invitado'}</p>
+                                <p class="text-xs text-gray-500">${isActive ? '🟢 Activa' : '🔴 Inactiva'}</p>
+                            </div>
+                            <button onclick="deleteSavedSession('${code}')" class="text-red-400 hover:text-red-300 p-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        `;
+                    } else {
+                        el.innerHTML = `<p class="text-red-400 text-sm">Sala eliminada</p>`;
+                    }
+                    
+                    container.appendChild(el);
+                });
+            });
+        })
+        .catch(e => {
+            container.innerHTML = '<div class="text-center text-red-400 py-4">Error al cargar</div>';
+        });
+}
+
+function rejoinSessionTab(code) {
+    document.getElementById('djSessionCodeInputTab').value = code;
+    joinDJSessionTab();
+}
+
+function syncDJToTab() {
+    if (!djSessionId) return;
+    
+    document.getElementById('djInitialViewTab').classList.add('hidden');
+    document.getElementById('djActiveViewTab').classList.remove('hidden');
+    document.getElementById('djSessionCodeDisplayTab').innerText = djSessionId;
+    
+    getDoc(doc(db, "sessions", djSessionId)).then(docSnap => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            document.getElementById('djSessionNameDisplayTab').innerText = data.name || "Sala sin nombre";
+            updateDJMembersListTab(data.members || [], data.memberNames || []);
+            
+            if (isDjHost) {
+                document.getElementById('djHostControlsTab').classList.remove('hidden');
+                document.getElementById('djGuestControlsTab').classList.add('hidden');
+            } else {
+                document.getElementById('djHostControlsTab').classList.add('hidden');
+                document.getElementById('djGuestControlsTab').classList.remove('hidden');
+            }
+        }
+    });
+}
+
+function updateDJMembersListTab(members, memberNames) {
+    const membersList = document.getElementById('djMembersListTab');
+    if (!membersList) return;
+    
+    membersList.innerHTML = '';
+    
+    if (!members || members.length === 0) {
+        membersList.innerHTML = '<p class="text-gray-500 text-sm">Sin integrantes</p>';
+        return;
+    }
+    
+    members.forEach((memberId, index) => {
+        const name = memberNames && memberNames[index] ? memberNames[index] : 'Usuario';
+        const isHost = memberId === members[0];
+        
+        const memberEl = document.createElement('div');
+        memberEl.className = 'flex items-center gap-1 bg-white/10 px-2 py-1 rounded-full text-xs';
+        memberEl.innerHTML = `
+            <span class="text-white">${name}</span>
+            ${isHost ? '<span class="text-yellow-400">👑</span>' : ''}
+        `;
+        membersList.appendChild(memberEl);
+    });
+}
+
 function leaveDJSession() {
     if (djSessionUnsubscribe) {
         djSessionUnsubscribe();
@@ -696,6 +845,7 @@ function subscribeToDJSession(code) {
         // Update members list
         if (data.members) {
             updateDJMembersList(data.members || [], data.memberNames || []);
+            updateDJMembersListTab(data.members || [], data.memberNames || []);
         }
     });
 }
@@ -3591,9 +3741,11 @@ function switchTab(tab) {
     const resultsSection = document.getElementById('resultsSection');
     const playlistView = document.getElementById('playlistView');
     const newsSection = document.getElementById('newsSection');
+    const djSection = document.getElementById('djSection');
     const tabPlaylists = document.getElementById('tab-playlists');
     const tabSearch = document.getElementById('tab-search');
     const tabNews = document.getElementById('tab-news');
+    const tabDj = document.getElementById('tab-dj');
 
     // RESTRICCIÓN: Login obligatorio para Buscar y Novedades
     if ((tab === 'search' || tab === 'news') && !currentUserUid) {
@@ -3605,6 +3757,7 @@ function switchTab(tab) {
     if (tabPlaylists) tabPlaylists.classList.toggle('active', tab === 'playlists');
     if (tabSearch) tabSearch.classList.toggle('active', tab === 'search');
     if (tabNews) tabNews.classList.toggle('active', tab === 'news');
+    if (tabDj) tabDj.classList.toggle('active', tab === 'dj');
 
     const searchInputSection = document.getElementById('searchInputSection');
 
@@ -3628,11 +3781,19 @@ function switchTab(tab) {
         playlistView.classList.add('hidden');
         if (newsSection) newsSection.classList.remove('hidden');
         if (searchInputSection) searchInputSection.classList.add('hidden'); // Added
+        if (djSection) djSection.classList.add('hidden');
 
         // Auto-load news if section is now visible and not loaded
         if (!isNewsLoaded) {
             loadNewReleases();
         }
+    } else if (tab === 'dj') {
+        homeSection.classList.add('hidden');
+        resultsSection.classList.add('hidden');
+        playlistView.classList.add('hidden');
+        if (newsSection) newsSection.classList.add('hidden');
+        if (searchInputSection) searchInputSection.classList.add('hidden');
+        if (djSection) djSection.classList.remove('hidden');
     }
 }
 
@@ -5315,7 +5476,16 @@ Object.assign(window, {
     rejoinSession,
     deleteSavedSession,
     showMySessions,
-    backToDJInitial
+    backToDJInitial,
+    createDJSessionTab,
+    joinDJSessionTab,
+    leaveDJSessionTab,
+    showMySessionsTab,
+    backToDJInitialTab,
+    loadMySessionsTab,
+    rejoinSessionTab,
+    syncDJToTab,
+    updateDJMembersListTab
 });
 
 console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE");
