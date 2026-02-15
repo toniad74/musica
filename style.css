@@ -232,6 +232,20 @@ button.in-queue svg {
     transform: translateY(-1px);
 }
 
+/* DJ Session Active Color */
+.tab-dj-active {
+    color: #ff5252 !important;
+    /* Material Red */
+    border-color: rgba(255, 82, 82, 0.3) !important;
+    text-shadow: 0 0 10px rgba(255, 82, 82, 0.2);
+}
+
+.tab-dj-active.active {
+    background: rgba(255, 82, 82, 0.15) !important;
+    box-shadow: 0 0 20px rgba(255, 82, 82, 0.2) !important;
+    border-color: rgba(255, 82, 82, 0.5) !important;
+}
+
 @media (max-width: 768px) {
     .tabs-container {
         gap: 6px;

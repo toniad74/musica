@@ -410,6 +410,7 @@ async function createDJSession() {
 
         showToast(`Sala "${sessionName}" creada: ${code}`);
         subscribeToDJSession(code);
+        updateDJTabStyle();
     } catch (e) {
         console.error("Error creating session:", e);
         showToast("Error al crear la sala", "error");
@@ -490,6 +491,7 @@ async function joinDJSession() {
             updateQueueIcons();
 
             subscribeToDJSession(code);
+            updateDJTabStyle();
             // Refresh sessions list UI immediately if visible
             if (!document.getElementById('djMySessionsViewTab').classList.contains('hidden')) {
                 loadMySessionsTab();
@@ -562,6 +564,16 @@ function updateDJMembersList(members, memberNames) {
     });
 }
 
+function updateDJTabStyle() {
+    const tabDj = document.getElementById('tab-dj');
+    if (!tabDj) return;
+    if (djSessionId) {
+        tabDj.classList.add('tab-dj-active');
+    } else {
+        tabDj.classList.remove('tab-dj-active');
+    }
+}
+
 // --- DJ TAB FUNCTIONS ---
 
 function createDJSessionTab() {
@@ -612,6 +624,7 @@ function leaveDJSession() {
     if (typeof updateQueueIcons === 'function') updateQueueIcons();
     if (typeof updatePlayPauseIcons === 'function') updatePlayPauseIcons(false);
     if (typeof refreshUIHighlights === 'function') refreshUIHighlights();
+    updateDJTabStyle();
 
     // Helper para obtener elementos
     const el = (id) => document.getElementById(id);
@@ -1007,6 +1020,7 @@ async function loginWithGoogle() {
 
 async function logout() {
     try {
+        if (djSessionId) leaveDJSession();
         await signOut(auth);
 
         // Stop Playback Forcefully
