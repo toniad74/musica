@@ -693,12 +693,23 @@ function leaveDJSession() {
     djSessionId = null;
     isDjHost = false;
 
+    // Modal view
     document.getElementById('djInitialView').classList.remove('hidden');
     document.getElementById('djActiveView').classList.add('hidden');
     document.getElementById('djSessionCodeInput').value = '';
     document.getElementById('djSessionNameInput').value = '';
     document.getElementById('djSessionNameInputEdit').classList.add('hidden');
     document.getElementById('djSessionNameDisplay').classList.remove('hidden');
+
+    // Tab view
+    document.getElementById('djInitialViewTab').classList.remove('hidden');
+    document.getElementById('djActiveViewTab').classList.add('hidden');
+    document.getElementById('djSessionCodeInputTab').value = '';
+    document.getElementById('djSessionNameInputTab').value = '';
+    document.getElementById('djSessionNameInputEditTab').classList.add('hidden');
+    document.getElementById('djSessionNameDisplayTab').classList.remove('hidden');
+    document.getElementById('djHostControlsTab').classList.add('hidden');
+    document.getElementById('djGuestControlsTab').classList.add('hidden');
 
     showToast("Has salido de la sala");
     document.getElementById('djModeModal').classList.add('hidden');
