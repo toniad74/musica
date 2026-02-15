@@ -484,6 +484,10 @@ async function joinDJSession() {
             }
 
             subscribeToDJSession(code);
+            // Refresh sessions list UI immediately if visible
+            if (!document.getElementById('djMySessionsViewTab').classList.contains('hidden')) {
+                loadMySessionsTab();
+            }
         } else {
             showToast("Sala no encontrada", "error");
         }
@@ -588,6 +592,11 @@ function djLeaveSession() {
     var url = new URL(window.location);
     url.searchParams.delete('join_session');
     window.history.pushState({}, '', url);
+
+    // Refresh sessions list UI if visible
+    if (!document.getElementById('djMySessionsViewTab').classList.contains('hidden')) {
+        loadMySessionsTab();
+    }
 }
 
 function leaveDJSessionTab() {
@@ -746,6 +755,11 @@ function leaveDJSession() {
     const url = new URL(window.location);
     url.searchParams.delete('join_session');
     window.history.pushState({}, '', url);
+
+    // Refresh sessions list UI if visible
+    if (!document.getElementById('djMySessionsViewTab').classList.contains('hidden')) {
+        loadMySessionsTab();
+    }
 }
 
 // --- SAVED SESSIONS ---
