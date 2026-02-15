@@ -637,7 +637,7 @@ function loadMySessionsTab() {
                             </button>
                         `;
                     } else {
-                        el.innerHTML = `<p class="text-red-400 text-sm">Sala eliminada</p>`;
+                        el.innerHTML = `<p class="text-red-400 text-sm">Sala inactiva</p>`;
                     }
                     
                     container.appendChild(el);
