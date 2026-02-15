@@ -587,6 +587,13 @@ function leaveDJSession() {
     djSessionId = null;
     isDjHost = false;
 
+    // Resetear cola de reproducción
+    queue = [];
+    currentQueueIndex = -1;
+    if (typeof updateQueueCount === 'function') updateQueueCount();
+    if (typeof updateQueueIcons === 'function') updateQueueIcons();
+    if (typeof refreshUIHighlights === 'function') refreshUIHighlights();
+
     // Helper para obtener elementos
     const el = (id) => document.getElementById(id);
 
