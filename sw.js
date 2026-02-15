@@ -1,5 +1,5 @@
-const CACHE_NAME = 'amaya-music-v168';
-// SW Version: 1.8.38 - Time: 15:53 (GMT+1) - Consolidación salida de sala DJ
+const CACHE_NAME = 'amaya-music-v169';
+// SW Version: 1.8.39 - Time: 15:58 (GMT+1) - Indicador visual verde en pestaña DJ activo
 const urlsToCache = [
     './',
     './index.html',
