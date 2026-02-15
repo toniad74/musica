@@ -142,11 +142,11 @@
                         class="hidden absolute top-full left-0 right-0 mt-2 bg-[#282828] rounded-xl shadow-2xl border border-white/10 z-50 overflow-hidden">
                         <div class="p-4 border-b border-white/5">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Versión</p>
-                            <p class="text-white text-sm">v1.8.29</p>
+                            <p class="text-white text-sm">v1.8.30</p>
                             <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                 Actualizado
                             </p>
-                            <p class="text-white text-sm">15 feb 2026 02:41</p>
+                            <p class="text-white text-sm">15 feb 2026 02:52</p>
                         </div>
                         <button onclick="showReport()"
                             class="w-full text-left px-4 py-3 text-sm text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -260,11 +260,11 @@
                                     <div class="p-3 border-b border-white/5">
                                         <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">
                                             Versión</p>
-                                        <p class="text-white text-xs">v1.8.29</p>
+                                        <p class="text-white text-xs">v1.8.30</p>
                                         <p
                                             class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                             Actualizado</p>
-                                        <p class="text-white text-xs">15 feb 2026 02:41</p>
+                                        <p class="text-white text-xs">15 feb 2026 02:52</p>
                                     </div>
                                     <button onclick="showReport()"
                                         class="w-full text-left px-3 py-3 text-xs text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -371,11 +371,11 @@
                 <!-- Search Section -->
                 <div id="searchInputSection" class="mb-4 px-1 md:px-6">
                     <form onsubmit="event.preventDefault(); searchMusic();"
-                        class="w-full max-w-2xl mx-auto flex flex-col sm:flex-row gap-2">
+                        class="w-full lg:w-3/4 xl:w-2/3 mx-auto flex flex-col sm:flex-row gap-2">
                         <div class="flex-1 relative group">
                             <input type="text" id="searchInput"
                                 placeholder="¿Qué quieres escuchar? (ej: 'Artista Canción audio')"
-                                class="w-full bg-[#242424] border-none text-white px-4 py-2 pr-12 rounded-full focus:outline-none focus:ring-2 focus:ring-white text-base"
+                                class="w-full bg-[#242424] border-none text-white px-4 py-2 lg:py-3 pr-12 rounded-full focus:outline-none focus:ring-2 focus:ring-white text-base lg:text-lg"
                                 oninput="toggleClearButton()">
                             <button type="button" id="clearSearchBtn" onclick="clearSearch()"
                                 class="hidden absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-2 transition-colors"
@@ -387,7 +387,7 @@
                             </button>
                         </div>
                         <button type="submit"
-                            class="bg-white hover:scale-105 px-6 py-2 rounded-full font-bold transition-all text-black flex items-center justify-center gap-2">
+                            class="bg-white hover:scale-105 px-6 py-2 lg:py-3 rounded-full font-bold transition-all text-black flex items-center justify-center gap-2">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -415,17 +415,17 @@
 
 
                 <!-- Home Section (Playlists List) -->
-                <div id="homeSection" class="px-1 md:px-6">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-2xl font-bold">Tu Biblioteca</h2>
+                <div id="homeSection" class="px-1 md:px-6 lg:px-12">
+                    <div class="flex items-center justify-between mb-6 lg:mb-10">
+                        <h2 class="text-2xl lg:text-4xl font-bold">Tu Biblioteca</h2>
                         <div class="flex items-center gap-2">
                             <button onclick="showCreatePlaylistModal()"
-                                class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-sm font-bold transition-all">
+                                class="bg-white/10 hover:bg-white/20 px-4 lg:px-6 py-2 lg:py-3 rounded-full text-sm lg:text-base font-bold transition-all">
                                 Crear
                             </button>
                         </div>
                     </div>
-                    <div id="homePlaylistsList" class="space-y-2">
+                    <div id="homePlaylistsList" class="space-y-2 lg:space-y-3">
                         <!-- Playlists rows will be injected here -->
                     </div>
                 </div>
@@ -469,8 +469,8 @@
                                     <span class="text-sm font-semibold">Volver</span>
                                 </button>
                             </div>
-                            <h1 id="playlistTitle" class="text-xl md:text-5xl font-black mt-2 mb-1 block"></h1>
-                            <p id="playlistInfo" class="text-gray-400 text-xs md:text-sm block"></p>
+                            <h1 id="playlistTitle" class="text-xl md:text-5xl lg:text-6xl font-black mt-2 mb-1 block"></h1>
+                            <p id="playlistInfo" class="text-gray-400 text-xs md:text-sm lg:text-base block"></p>
 
                             <!-- Mobile Actions REMOVED -->
                         </div>
@@ -523,9 +523,9 @@
                 </div>
 
                 <!-- Results Section -->
-                <div id="resultsSection" class="hidden px-1 md:px-6">
-                    <h2 class="text-2xl font-bold mb-6">Resultados</h2>
-                    <div class="bg-[#181818] rounded-lg overflow-hidden">
+                <div id="resultsSection" class="hidden px-1 md:px-6 lg:px-12">
+                    <h2 class="text-2xl lg:text-4xl font-bold mb-6 lg:mb-10">Resultados</h2>
+                    <div class="bg-[#181818] rounded-lg overflow-hidden p-2 lg:p-4">
                         <div id="resultsGrid"></div>
                         <!-- Search Pagination -->
                         <div id="searchPagination"
@@ -546,11 +546,11 @@
                 </div>
 
                 <!-- News Section -->
-                <div id="newsSection" class="hidden px-1 md:px-6 pb-12">
-                    <div class="flex items-center justify-between mb-8">
+                <div id="newsSection" class="hidden px-1 md:px-6 lg:px-12 pb-12">
+                    <div class="flex items-center justify-between mb-8 lg:mb-12">
                         <div>
-                            <h2 class="text-2xl md:text-3xl font-black">Novedades</h2>
-                            <p class="text-gray-400 text-sm mt-1">Lo más escuchado en YouTube Music</p>
+                            <h2 class="text-2xl md:text-3xl lg:text-4xl font-black">Novedades</h2>
+                            <p class="text-gray-400 text-sm lg:text-base mt-1">Lo más escuchado en YouTube Music</p>
                         </div>
                         <button onclick="loadNewReleases(true)"
                             class="bg-white/5 hover:bg-white/10 p-3 rounded-full transition-all group"
@@ -672,12 +672,12 @@
 
     <!-- Player Bar -->
     <div id="playerSection"
-        class="hidden fixed bottom-4 left-4 right-4 glass-panel rounded-2xl px-4 py-3 z-50 flex items-center justify-between h-20 transition-all duration-300">
+        class="hidden fixed bottom-4 left-4 right-4 glass-panel rounded-2xl px-4 py-3 z-50 flex items-center justify-between h-20 lg:h-24 transition-all duration-300">
         <!-- Left: Song Info -->
         <div class="flex items-center gap-4 w-1/3 min-w-0">
             <button onclick="openMobilePlayer()"
                 class="relative group cursor-pointer hover:opacity-80 transition-opacity" title="Ampliar">
-                <img id="currentThumbnail" src="" class="h-14 w-14 rounded-lg object-cover shadow-lg hidden sm:block">
+                <img id="currentThumbnail" src="" class="h-14 w-14 lg:h-20 lg:w-20 rounded-lg object-cover shadow-lg hidden sm:block">
                 <div id="equalizer"
                     class="absolute inset-0 flex items-center justify-center bg-black/40 rounded-lg hidden">
                     <div class="equalizer-bars">
@@ -698,10 +698,10 @@
             </button>
             <div class="min-w-0 flex-1 overflow-hidden">
                 <div class="marquee-container">
-                    <h3 id="currentTitle" class="marquee-content text-white font-medium text-sm"></h3>
+                    <h3 id="currentTitle" class="marquee-content text-white font-medium text-sm lg:text-base"></h3>
                 </div>
                 <div class="flex items-center gap-2 mt-0.5">
-                    <p id="currentChannel" class="marquee-content text-[#b3b3b3] text-xs truncate"></p>
+                    <p id="currentChannel" class="marquee-content text-[#b3b3b3] text-xs lg:text-sm truncate"></p>
                     <span id="adFreeBadge"
                         class="hidden flex items-center gap-1 text-[9px] font-bold text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/20">
                         <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
@@ -800,7 +800,8 @@
                         d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
                 </svg>
             </button>
-            <div class="w-24 h-1 relative group flex items-center">
+            <!-- Volume Slider - Only visible on desktop -->
+            <div class="w-0 lg:w-24 h-1 relative group flex items-center overflow-hidden transition-all duration-300">
                 <input type="range" id="volumeBar" class="spotify-range absolute inset-0 w-full h-1 z-10" min="0"
                     max="100" value="100">
                 <div class="w-full h-1 bg-[#4d4d4d] rounded-full overflow-hidden pointer-events-none absolute">
