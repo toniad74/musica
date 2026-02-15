@@ -314,8 +314,13 @@ function setupAuthListener() {
             loadPlaylistsFromCloud();
 
             // Unlock UI
-            document.getElementById('loginOverlay').classList.add('hidden', 'opacity-0');
-            document.getElementById('appContent').classList.remove('hidden');
+            const loginOverlay = document.getElementById('loginOverlay');
+            if (loginOverlay) {
+                loginOverlay.classList.add('hidden');
+                loginOverlay.classList.add('opacity-0');
+            }
+            const appContent = document.getElementById('appContent');
+            if (appContent) appContent.classList.remove('hidden');
 
             // Redirect to Search on login
             switchTab('search');
@@ -326,8 +331,12 @@ function setupAuthListener() {
             currentUserUid = null;
 
             // Lock UI
-            document.getElementById('loginOverlay').classList.remove('hidden', 'opacity-0');
-            document.getElementById('appContent').classList.add('hidden');
+            const loginOverlay = document.getElementById('loginOverlay');
+            if (loginOverlay) {
+                loginOverlay.classList.remove('hidden', 'opacity-0');
+            }
+            const appContent = document.getElementById('appContent');
+            if (appContent) appContent.classList.add('hidden');
 
             // Toggle Desktop UI
             const loggedOutUI = document.getElementById('loggedOutUI');
