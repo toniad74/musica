@@ -410,7 +410,6 @@ async function createDJSession() {
 
         showToast(`Sala "${sessionName}" creada: ${code}`);
         subscribeToDJSession(code);
-        updateDJTabStatus();
     } catch (e) {
         console.error("Error creating session:", e);
         showToast("Error al crear la sala", "error");
@@ -485,7 +484,6 @@ async function joinDJSession() {
             }
 
             subscribeToDJSession(code);
-            updateDJTabStatus();
             // Refresh sessions list UI immediately if visible
             if (!document.getElementById('djMySessionsViewTab').classList.contains('hidden')) {
                 loadMySessionsTab();
@@ -625,22 +623,6 @@ function leaveDJSession() {
     // Refrescar la lista de sesiones guardadas
     if (currentUserUid) {
         loadMySessionsTab();
-    }
-
-    updateDJTabStatus();
-}
-
-function updateDJTabStatus() {
-    const tabDj = document.getElementById('tab-dj');
-    if (tabDj) {
-        if (djSessionId) {
-            tabDj.classList.add('text-green-500');
-            // Opcional: añadir sombra/glow para que destaque más
-            tabDj.style.textShadow = '0 0 10px rgba(34,197,94,0.5)';
-        } else {
-            tabDj.classList.remove('text-green-500');
-            tabDj.style.textShadow = 'none';
-        }
     }
 }
 
