@@ -693,23 +693,17 @@ function leaveDJSession() {
     djSessionId = null;
     isDjHost = false;
 
-    // Modal view
-    document.getElementById('djInitialView').classList.remove('hidden');
-    document.getElementById('djActiveView').classList.add('hidden');
-    document.getElementById('djSessionCodeInput').value = '';
-    document.getElementById('djSessionNameInput').value = '';
-    document.getElementById('djSessionNameInputEdit').classList.add('hidden');
-    document.getElementById('djSessionNameDisplay').classList.remove('hidden');
-
-    // Tab view
-    document.getElementById('djInitialViewTab').classList.remove('hidden');
-    document.getElementById('djActiveViewTab').classList.add('hidden');
-    document.getElementById('djSessionCodeInputTab').value = '';
-    document.getElementById('djSessionNameInputTab').value = '';
-    document.getElementById('djSessionNameInputEditTab').classList.add('hidden');
-    document.getElementById('djSessionNameDisplayTab').classList.remove('hidden');
-    document.getElementById('djHostControlsTab').classList.add('hidden');
-    document.getElementById('djGuestControlsTab').classList.add('hidden');
+    // Tab view - safely update
+    const el = (id) => document.getElementById(id);
+    
+    if (el('djInitialViewTab')) el('djInitialViewTab').classList.remove('hidden');
+    if (el('djActiveViewTab')) el('djActiveViewTab').classList.add('hidden');
+    if (el('djSessionCodeInputTab')) el('djSessionCodeInputTab').value = '';
+    if (el('djSessionNameInputTab')) el('djSessionNameInputTab').value = '';
+    if (el('djSessionNameInputEditTab')) el('djSessionNameInputEditTab').classList.add('hidden');
+    if (el('djSessionNameDisplayTab')) el('djSessionNameDisplayTab').classList.remove('hidden');
+    if (el('djHostControlsTab')) el('djHostControlsTab').classList.add('hidden');
+    if (el('djGuestControlsTab')) el('djGuestControlsTab').classList.add('hidden');
 
     showToast("Has salido de la sala");
     const url = new URL(window.location);
