@@ -1,5 +1,5 @@
-const CACHE_NAME = 'amaya-music-v169';
-// SW Version: 1.8.39 - Time: 15:58 (GMT+1) - Indicador visual verde en pestaña DJ activo
+const CACHE_NAME = 'amaya-music-v170';
+// SW Version: 1.8.40 - Time: 16:00 (GMT+1) - Actualización forzada completa
 const urlsToCache = [
     './',
     './index.html',
