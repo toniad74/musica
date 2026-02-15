@@ -357,8 +357,10 @@ async function createDJSession() {
         return;
     }
 
+    // Use tab input if available, otherwise use modal input (backward compatibility)
+    const nameInputTab = document.getElementById('djSessionNameInputTab');
     const nameInput = document.getElementById('djSessionNameInput');
-    const sessionName = nameInput.value.trim() || "Sala sin nombre";
+    const sessionName = (nameInputTab ? nameInputTab.value : (nameInput ? nameInput.value : '')).trim() || "Sala sin nombre";
 
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     const sessionRef = doc(db, "sessions", code);
@@ -382,7 +384,7 @@ async function createDJSession() {
         memberNames: [document.getElementById('userName').innerText],
         createdAt: serverTimestamp() // For sorting
     };
-
+ 
     try {
         await setDoc(sessionRef, sessionData);
         
@@ -397,13 +399,14 @@ async function createDJSession() {
         djSessionId = code;
         isDjHost = true;
 
-        document.getElementById('djInitialView').classList.add('hidden');
-        document.getElementById('djActiveView').classList.remove('hidden');
-        document.getElementById('djSessionCodeDisplay').innerText = code;
-        document.getElementById('djSessionNameDisplay').innerText = sessionName;
-        document.getElementById('djHostControls').classList.remove('hidden');
-        document.getElementById('djGuestControls').classList.add('hidden');
-        updateDJMembersList([currentUserUid], [document.getElementById('userName').innerText]);
+        // Update tab view
+        document.getElementById('djInitialViewTab').classList.add('hidden');
+        document.getElementById('djActiveViewTab').classList.remove('hidden');
+        document.getElementById('djSessionCodeDisplayTab').innerText = code;
+        document.getElementById('djSessionNameDisplayTab').innerText = sessionName;
+        document.getElementById('djHostControlsTab').classList.remove('hidden');
+        document.getElementById('djGuestControlsTab').classList.add('hidden');
+        updateDJMembersListTab([currentUserUid], [document.getElementById('userName').innerText]);
 
         showToast(`Sala "${sessionName}" creada: ${code}`);
         subscribeToDJSession(code);
@@ -462,11 +465,12 @@ async function joinDJSession() {
                 }
             }
 
-            document.getElementById('djInitialView').classList.add('hidden');
-            document.getElementById('djActiveView').classList.remove('hidden');
-            document.getElementById('djSessionCodeDisplay').innerText = code;
-            document.getElementById('djSessionNameDisplay').innerText = docSnap.data().name || "Sala sin nombre";
-            updateDJMembersList(docSnap.data().members || [], docSnap.data().memberNames || []);
+            // Update tab view
+            document.getElementById('djInitialViewTab').classList.add('hidden');
+            document.getElementById('djActiveViewTab').classList.remove('hidden');
+            document.getElementById('djSessionCodeDisplayTab').innerText = code;
+            document.getElementById('djSessionNameDisplayTab').innerText = docSnap.data().name || "Sala sin nombre";
+            updateDJMembersListTab(docSnap.data().members || [], docSnap.data().memberNames || []);
 
             if (isDjHost) {
                 document.getElementById('djHostControls').classList.remove('hidden');
@@ -538,15 +542,10 @@ function updateDJMembersList(members, memberNames) {
 // --- DJ TAB FUNCTIONS ---
 
 function createDJSessionTab() {
-    const nameInput = document.getElementById('djSessionNameInputTab');
-    const sessionName = nameInput.value.trim() || "Sala sin nombre";
-    
-    // Set values for createDJSession to use
-    document.getElementById('djSessionNameInput').value = sessionName;
-    
     createDJSession().then(() => {
-        // Sync to tab view
-        syncDJToTab();
+        // Clear input after creation
+        const nameInputTab = document.getElementById('djSessionNameInputTab');
+        if (nameInputTab) nameInputTab.value = '';
     });
 }
 
