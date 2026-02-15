@@ -18,16 +18,69 @@ const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
 let currentUserUid = null;
-let sharedPlaylistData = null; // Store temp data for shared playlists
+let sharedPlaylistData = null;
 let player;
 let isVideoReady = false;
 let currentTrack = null;
-let playlist = []; // For the current view (search results or playlist songs)
+let playlist = [];
 let queue = [];
 let currentQueueIndex = -1;
 let currentlyPlayingPlaylistId = localStorage.getItem('amaya_playing_pl_id') || null;
 let playlists = JSON.parse(localStorage.getItem('amaya_playlists')) || [];
 let apiKeys = JSON.parse(localStorage.getItem('amaya_yt_keys')) || [];
+
+function setupAuthListener() {
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            currentUserUid = user.uid;
+            const loggedOutUI = document.getElementById('loggedOutUI');
+            const loggedInUI = document.getElementById('loggedInUI');
+            if (loggedOutUI) loggedOutUI.classList.add('hidden');
+            if (loggedInUI) loggedInUI.classList.remove('hidden');
+            const loggedOutUIMobile = document.getElementById('loggedOutUIMobile');
+            const loggedInUIMobile = document.getElementById('loggedInUIMobile');
+            if (loggedOutUIMobile) loggedOutUIMobile.classList.add('hidden');
+            if (loggedInUIMobile) loggedInUIMobile.classList.remove('hidden');
+            const userName = document.getElementById('userName');
+            const userAvatar = document.getElementById('userAvatar');
+            const userNameMobile = document.getElementById('userNameMobile');
+            const userAvatarMobile = document.getElementById('userAvatarMobile');
+            if (userName) userName.innerText = user.displayName;
+            if (userAvatar) userAvatar.src = user.photoURL;
+            if (userNameMobile) userNameMobile.innerText = user.displayName.split(' ')[0];
+            if (userAvatarMobile) userAvatarMobile.src = user.photoURL;
+            loadPlaylistsFromCloud();
+            const loginOverlay = document.getElementById('loginOverlay');
+            if (loginOverlay) {
+                loginOverlay.classList.add('hidden');
+                loginOverlay.classList.add('opacity-0');
+            }
+            const appContent = document.getElementById('appContent');
+            if (appContent) appContent.classList.remove('hidden');
+            switchTab('search');
+            showBraveRecommendation();
+        } else {
+            currentUserUid = null;
+            const loginOverlay = document.getElementById('loginOverlay');
+            if (loginOverlay) {
+                loginOverlay.classList.remove('hidden');
+                loginOverlay.classList.remove('opacity-0');
+            }
+            const appContent = document.getElementById('appContent');
+            if (appContent) appContent.classList.add('hidden');
+            const loggedOutUI = document.getElementById('loggedOutUI');
+            const loggedInUI = document.getElementById('loggedInUI');
+            if (loggedOutUI) loggedOutUI.classList.remove('hidden');
+            if (loggedInUI) loggedInUI.classList.add('hidden');
+            const loggedOutUIMobile = document.getElementById('loggedOutUIMobile');
+            const loggedInUIMobile = document.getElementById('loggedInUIMobile');
+            if (loggedOutUIMobile) loggedOutUIMobile.classList.remove('hidden');
+            if (loggedInUIMobile) loggedInUIMobile.classList.add('hidden');
+            playlists = [];
+            renderPlaylists();
+        }
+    });
+}
 let currentKeyIndex = parseInt(localStorage.getItem('amaya_yt_key_index')) || 0;
 
 // DJ Mode / Shared Sessions
