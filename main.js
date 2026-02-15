@@ -803,11 +803,11 @@ async function deleteSavedSession(code) {
     
     try {
         await deleteDoc(doc(db, "users", currentUserUid, "sessions", code));
-        showToast("Sala eliminada");
+        showToast("Sala eliminada", "success", 2000);
         loadMySessionsTab(); // Refresh the sessions list
     } catch (e) {
         console.error("Error deleting session:", e);
-        showToast("Error al eliminar", "error");
+        showToast("Error al eliminar", "error", 2000);
     }
 }
 
