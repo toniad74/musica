@@ -574,33 +574,56 @@ function joinDJSessionTab() {
     });
 }
 
-function djLeaveSession() {
+function leaveDJSession() {
+    console.log("Saliendo de la sala DJ...");
+
+    // Detener la suscripción a Firebase
     if (djSessionUnsubscribe) {
         djSessionUnsubscribe();
         djSessionUnsubscribe = null;
     }
+
+    // Limpiar variables de estado
     djSessionId = null;
     isDjHost = false;
 
-    var el = function (id) { return document.getElementById(id); };
+    // Helper para obtener elementos
+    const el = (id) => document.getElementById(id);
+
+    // Resetear vistas de la pestaña DJ
     if (el('djInitialViewTab')) el('djInitialViewTab').classList.remove('hidden');
     if (el('djActiveViewTab')) el('djActiveViewTab').classList.add('hidden');
+    if (el('djMySessionsViewTab')) el('djMySessionsViewTab').classList.add('hidden');
+
+    // Limpiar campos de entrada
+    if (el('djSessionCodeInputTab')) el('djSessionCodeInputTab').value = '';
+    if (el('djSessionNameInputTab')) el('djSessionNameInputTab').value = '';
+
+    // Resetear visualización de nombre
+    if (el('djSessionNameInputEditTab')) el('djSessionNameInputEditTab').classList.add('hidden');
+    if (el('djSessionNameDisplayTab')) el('djSessionNameDisplayTab').classList.remove('hidden');
+
+    // Ocultar controles de host/invitado
     if (el('djHostControlsTab')) el('djHostControlsTab').classList.add('hidden');
     if (el('djGuestControlsTab')) el('djGuestControlsTab').classList.add('hidden');
 
-    showToast("Has salido de la sala");
-    var url = new URL(window.location);
-    url.searchParams.delete('join_session');
-    window.history.pushState({}, '', url);
+    // Limpiar integrantes
+    const membersList = el('djMembersListTab');
+    if (membersList) membersList.innerHTML = '';
 
-    // Refresh sessions list UI if visible
-    if (!document.getElementById('djMySessionsViewTab').classList.contains('hidden')) {
+    showToast("Has salido de la sala");
+
+    // Limpiar parámetro de URL
+    const url = new URL(window.location);
+    if (url.searchParams.has('join_session')) {
+        url.searchParams.delete('join_session');
+        window.history.pushState({}, '', url);
+    }
+
+    // Refrescar la lista de sesiones guardadas
+    if (currentUserUid) {
         loadMySessionsTab();
     }
-}
-
-function leaveDJSessionTab() {
-    djLeaveSession();
 }
 
 function showMySessionsTab() {
@@ -730,37 +753,7 @@ function updateDJMembersListTab(members, memberNames) {
     });
 }
 
-function leaveDJSession() {
-    if (djSessionUnsubscribe) {
-        djSessionUnsubscribe();
-        djSessionUnsubscribe = null;
-    }
-
-    djSessionId = null;
-    isDjHost = false;
-
-    // Tab view - safely update
-    const el = (id) => document.getElementById(id);
-
-    if (el('djInitialViewTab')) el('djInitialViewTab').classList.remove('hidden');
-    if (el('djActiveViewTab')) el('djActiveViewTab').classList.add('hidden');
-    if (el('djSessionCodeInputTab')) el('djSessionCodeInputTab').value = '';
-    if (el('djSessionNameInputTab')) el('djSessionNameInputTab').value = '';
-    if (el('djSessionNameInputEditTab')) el('djSessionNameInputEditTab').classList.add('hidden');
-    if (el('djSessionNameDisplayTab')) el('djSessionNameDisplayTab').classList.remove('hidden');
-    if (el('djHostControlsTab')) el('djHostControlsTab').classList.add('hidden');
-    if (el('djGuestControlsTab')) el('djGuestControlsTab').classList.add('hidden');
-
-    showToast("Has salido de la sala");
-    const url = new URL(window.location);
-    url.searchParams.delete('join_session');
-    window.history.pushState({}, '', url);
-
-    // Refresh sessions list UI if visible
-    if (!document.getElementById('djMySessionsViewTab').classList.contains('hidden')) {
-        loadMySessionsTab();
-    }
-}
+// function leaveDJSession consolidated above
 
 // --- SAVED SESSIONS ---
 async function loadMySessions() {
