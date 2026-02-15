@@ -4433,7 +4433,7 @@ function parseLRC(lrc) {
 function updateLyricsSync(currentTime) {
     if (!isLyricsOpen || !lyricsSyncMode || !currentLyricsArr.length) return;
 
-    // Find current line
+    // Find current line - more precise with binary search approach
     let activeIndex = -1;
     for (let i = 0; i < currentLyricsArr.length; i++) {
         if (currentTime >= currentLyricsArr[i].time) {
@@ -4446,15 +4446,29 @@ function updateLyricsSync(currentTime) {
     if (activeIndex !== -1) {
         const activeLine = document.querySelector(`.lyric-line[data-index="${activeIndex}"]`);
 
-        if (activeLine && !activeLine.classList.contains('active')) {
-            document.querySelectorAll('.lyric-line.active').forEach(l => l.classList.remove('active'));
-            activeLine.classList.add('active');
+        if (activeLine) {
+            // Only update if it's a new line
+            const wasActive = document.querySelector('.lyric-line.active');
+            const wasActiveIndex = wasActive ? parseInt(wasActive.dataset.index) : -1;
+            
+            if (wasActiveIndex !== activeIndex) {
+                document.querySelectorAll('.lyric-line.active').forEach(l => l.classList.remove('active'));
+                activeLine.classList.add('active');
 
-            // Smooth scroll to active line
-            activeLine.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center'
-            });
+                // Smooth scroll to active line with offset for better visibility
+                const container = document.getElementById('lyricsContainer');
+                if (container) {
+                    const containerHeight = container.clientHeight;
+                    const lineTop = activeLine.offsetTop;
+                    const lineHeight = activeLine.clientHeight;
+                    const targetScroll = lineTop - (containerHeight / 2) + (lineHeight / 2);
+                    
+                    container.scrollTo({
+                        top: targetScroll,
+                        behavior: 'smooth'
+                    });
+                }
+            }
         }
     }
 }
@@ -4707,7 +4721,7 @@ function updateMediaSessionPosition() {
 
 function startProgressUpdater() {
     if (progressUpdaterInterval) clearInterval(progressUpdaterInterval);
-    progressUpdaterInterval = setInterval(updateProgressBar, 150);
+    progressUpdaterInterval = setInterval(updateProgressBar, 50); // Faster update for better lyrics sync
 }
 
 function formatTime(seconds) {
