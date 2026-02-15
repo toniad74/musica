@@ -804,8 +804,7 @@ async function deleteSavedSession(code) {
     try {
         await deleteDoc(doc(db, "users", currentUserUid, "sessions", code));
         showToast("Sala eliminada");
-        backToDJInitial(); // Go back to initial modal view
-        backToDJInitialTab(); // Go back to initial tab view
+        loadMySessionsTab(); // Refresh the sessions list
     } catch (e) {
         console.error("Error deleting session:", e);
         showToast("Error al eliminar", "error");
