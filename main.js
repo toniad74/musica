@@ -189,8 +189,40 @@ window.onload = () => {
         if (dropdown && !dropdown.classList.contains('hidden')) {
             if (!dropdown.contains(e.target) && !trigger.contains(e.target)) {
                 dropdown.classList.add('hidden');
+            }
+        }
+    });
 }
 
+function loadMySessionsTab() {
+    if (!currentUserUid) return;
+    
+    const container = document.getElementById('mySessionsListTab');
+    if (!container) return;
+    
+    container.innerHTML = '<div class="text-center text-gray-400 py-4">Cargando...</div>';
+    
+    getDocs(query(collection(db, "users", currentUserUid, "sessions"), orderBy("createdAt", "desc")))
+        .then(snapshot => {
+            if (snapshot.empty) {
+                container.innerHTML = '<div class="text-center text-gray-400 py-4">No tienes salas guardadas</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            snapshot.forEach(docSnap => {
+                const sessionData = docSnap.data();
+                const code = sessionData.code;
+                const isCurrentSession = (djSessionId === code);
+                
+                getDoc(doc(db, "sessions", code)).then(sessionSnap => {
+                    if (!sessionSnap.exists()) {
+                        return;
+                    }
+                    
+                    const session = sessionSnap.data();
+                    const isActive = session.members && session.members.includes(currentUserUid);
+                    
                     const el = document.createElement('div');
                     el.className = 'flex items-center justify-between p-3 rounded-lg mb-2 ' + (isCurrentSession ? 'bg-green-500/20 border border-green-500/30' : 'bg-white/5 hover:bg-white/10');
                     el.innerHTML = `
@@ -383,9 +415,20 @@ function showMySessions() {
     loadMySessions();
 }
 
+function showMySessionsTab() {
+    document.getElementById('djInitialViewTab').classList.add('hidden');
+    document.getElementById('djMySessionsViewTab').classList.remove('hidden');
+    loadMySessionsTab();
+}
+
 function backToDJInitial() {
     document.getElementById('djMySessionsView').classList.add('hidden');
     document.getElementById('djInitialView').classList.remove('hidden');
+}
+
+function backToDJInitialTab() {
+    document.getElementById('djMySessionsViewTab').classList.add('hidden');
+    document.getElementById('djInitialViewTab').classList.remove('hidden');
 }
 
 function subscribeToDJSession(code) {
