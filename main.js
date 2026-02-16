@@ -1273,6 +1273,22 @@ async function registerServiceWorker() {
             const registration = await navigator.serviceWorker.register('./sw.js');
             console.log('✅ Service Worker registrado:', registration);
 
+            // Force update check immediately
+            registration.update();
+
+            // Detect NEW Service Worker installation
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                console.log('📦 Nueva versión detectada, instalando...');
+
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        console.log('📦 Nueva versión instalada. Esperando activación...');
+                        showToast("Nueva actualización disponible. Recargando...", "info", 3000);
+                    }
+                });
+            });
+
             // Listen for messages from SW
             navigator.serviceWorker.addEventListener('message', event => {
                 if (event.data && event.data.type === 'PING') {
@@ -1280,6 +1296,17 @@ async function registerServiceWorker() {
                     console.log('📡 SW ping recibido');
                 }
             });
+
+            // RELOAD ON CONTROLLER CHANGE (This is the key for auto-updates)
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!refreshing) {
+                    refreshing = true;
+                    console.log('🔄 Controlador cambiado. Recargando página...');
+                    window.location.reload();
+                }
+            });
+
         } catch (error) {
             console.error('❌ Error registrando Service Worker:', error);
         }
