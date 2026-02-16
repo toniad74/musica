@@ -2434,19 +2434,26 @@ function toggleDjMixMode() {
 }
 
 function updateDjMixButtonState() {
-    const btn = document.getElementById('djMixBtn');
-    if (!btn) return;
+    const desktopBtn = document.getElementById('djMixBtn');
+    const mobileBtn = document.getElementById('mobileDjMixBtn');
 
-    if (isDjMixMode) {
-        btn.classList.add('text-green-500');
-        btn.classList.remove('text-[#b3b3b3]');
-        // Add a subtle glow effect
-        btn.style.filter = "drop-shadow(0 0 5px rgba(34,197,94,0.5))";
-    } else {
-        btn.classList.remove('text-green-500');
-        btn.classList.add('text-[#b3b3b3]');
-        btn.style.filter = "none";
-    }
+    [desktopBtn, mobileBtn].forEach(btn => {
+        if (!btn) return;
+
+        if (isDjMixMode) {
+            btn.classList.add('text-green-500');
+            btn.classList.remove('text-[#b3b3b3]', 'text-gray-400');
+            btn.style.filter = "drop-shadow(0 0 5px rgba(34,197,94,0.5))";
+        } else {
+            btn.classList.remove('text-green-500');
+            if (btn.id === 'mobileDjMixBtn') {
+                btn.classList.add('text-gray-400');
+            } else {
+                btn.classList.add('text-[#b3b3b3]');
+            }
+            btn.style.filter = "none";
+        }
+    });
 }
 
 function stopCrossfade() {
