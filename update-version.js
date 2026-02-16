@@ -53,16 +53,20 @@ let indexContent = fs.readFileSync(indexPath, 'utf8');
 
 const timestamp = getCurrentTimestamp();
 
-// Desktop dropdown (primera ocurrencia)
+// Desktop dropdown
 indexContent = indexContent.replace(
-    /(<p class="text-white text-sm">v)[\d.]+(<\/p>\s*<p class="text-[^"]*">\s*Actualizado\s*<\/p>\s*<p class="text-white text-sm">)[^<]+/,
-    `$1${newVersion}$2${timestamp}`
+    /(<p class="gold-edition-text text-sm[^>]*>)\s*v[\d.]+\s*(<\/p>\s*<p[^>]*>\s*Actualizado\s*<\/p>\s*<p class="text-white text-sm">)[^<]+/,
+    `$1\n                                v${newVersion}\n                            $2${timestamp}`
 );
 
-// Mobile dropdown (segunda ocurrencia)
+// Mobile dropdown
 indexContent = indexContent.replace(
-    /(<p class="text-white text-xs">v)[\d.]+(<\/p>\s*<p[^>]*>\s*Actualizado<\/p>\s*<p class="text-white text-xs">)[^<]+/,
-    `$1${newVersion}$2${timestamp}`
+    /(<p class="gold-edition-text text-xs[^>]*>)v[\d.]+/,
+    `$1v${newVersion}`
+);
+indexContent = indexContent.replace(
+    /(Versión<\/p>\s*<p class="gold-edition-text text-xs">v[\d.]+<\/p>\s*<p[^>]*>\s*Actualizado<\/p>\s*<p class="text-white text-xs">)[^<]+/,
+    `$1${timestamp}`
 );
 
 fs.writeFileSync(indexPath, indexContent, 'utf8');
