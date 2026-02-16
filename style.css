@@ -269,6 +269,26 @@ button.in-queue svg {
     border-color: rgba(255, 82, 82, 0.5) !important;
 }
 
+/* --- PLAYER BUTTONS STATES --- */
+.player-btn-active {
+    color: #1ed760 !important;
+    fill: #1ed760 !important;
+}
+
+.player-btn-active svg {
+    filter: drop-shadow(0 0 8px rgba(30, 215, 96, 0.6)) !important;
+    transform: scale(1.1);
+}
+
+.player-btn-dj-active {
+    color: #1ed760 !important;
+    fill: #1db954 !important;
+}
+
+.player-btn-dj-active svg {
+    filter: drop-shadow(0 0 10px rgba(30, 215, 96, 0.5)) !important;
+}
+
 @media (max-width: 768px) {
     .tabs-container {
         gap: 6px;

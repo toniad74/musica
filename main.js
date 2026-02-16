@@ -56,7 +56,7 @@ const DEFAULT_KEYS = _D_K.map(k => atob(k));
 
 const APP_LOGO_URL = 'https://raw.githubusercontent.com/handbolmolins/URLimagenes/refs/heads/main/LOGO%20MUSICA.png';
 
-let isShuffle = false;
+let isShuffle = localStorage.getItem('amaya_shuffle') === 'true';
 let repeatMode = 0; // 0: No repeat, 1: Repeat playlist, 2: Repeat one
 let nextSearchToken = '';
 
@@ -2420,40 +2420,37 @@ async function findPipedFallback(song) {
     return null;
 }
 
-// --- DJ MIX MODE (AUTO-CROSSFADE) ---
 function toggleDjMixMode() {
     isDjMixMode = !isDjMixMode;
     localStorage.setItem('amaya_dj_mix_mode', isDjMixMode);
 
     if (isDjMixMode) {
-        showToast("🎛️ Modo DJ activado (Crossfade)");
+        showToast("🎛️ Mezcla Automática pulsada (Modo DJ)");
     } else {
         showToast("Modo DJ desactivado");
-        // Clean up if currently mixing
-        if (isCrossfading) {
-            stopCrossfade();
-        }
+        if (isCrossfading) stopCrossfade();
     }
     updateDjMixButtonState();
 }
 
 function updateDjMixButtonState() {
-    const desktopBtn = document.getElementById('djMixBtn');
-    const mobileMiniBtn = document.getElementById('mobileDjMixBtn');
-    const mobileFullBtn = document.getElementById('mobileFullDjMixBtn');
+    // Collect all possibly relevant buttons
+    const btns = [
+        document.getElementById('djMixBtn'),
+        document.getElementById('mobileDjMixBtn'),
+        document.getElementById('mobileFullDjMixBtn')
+    ].filter(b => b !== null);
 
-    [desktopBtn, mobileMiniBtn, mobileFullBtn].forEach(btn => {
-        if (!btn) return;
-
-        btn.classList.remove('text-green-500', 'text-white', 'text-gray-400', 'text-[#b3b3b3]');
+    btns.forEach(btn => {
+        // Clear previous states
+        btn.classList.remove('player-btn-dj-active', 'text-green-500', 'text-white', 'text-gray-400', 'text-[#b3b3b3]');
+        btn.style.setProperty('color', '', 'important');
+        btn.style.filter = "none";
 
         if (isDjMixMode) {
-            btn.classList.add('text-green-500');
-            btn.style.setProperty('color', '#22c55e', 'important');
-            btn.style.filter = "drop-shadow(0 0 5px rgba(34,197,94,0.5))";
+            btn.classList.add('player-btn-dj-active');
         } else {
-            btn.style.color = '';
-            btn.style.filter = "none";
+            // Restore default colors based on button location/id
             if (btn.id === 'mobileDjMixBtn' || btn.id === 'mobileFullDjMixBtn') {
                 btn.classList.add('text-gray-400');
             } else {
@@ -3419,9 +3416,10 @@ function handleTrackEnded() {
 }
 
 function toggleShuffle() {
-    isShuffle = !isShuffle;
+    isShuffle = (isShuffle === true) ? false : true;
+    localStorage.setItem('amaya_shuffle', isShuffle);
     updateShuffleButtonState();
-    showToast(isShuffle ? "Modo aleatorio activado" : "Modo aleatorio desactivado");
+    showToast(isShuffle ? "🔀 Mezcla de canciones activada" : "Mezcla aleatoria desactivada");
 }
 
 function updateShuffleButtonState() {
@@ -3429,19 +3427,20 @@ function updateShuffleButtonState() {
     btns.forEach(btn => {
         if (!btn) return;
 
-        btn.classList.remove('text-white', 'text-gray-400', 'text-[#b3b3b3]', 'text-green-500');
+        // Remove ALL possible color classes and manual styles
+        btn.classList.remove('player-btn-active', 'text-white', 'text-gray-400', 'text-[#b3b3b3]', 'text-green-500');
+        btn.style.setProperty('color', '', 'important');
 
         if (isShuffle) {
-            btn.classList.add('text-green-500');
-            btn.style.setProperty('color', '#22c55e', 'important');
+            btn.classList.add('player-btn-active');
         } else {
-            btn.style.color = '';
+            // Logic to restore correct non-active color
             if (btn.closest('.mobile-player-mini') || btn.closest('#mobilePlayerMini')) {
                 btn.classList.add('text-white');
-            } else if (btn.classList.contains('text-gray-400')) { // Preserve relative color if it had it
-                btn.classList.add('text-gray-400');
-            } else {
+            } else if (btn.id === 'shuffleBtn') {
                 btn.classList.add('text-[#b3b3b3]');
+            } else {
+                btn.classList.add('text-gray-400');
             }
         }
     });
