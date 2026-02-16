@@ -3369,19 +3369,15 @@ function playNext() {
         return;
     }
 
-    if (isShuffle) {
-        currentQueueIndex = Math.floor(Math.random() * queue.length);
-    } else {
-        currentQueueIndex++;
-        if (currentQueueIndex >= queue.length) {
-            if (repeatMode === 1) {
-                currentQueueIndex = 0;
-            } else {
-                currentQueueIndex = queue.length - 1;
-                // If we reached the end and won't repeat, reset the session state
-                if (navigator.mediaSession) navigator.mediaSession.playbackState = 'none';
-                return;
-            }
+    currentQueueIndex++;
+    if (currentQueueIndex >= queue.length) {
+        if (repeatMode === 1) {
+            currentQueueIndex = 0;
+        } else {
+            currentQueueIndex = queue.length - 1;
+            // If we reached the end and won't repeat, reset the session state
+            if (navigator.mediaSession) navigator.mediaSession.playbackState = 'none';
+            return;
         }
     }
     playSong(queue[currentQueueIndex], queue, true);
@@ -3415,36 +3411,9 @@ function handleTrackEnded() {
     playNext();
 }
 
-function toggleShuffle() {
-    isShuffle = (isShuffle === true) ? false : true;
-    localStorage.setItem('amaya_shuffle', isShuffle);
-    updateShuffleButtonState();
-    showToast(isShuffle ? "🔀 Mezcla de canciones activada" : "Mezcla aleatoria desactivada");
-}
-
-function updateShuffleButtonState() {
-    const btns = document.querySelectorAll('.shuffle-btn, #shuffleBtn');
-    btns.forEach(btn => {
-        if (!btn) return;
-
-        // Remove ALL possible color classes and manual styles
-        btn.classList.remove('player-btn-active', 'text-white', 'text-gray-400', 'text-[#b3b3b3]', 'text-green-500');
-        btn.style.setProperty('color', '', 'important');
-
-        if (isShuffle) {
-            btn.classList.add('player-btn-active');
-        } else {
-            // Logic to restore correct non-active color
-            if (btn.closest('.mobile-player-mini') || btn.closest('#mobilePlayerMini')) {
-                btn.classList.add('text-white');
-            } else if (btn.id === 'shuffleBtn') {
-                btn.classList.add('text-[#b3b3b3]');
-            } else {
-                btn.classList.add('text-gray-400');
-            }
-        }
-    });
-}
+// Shuffle functionality removed as requested.
+function updateShuffleButtonState() { }
+function toggleShuffle() { }
 
 function toggleRepeat() {
     repeatMode = (repeatMode + 1) % 3;
@@ -5052,7 +5021,7 @@ function renderNewsResults(videos, append = false) {
         // Badge para sugerencias
         const badgeHtml = isSuggested
             ? `<div class="absolute top-2 left-1/2 -translate-x-1/2 z-20 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-tighter flex items-center gap-1 animate-bounce-subtle">
-                <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> Para ti
+                <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                </div>`
             : '';
 

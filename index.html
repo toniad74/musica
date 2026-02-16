@@ -144,12 +144,12 @@
                         <div class="p-4 border-b border-white/5">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Versión</p>
                             <p class="gold-edition-text text-sm flex items-center gap-2">
-                                v1.8.67
+                                v1.8.68
                             </p>
                             <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                 Actualizado
                             </p>
-                            <p class="text-white text-sm">16 feb 2026 22:07</p>
+                            <p class="text-white text-sm">16 feb 2026 22:12</p>
                         </div>
                         <button onclick="showReport()"
                             class="w-full text-left px-4 py-3 text-sm text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -263,11 +263,11 @@
                                     <div class="p-3 border-b border-white/5">
                                         <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">
                                             Versión</p>
-                                        <p class="gold-edition-text text-xs">v1.8.67</p>
+                                        <p class="gold-edition-text text-xs">v1.8.68</p>
                                         <p
                                             class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                             Actualizado</p>
-                                        <p class="text-white text-xs">16 feb 2026 22:07</p>
+                                        <p class="text-white text-xs">16 feb 2026 22:12</p>
                                     </div>
                                     <button onclick="showReport()"
                                         class="w-full text-left px-3 py-3 text-xs text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -767,13 +767,7 @@
         <!-- Center: Controls -->
         <div class="flex flex-col items-center justify-center w-1/3 max-w-2xl px-4">
             <div class="flex items-center gap-4 md:gap-6 mb-2">
-                <button id="shuffleBtn" onclick="toggleShuffle()"
-                    class="text-[#b3b3b3] hover:text-white transition-colors" title="Aleatorio">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                        <path
-                            d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z" />
-                    </svg>
-                </button>
+
                 <button id="djMixBtn" onclick="toggleDjMixMode()"
                     class="text-[#b3b3b3] hover:text-white transition-colors" title="Modo DJ (Mezcla Automática)">
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -956,13 +950,7 @@
                         d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4zM8 18H5v-7h3v7zm6 0h-3v-7h3v7zm6 0h-3v-7h3v7z" />
                 </svg>
             </button>
-            <!-- Shuffle (Mini) -->
-            <button onclick="event.stopPropagation(); toggleShuffle()" class="text-white p-2 shuffle-btn">
-                <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path
-                        d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z" />
-                </svg>
-            </button>
+
             <!-- Prev (Mini) -->
             <button onclick="event.stopPropagation(); playPrevious()" class="text-white p-2">
                 <svg class="w-6 h-6 sm:w-7 sm:h-7" fill="currentColor" viewBox="0 0 24 24">
@@ -1068,12 +1056,7 @@
                         d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4zM8 18H5v-7h3v7zm6 0h-3v-7h3v7zm6 0h-3v-7h3v7z" />
                 </svg>
             </button>
-            <button onclick="toggleShuffle()" class="text-gray-400 p-2 shuffle-btn hover:text-white transition-colors">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path
-                        d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z" />
-                </svg>
-            </button>
+
             <button onclick="playPrevious()" class="text-white p-2 hover:scale-110 transition-transform">
                 <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
