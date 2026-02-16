@@ -2444,13 +2444,13 @@ function updateDjMixButtonState() {
     [desktopBtn, mobileMiniBtn, mobileFullBtn].forEach(btn => {
         if (!btn) return;
 
+        btn.classList.remove('text-green-500', 'text-white', 'text-gray-400', 'text-[#b3b3b3]');
+        
         if (isDjMixMode) {
-            btn.classList.remove('text-white', 'text-gray-400', 'text-[#b3b3b3]');
             btn.classList.add('text-green-500');
-            btn.style.color = '#22c55e';
+            btn.style.color = '#22c55e !important';
             btn.style.filter = "drop-shadow(0 0 5px rgba(34,197,94,0.5))";
         } else {
-            btn.classList.remove('text-green-500');
             btn.style.color = '';
             btn.style.filter = "none";
             if (btn.id === 'mobileDjMixBtn' || btn.id === 'mobileFullDjMixBtn') {
