@@ -2669,6 +2669,9 @@ async function playSong(song, list = [], fromQueue = false, singlePlay = false) 
         try {
             startSilentAudio();
 
+            // Ensure engine state is set BEFORE messing with players to avoid watchdog fighting
+            isCurrentlyUsingNative = true;
+
             // Ensure ALL audio engines are stopped immediately to avoid overlaps
             if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
             if (nativeAudio) {
@@ -2764,12 +2767,9 @@ async function playSong(song, list = [], fromQueue = false, singlePlay = false) 
                 const audioUrl = await audioPromise;
                 if (!audioUrl) throw new Error('No audio URL found');
 
-                // Wait for SponsorBlock data (aumentado a 3 segundos para mayor efectividad)
-                const startWait = Date.now();
-                const MAX_WAIT = 3000; // Aumentado de 1.2s a 3s
-
-                while (currentSponsorSegments.length === 0 && (Date.now() - startWait < MAX_WAIT)) {
-                    await new Promise(r => setTimeout(r, 100));
+                // Wait for SponsorBlock data if fetch is pending
+                if (pendingSponsorFetch) {
+                    await pendingSponsorFetch;
                 }
 
                 // Feedback sobre protección
