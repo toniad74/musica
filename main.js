@@ -1109,18 +1109,49 @@ async function addToHistory(song) {
             const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=topicDetails&id=${song.id}&key=${getCurrentApiKey()}`);
             const data = await response.json();
             if (data.items && data.items[0] && data.items[0].topicDetails) {
-                const topics = data.items[0].topicDetails.relevantTopicIds || [];
-                // Simple mapping of some topic IDs to genres
-                if (topics.includes('/m/04rlf')) genre = "Music";
-                if (topics.includes('/m/064t9')) genre = "Pop";
-                if (topics.includes('/m/06by7')) genre = "Rock";
-                if (topics.includes('/m/04k94')) genre = "Hip Hop";
-                if (topics.includes('/m/02mscn')) genre = "Christian";
-                if (topics.includes('/m/033zz')) genre = "Electronic";
-                if (topics.includes('/m/03_d0')) genre = "Jazz";
-                if (topics.includes('/m/0zdp')) genre = "Reggae";
-                if (topics.includes('/m/0ggq0m')) genre = "Latin";
-                if (topics.includes('/m/02lkt')) genre = "Electronic";
+                const topicDetails = data.items[0].topicDetails;
+                const categories = topicDetails.topicCategories || [];
+                const topics = topicDetails.relevantTopicIds || [];
+
+                // Mapping for Wikipedia URLs (Topic Categories)
+                const categoryMap = {
+                    'Christian_music': 'Cristiana',
+                    'Classical_music': 'Clásica',
+                    'Country_music': 'Country',
+                    'Electronic_music': 'Electrónica',
+                    'Hip_hop_music': 'Hip Hop',
+                    'Independent_music': 'Indie',
+                    'Jazz': 'Jazz',
+                    'Music_of_Asia': 'Asiática',
+                    'Music_of_Latin_America': 'Latina',
+                    'Pop_music': 'Pop',
+                    'Reggae': 'Reggae',
+                    'Rhythm_and_blues': 'R&B',
+                    'Rock_music': 'Rock',
+                    'Soul_music': 'Soul'
+                };
+
+                for (const catUrl of categories) {
+                    const parts = catUrl.split('/');
+                    const key = parts[parts.length - 1];
+                    if (categoryMap[key]) {
+                        genre = categoryMap[key];
+                        break;
+                    }
+                }
+
+                // Fallback to topic IDs if still unknown
+                if (genre === "Unknown") {
+                    if (topics.includes('/m/064t9')) genre = "Pop";
+                    if (topics.includes('/m/06by7')) genre = "Rock";
+                    if (topics.includes('/m/04k94')) genre = "Hip Hop";
+                    if (topics.includes('/m/02mscn')) genre = "Cristiana";
+                    if (topics.includes('/m/033zz')) genre = "Electrónica";
+                    if (topics.includes('/m/03_d0')) genre = "Jazz";
+                    if (topics.includes('/m/0zdp')) genre = "Reggae";
+                    if (topics.includes('/m/0ggq0m')) genre = "Latina";
+                    if (topics.includes('/m/02lkt')) genre = "Electrónica";
+                }
             }
         } catch (e) { console.warn("Failed to fetch genre metadata:", e); }
 
