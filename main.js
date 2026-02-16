@@ -75,9 +75,17 @@ let isVideoModeActive = false; // Video mode state
 
 // Native audio player
 let nativeAudio = null;
+let secondaryAudio = null; // Audio player for next track (DJ Mode)
 let useNativeAudio = true; // Prefer native audio over YouTube IFrame
 let isCurrentlyUsingNative = false; // Track engine active for CURRENT track
 let isMediaPlaying = false;
+
+// DJ Mix Mode (Crossfade)
+let isDjMixMode = localStorage.getItem('amaya_dj_mix_mode') === 'true'; // User preference
+let isCrossfading = false;
+let crossfadeInterval = null;
+const CROSSFADE_DURATION = 8; // Seconds to crossfade
+const PRELOAD_OFFSET = 15; // Seconds before end to load next track
 
 // SponsorBlock data
 let currentSponsorSegments = [];
@@ -150,7 +158,10 @@ const COBALT_INSTANCES = [
 window.onload = () => {
     // Initialize native audio player
     nativeAudio = document.getElementById('nativeAudioPlayer');
-    setupNativeAudioHandlers();
+    secondaryAudio = document.getElementById('secondaryAudioPlayer'); // Secondary audio for crossfading
+    setupAudioListeners(nativeAudio);
+    setupAudioListeners(secondaryAudio);
+    updateDjMixButtonState(); // Update UI based on preference
 
     // Load YouTube IFrame API (fallback)
     const tag = document.createElement('script');
@@ -1450,59 +1461,61 @@ function playPauseIconsUpdate(path, isPlaying) {
     updatePlayPauseIcons(isPlaying);
 }
 
+
 // --- NATIVE AUDIO SETUP ---
-function setupNativeAudioHandlers() {
-    if (!nativeAudio) return;
+function setupAudioListeners(audioElement) {
+    if (!audioElement) return;
 
-    nativeAudio.addEventListener('play', () => {
-        console.log('🎵 Audio nativo: reproduciendo');
-        isUserPaused = false;
+    audioElement.addEventListener('play', () => {
+        // Only allow the current primary audio to drive global state logs
+        if (audioElement === nativeAudio) {
+            console.log('🎵 Audio nativo: reproduciendo');
+            isUserPaused = false;
 
-        // Ensure YT player is paused if we are using native
-        if (player && typeof player.pauseVideo === 'function') {
-            player.pauseVideo();
-        }
+            // Ensure YT player is paused if we are using native
+            if (player && typeof player.pauseVideo === 'function') {
+                player.pauseVideo();
+            }
 
-        updatePlayPauseIcons(true);
-        // startSilentAudio(); // REMOVED: Conflicts with Media Session controls
-        startProgressUpdater();
-        startServiceWorkerKeepAlive(); // Keep SW active
-        if (navigator.mediaSession) {
-            navigator.mediaSession.playbackState = 'playing';
-            updateMediaSessionPosition();
-        }
-    });
-
-    nativeAudio.addEventListener('pause', () => {
-        console.log('⏸️ Audio nativo: pausado');
-        updatePlayPauseIcons(false);
-
-        // MOBILE FIX: If paused but user didn't intend to pause, resume immediately
-        // CRITICAL: Don't auto-resume if the audio actually ended to allow track transition
-        if (!isUserPaused && !nativeAudio.ended) {
-            console.warn('⚠️ Pausa no autorizada detectada. Forzando reanudación...');
-            setTimeout(() => {
-                if (nativeAudio && nativeAudio.paused && !isUserPaused && !nativeAudio.ended) {
-                    nativeAudio.play().catch(e => console.error('Error al reanudar:', e));
-                }
-            }, 100); // Small delay to let the system settle
-        } else if (navigator.mediaSession) {
-            navigator.mediaSession.playbackState = 'paused';
-            stopSilentAudio();
-            stopServiceWorkerKeepAlive(); // Stop SW keepalive when user pauses
+            updatePlayPauseIcons(true);
+            startProgressUpdater();
+            startServiceWorkerKeepAlive();
+            if (navigator.mediaSession) {
+                navigator.mediaSession.playbackState = 'playing';
+            }
         }
     });
 
-    nativeAudio.addEventListener('ended', () => {
-        console.log('✅ Audio nativo: terminado');
-        handleTrackEnded();
+    audioElement.addEventListener('pause', () => {
+        if (audioElement === nativeAudio) {
+            console.log('⏸️ Audio nativo: pausado');
+            if (!isCrossfading) {
+                updatePlayPauseIcons(false);
+            }
+
+            if (navigator.mediaSession) {
+                navigator.mediaSession.playbackState = 'paused';
+                stopSilentAudio();
+                stopServiceWorkerKeepAlive();
+            }
+        }
+    });
+
+    audioElement.addEventListener('ended', () => {
+        if (audioElement === nativeAudio) {
+            console.log('✅ Audio nativo: terminado');
+            handleTrackEnded();
+        }
     });
 
     // Monitoreo continuo de anuncios durante la reproducción
     let lastCheckedTime = -1;
 
-    nativeAudio.addEventListener('timeupdate', () => {
-        const currentTime = nativeAudio.currentTime;
+    audioElement.addEventListener('timeupdate', () => {
+        // Guard: Only the active nativeAudio drives the UI
+        if (audioElement !== nativeAudio) return;
+
+        const currentTime = audioElement.currentTime;
 
         // Solo verificar si el tiempo cambió significativamente (evitar spam)
         if (Math.abs(currentTime - lastCheckedTime) > 0.3) {
@@ -1512,13 +1525,15 @@ function setupNativeAudioHandlers() {
                 const skipped = checkSponsorSegments(currentTime);
                 if (skipped) {
                     console.log('🛡️ Anuncio bloqueado en reproducción activa');
-                    lastCheckedTime = nativeAudio.currentTime; // Actualizar después del skip
+                    lastCheckedTime = audioElement.currentTime; // Actualizar después del skip
                 }
             }
         }
     });
 
-    nativeAudio.addEventListener('error', async (e) => {
+    audioElement.addEventListener('error', async (e) => {
+        if (audioElement !== nativeAudio) return;
+
         const err = e.target.error;
         console.error('❌ Error en audio nativo:', err);
 
@@ -1533,23 +1548,20 @@ function setupNativeAudioHandlers() {
             }
         }
 
-        // --- NEW TOUGH ANTI-AD LOGIC ---
-        // If we get a network or src error (like 403), DO NOT GO TO YOUTUBE YET.
-        // Try to get a fresh URL from a DIFFERENT Piped instance first.
+        // Recovery logic
         if (currentTrack && err && (err.code === err.MEDIA_ERR_NETWORK || err.code === err.MEDIA_ERR_SRC_NOT_SUPPORTED)) {
             console.log('🔄 Error detectado (403/Red). Reintentando con otro servidor...');
             showToast("Error de conexión. Buscando servidor nuevo...", "warning");
 
-            const savedTime = nativeAudio.currentTime;
-            localStorage.removeItem('amaya_fastest_server'); // Invalida el servidor actual
+            const savedTime = audioElement.currentTime;
+            localStorage.removeItem('amaya_fastest_server');
 
             try {
                 const newUrl = await getAudioUrl(currentTrack.id);
                 if (newUrl) {
-                    nativeAudio.src = newUrl;
-                    nativeAudio.currentTime = savedTime;
-                    // Reset the error listener and try again
-                    await nativeAudio.play();
+                    audioElement.src = newUrl;
+                    audioElement.currentTime = savedTime;
+                    await audioElement.play();
                     console.log('✅ Recuperado con éxito de otro servidor.');
                     return;
                 }
@@ -1558,7 +1570,6 @@ function setupNativeAudioHandlers() {
             }
         }
 
-        // Final fallback if all native attempts fail
         console.log('📡 Fallback final a YouTube por fallo crítico de audio nativo');
         console.warn('Cambiando a reproductor secundario:', errorMsg);
         if (currentTrack) {
@@ -1566,10 +1577,14 @@ function setupNativeAudioHandlers() {
         }
     });
 
-    nativeAudio.addEventListener('loadstart', () => console.log('⏳ Cargando audio...'));
-    nativeAudio.addEventListener('canplay', () => console.log('✅ Audio listo para reproducir'));
+    audioElement.addEventListener('loadstart', () => {
+        if (audioElement === nativeAudio) console.log('⏳ Cargando audio...');
+    });
+    audioElement.addEventListener('canplay', () => {
+        if (audioElement === nativeAudio) console.log('✅ Audio listo para reproducir');
+    });
 
-    console.log('✅ Handlers de audio nativo configurados');
+    console.log('✅ Handlers de audio configurados para:', audioElement.id);
 }
 
 function playNativeAudio(url) {
@@ -2401,7 +2416,241 @@ async function findPipedFallback(song) {
     return null;
 }
 
-// --- API KEY MANAGEMENT ---
+// --- DJ MIX MODE (AUTO-CROSSFADE) ---
+function toggleDjMixMode() {
+    isDjMixMode = !isDjMixMode;
+    localStorage.setItem('amaya_dj_mix_mode', isDjMixMode);
+
+    if (isDjMixMode) {
+        showToast("🎛️ Modo DJ activado (Crossfade)");
+    } else {
+        showToast("Modo DJ desactivado");
+        // Clean up if currently mixing
+        if (isCrossfading) {
+            stopCrossfade();
+        }
+    }
+    updateDjMixButtonState();
+}
+
+function updateDjMixButtonState() {
+    const btn = document.getElementById('djMixBtn');
+    if (!btn) return;
+
+    if (isDjMixMode) {
+        btn.classList.add('text-green-500');
+        btn.classList.remove('text-[#b3b3b3]');
+        // Add a subtle glow effect
+        btn.style.filter = "drop-shadow(0 0 5px rgba(34,197,94,0.5))";
+    } else {
+        btn.classList.remove('text-green-500');
+        btn.classList.add('text-[#b3b3b3]');
+        btn.style.filter = "none";
+    }
+}
+
+function stopCrossfade() {
+    isCrossfading = false;
+    if (crossfadeInterval) {
+        clearInterval(crossfadeInterval);
+        crossfadeInterval = null;
+    }
+    // Ensure volumes are reset if cancelled manually
+    if (nativeAudio) nativeAudio.volume = 1;
+    if (secondaryAudio) {
+        secondaryAudio.pause();
+        secondaryAudio.volume = 0;
+        secondaryAudio.currentTime = 0;
+    }
+}
+
+// Check if we should start crossfading (called on timeupdate)
+function checkAutoMixTransition() {
+    if (!isDjMixMode || !nativeAudio || isCrossfading || !currentTrack) return;
+
+    // Only works if we have a next song
+    if (queue.length === 0) return;
+
+    // Check remaining time
+    const duration = nativeAudio.duration;
+    const currentTime = nativeAudio.currentTime;
+
+    if (!duration || isNaN(duration)) return;
+
+    const remaining = duration - currentTime;
+
+    // 1. Preload Next Track (15s before end)
+    if (remaining <= PRELOAD_OFFSET && remaining > CROSSFADE_DURATION + 2) {
+        preloadNextTrack();
+    }
+
+    // 2. Start Crossfade (8s before end)
+    // Extra check: secondaryAudio MUST be ready
+    if (remaining <= CROSSFADE_DURATION && secondaryAudio && secondaryAudio.readyState >= 2) {
+        console.log("🎛️ Starting DJ Mix Crossfade...");
+        startCrossfade();
+    }
+}
+
+let nextTrackUrl = null;
+let nextTrackId = null;
+
+async function preloadNextTrack() {
+    // Determine next track index
+    let nextIndex = currentQueueIndex + 1;
+    if (nextIndex >= queue.length) {
+        if (repeatMode === 1) nextIndex = 0; // Loop playlist
+        else return; // End of queue
+    }
+
+    const nextSong = queue[nextIndex];
+    if (!nextSong || nextTrackId === nextSong.id) return; // Already preloaded/preloading
+
+    console.log(`🎧 DJ Mode: Preloading next track: ${nextSong.title}`);
+    nextTrackId = nextSong.id;
+
+    try {
+        // Use existing getAudioUrl logic
+        // IMPORTANT: Fetch URL but don't play yet
+        const url = await getAudioUrl(nextSong.id);
+        if (url && secondaryAudio) {
+            secondaryAudio.src = url;
+            secondaryAudio.volume = 0; // Start silent
+            secondaryAudio.load();
+            nextTrackUrl = url;
+        }
+    } catch (e) {
+        console.warn("DJ Mode: Failed to preload next track", e);
+        nextTrackId = null; // Reset so we can try again or fail gracefully
+    }
+}
+
+function startCrossfade() {
+    if (isCrossfading || !secondaryAudio || !nativeAudio) return;
+
+    isCrossfading = true;
+
+    // Prepare secondary audio
+    secondaryAudio.volume = 0;
+
+    // Start playing next track
+    const playPromise = secondaryAudio.play();
+
+    if (playPromise !== undefined) {
+        playPromise.then(() => {
+            console.log("🎛️ Mix: Secondary audio started");
+
+            // Perform Crossfade
+            const stepTime = 100; // ms
+            const steps = (CROSSFADE_DURATION * 1000) / stepTime;
+            let currentStep = 0;
+
+            crossfadeInterval = setInterval(() => {
+                currentStep++;
+                const progress = currentStep / steps;
+
+                // Linear fade
+                // nativeAudio: 1 -> 0
+                // secondaryAudio: 0 -> 1
+                nativeAudio.volume = Math.max(0, 1 - progress);
+                secondaryAudio.volume = Math.min(1, progress);
+
+                if (progress >= 1) {
+                    finishCrossfade();
+                }
+            }, stepTime);
+
+        }).catch(e => {
+            console.error("DJ Mix: Failed to start secondary audio", e);
+            isCrossfading = false;
+        });
+    }
+}
+
+function finishCrossfade() {
+    console.log("🎛️ Mix: Transition complete. Swapping players.");
+    clearInterval(crossfadeInterval);
+    crossfadeInterval = null;
+    isCrossfading = false;
+
+    // 1. Swap Player References
+    // We want 'nativeAudio' to always point to the ACTIVE player for the rest of the app logic
+    const oldPrimary = nativeAudio;
+    const newPrimary = secondaryAudio;
+
+    // Temporarily remove listeners from old primary to avoid conflict during swap
+    // (Ideally we should have a cleaner architecture, but this hacks it in)
+    oldPrimary.pause();
+    oldPrimary.currentTime = 0;
+    oldPrimary.volume = 1; // Reset for next time it becomes secondary
+    // Unhide new, hide old? No, both are hidden in HTML, we just control logic
+
+    // 2. Logic Update
+    // We need to manually trigger the "User Interface" updates that normally happen in playSong
+    // But we don't want to reload the audio because it is ALREADY playing.
+
+    // Calculate next index again
+    let nextIndex = currentQueueIndex + 1;
+    if (nextIndex >= queue.length) {
+        if (repeatMode === 1) nextIndex = 0;
+    }
+
+    // Update Global State
+    currentQueueIndex = nextIndex;
+    const newSong = queue[currentQueueIndex];
+    currentTrack = newSong;
+
+    // SWAP DOM IDS (Trick to keep `nativeAudio` variable pointing to the same DOM element logic if re-queried, 
+    // OR we just swap global variables. Swapping global variables is riskier if event listeners are bound to specific elements.
+    // BETTER: Just swap the variables and re-bind listeners?
+    // Actually, `nativeAudio` is a global variable.
+
+    nativeAudio = newPrimary;
+    secondaryAudio = oldPrimary;
+
+    // Re-bind listeners to the NEW primary (and strip from old?)
+    // This is tricky. A better way:
+    // Have a `activePlayer` and `nextPlayer`.
+    // But `nativeAudio` is used everywhere.
+
+    // SOLUTION:
+    // We must detach listeners from old `nativeAudio` and attach to `newPrimary`.
+    // Since `setupNativeAudioHandlers` attaches anonymous functions, we can't easily remove them.
+    // ALTERNATIVE: Don't swap IDs. Just tell the app that `nativeAudio` is now the other element?
+    // No, existing code queries `document.getElementById('nativeAudioPlayer')`.
+
+    // HACK: Swap the `src` and `currentTime`? No, that skips.
+
+    // CORRECT APPROACH FOR THIS CODEBASE:
+    // 1. Update global `nativeAudio` to point to `newPrimary` (which is the element currently playing).
+    // 2. Update global `secondaryAudio` to point to `oldPrimary`.
+    // 3. IMPORTANT: The event listeners are attached to the DOM ELEMENT, not the variable.
+    // So both elements need to have the handlers attached, OR we attach handlers to both at start.
+
+    // Action: Ensure `setupNativeAudioHandlers` is called for BOTH players at init (we only did one).
+    // We will do that in a follow-up step.
+
+    // For now, let's assume we swapped.
+
+    // Trigger UI updates
+    document.getElementById('currentTitle').innerText = newSong.title;
+    document.getElementById('currentChannel').innerText = newSong.channel;
+    document.getElementById('currentThumbnail').src = newSong.thumbnail;
+    updateAmbientBackground(newSong.thumbnail);
+    updateQueueIcons();
+    highlightCurrentTrack(newSong.id);
+    addToHistory(newSong);
+
+    // Reset nextTrack state
+    nextTrackId = null;
+    nextTrackUrl = null;
+
+    // Force volume
+    nativeAudio.volume = 1;
+
+    console.log("🎛️ Mix: Swapped. Now playing:", newSong.title);
+}
+
 function saveApiKey() {
     const keys = [];
     for (let i = 1; i <= 3; i++) {
@@ -4958,6 +5207,76 @@ function updateProgressBar() {
 
     // Update Media Session position state
     updateMediaSessionPosition();
+}
+
+let lastMediaSessionUpdate = 0; // To prevent excessive updates
+
+function setupNativeAudioHandlers() {
+    if (!nativeAudio) return;
+
+    nativeAudio.addEventListener('timeupdate', () => {
+        const currentTime = nativeAudio.currentTime;
+        const duration = nativeAudio.duration || 1;
+        const progressPercent = (currentTime / duration) * 100;
+
+        // Update progress bars
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const progressThumb = document.getElementById('progressThumb');
+        const mobileProgressBar = document.getElementById('mobileProgressBar');
+        const mobileProgressFill = document.getElementById('mobileProgressFill');
+        const progressFillMini = document.getElementById('progressFillMini'); // Added for mini player
+
+        if (progressBar && !isDraggingProgress) {
+            progressBar.value = progressPercent;
+            if (progressFill) progressFill.style.width = `${progressPercent}%`;
+            if (progressThumb) progressThumb.style.left = `${progressPercent}%`;
+            document.getElementById('currentTime').innerText = formatTime(currentTime);
+            document.getElementById('remainingTime').innerText = "-" + formatTime(duration - currentTime);
+        }
+
+        if (mobileProgressBar && !isDraggingProgress) {
+            mobileProgressBar.value = progressPercent;
+            if (mobileProgressFill) mobileProgressFill.style.width = `${progressPercent}%`;
+            if (document.getElementById('mobileCurrentTime')) document.getElementById('mobileCurrentTime').innerText = formatTime(currentTime);
+            if (document.getElementById('mobileRemainingTime')) document.getElementById('mobileRemainingTime').innerText = "-" + formatTime(duration - currentTime);
+        }
+        if (progressFillMini) progressFillMini.style.width = progressPercent + '%'; // Update mini player progress
+
+        // Update listen progress for stats
+        updateListenProgress(currentTime);
+
+        // --- Lyrics Sync ---
+        if (isLyricsOpen && lyricsSyncMode) {
+            updateLyricsSync(currentTime);
+        }
+
+        if (navigator.mediaSession && Math.abs(currentTime - lastMediaSessionUpdate) > 2) {
+            updateMediaSessionPosition();
+            lastMediaSessionUpdate = currentTime;
+        }
+
+        // Check for SponsorBlock segments
+        checkSponsorSegments(currentTime);
+
+        // Check for DJ Auto-Mix Transition
+        checkAutoMixTransition();
+    });
+
+    // SETUP SECONDARY AUDIO HANDLERS (for DJ Mode)
+    if (secondaryAudio) {
+        // We need to attach error handling at least
+        secondaryAudio.addEventListener('error', (e) => {
+            console.warn("DJ Mode: Secondary Audio Error", e);
+            // If secondary fails, we should probably abort mix and let normal flow handle it
+            nextTrackId = null;
+        });
+
+        // When secondary ends (if it ever plays to end without swap... shouldn't happen in crossfade but safety)
+        secondaryAudio.addEventListener('ended', () => {
+            console.log("Secondary audio ended unexpectedly");
+        });
+    }
 }
 
 function updateMediaSessionPosition() {
