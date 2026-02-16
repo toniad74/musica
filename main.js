@@ -1529,6 +1529,9 @@ function setupAudioListeners(audioElement) {
                 }
             }
         }
+
+        // AUTO-MIX / DJ MODE CHECK
+        checkAutoMixTransition();
     });
 
     audioElement.addEventListener('error', async (e) => {
