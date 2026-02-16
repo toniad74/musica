@@ -2438,23 +2438,26 @@ function toggleDjMixMode() {
 
 function updateDjMixButtonState() {
     const desktopBtn = document.getElementById('djMixBtn');
-    const mobileBtn = document.getElementById('mobileDjMixBtn');
+    const mobileMiniBtn = document.getElementById('mobileDjMixBtn');
+    const mobileFullBtn = document.getElementById('mobileFullDjMixBtn');
 
-    [desktopBtn, mobileBtn].forEach(btn => {
+    [desktopBtn, mobileMiniBtn, mobileFullBtn].forEach(btn => {
         if (!btn) return;
 
         if (isDjMixMode) {
+            btn.classList.remove('text-white', 'text-gray-400', 'text-[#b3b3b3]');
             btn.classList.add('text-green-500');
-            btn.classList.remove('text-[#b3b3b3]', 'text-gray-400');
+            btn.style.color = '#22c55e';
             btn.style.filter = "drop-shadow(0 0 5px rgba(34,197,94,0.5))";
         } else {
             btn.classList.remove('text-green-500');
-            if (btn.id === 'mobileDjMixBtn') {
+            btn.style.color = '';
+            btn.style.filter = "none";
+            if (btn.id === 'mobileDjMixBtn' || btn.id === 'mobileFullDjMixBtn') {
                 btn.classList.add('text-gray-400');
             } else {
                 btn.classList.add('text-[#b3b3b3]');
             }
-            btn.style.filter = "none";
         }
     });
 }
