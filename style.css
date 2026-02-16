@@ -1209,4 +1209,32 @@ button,
         border-radius: 24px !important;
         box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6);
     }
+
+    /* --- SUGGESTIONS & PERSONALIZATION --- */
+    .suggested-card {
+        border-color: rgba(139, 92, 246, 0.4) !important;
+        /* Purple */
+        background: linear-gradient(145deg, rgba(139, 92, 246, 0.05) 0%, rgba(255, 255, 255, 0.03) 100%) !important;
+    }
+
+    .suggested-card:hover {
+        border-color: rgba(139, 92, 246, 0.8) !important;
+        box-shadow: 0 0 30px rgba(139, 92, 246, 0.2) !important;
+    }
+
+    @keyframes bounce-subtle {
+
+        0%,
+        100% {
+            transform: translate(-50%, 0);
+        }
+
+        50% {
+            transform: translate(-50%, -4px);
+        }
+    }
+
+    .animate-bounce-subtle {
+        animation: bounce-subtle 2s ease-in-out infinite;
+    }
 }
