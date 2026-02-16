@@ -2420,45 +2420,9 @@ async function findPipedFallback(song) {
     return null;
 }
 
-function toggleDjMixMode() {
-    isDjMixMode = !isDjMixMode;
-    localStorage.setItem('amaya_dj_mix_mode', isDjMixMode);
-
-    if (isDjMixMode) {
-        showToast("🎛️ Mezcla Automática pulsada (Modo DJ)");
-    } else {
-        showToast("Modo DJ desactivado");
-        if (isCrossfading) stopCrossfade();
-    }
-    updateDjMixButtonState();
-}
-
-function updateDjMixButtonState() {
-    // Collect all possibly relevant buttons
-    const btns = [
-        document.getElementById('djMixBtn'),
-        document.getElementById('mobileDjMixBtn'),
-        document.getElementById('mobileFullDjMixBtn')
-    ].filter(b => b !== null);
-
-    btns.forEach(btn => {
-        // Clear previous states
-        btn.classList.remove('player-btn-dj-active', 'text-green-500', 'text-white', 'text-gray-400', 'text-[#b3b3b3]');
-        btn.style.setProperty('color', '', 'important');
-        btn.style.filter = "none";
-
-        if (isDjMixMode) {
-            btn.classList.add('player-btn-dj-active');
-        } else {
-            // Restore default colors based on button location/id
-            if (btn.id === 'mobileDjMixBtn' || btn.id === 'mobileFullDjMixBtn') {
-                btn.classList.add('text-gray-400');
-            } else {
-                btn.classList.add('text-[#b3b3b3]');
-            }
-        }
-    });
-}
+// DJ Mix Mode buttons and functions removed to simplify the interface as requested.
+function toggleDjMixMode() { console.log("Modo DJ no disponible"); }
+function updateDjMixButtonState() { }
 
 function stopCrossfade() {
     isCrossfading = false;
@@ -3369,15 +3333,19 @@ function playNext() {
         return;
     }
 
-    currentQueueIndex++;
-    if (currentQueueIndex >= queue.length) {
-        if (repeatMode === 1) {
-            currentQueueIndex = 0;
-        } else {
-            currentQueueIndex = queue.length - 1;
-            // If we reached the end and won't repeat, reset the session state
-            if (navigator.mediaSession) navigator.mediaSession.playbackState = 'none';
-            return;
+    if (isShuffle) {
+        currentQueueIndex = Math.floor(Math.random() * queue.length);
+    } else {
+        currentQueueIndex++;
+        if (currentQueueIndex >= queue.length) {
+            if (repeatMode === 1) {
+                currentQueueIndex = 0;
+            } else {
+                currentQueueIndex = queue.length - 1;
+                // If we reached the end and won't repeat, reset the session state
+                if (navigator.mediaSession) navigator.mediaSession.playbackState = 'none';
+                return;
+            }
         }
     }
     playSong(queue[currentQueueIndex], queue, true);
@@ -3411,9 +3379,34 @@ function handleTrackEnded() {
     playNext();
 }
 
-// Shuffle functionality removed as requested.
-function updateShuffleButtonState() { }
-function toggleShuffle() { }
+function toggleShuffle() {
+    isShuffle = !isShuffle;
+    localStorage.setItem('amaya_shuffle', isShuffle);
+    updateShuffleButtonState();
+    showToast(isShuffle ? "🔀 Modo aleatorio activated" : "Modo aleatorio desactivado");
+}
+
+function updateShuffleButtonState() {
+    const btns = document.querySelectorAll('.shuffle-btn, #shuffleBtn');
+    btns.forEach(btn => {
+        if (!btn) return;
+
+        btn.classList.remove('player-btn-active', 'text-white', 'text-gray-400', 'text-[#b3b3b3]', 'text-green-500');
+        btn.style.setProperty('color', '', 'important');
+
+        if (isShuffle) {
+            btn.classList.add('player-btn-active');
+        } else {
+            if (btn.closest('.mobile-player-mini') || btn.closest('#mobilePlayerMini')) {
+                btn.classList.add('text-white');
+            } else if (btn.id === 'shuffleBtn') {
+                btn.classList.add('text-[#b3b3b3]');
+            } else {
+                btn.classList.add('text-gray-400');
+            }
+        }
+    });
+}
 
 function toggleRepeat() {
     repeatMode = (repeatMode + 1) % 3;
