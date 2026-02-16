@@ -1714,23 +1714,42 @@ function updateAdFreeStatus(active) {
 async function getAudioUrl(videoId) {
     console.log(`🔍 Buscando audio proxeado (Cobalt/Piped/Invidious) para: ${videoId}`);
 
-    // 1. Try Cached Instance First
+    // 1. Try Cached Instance + Parallel Racing for backups
     const cachedInstance = localStorage.getItem('amaya_fastest_server');
-    const cachedType = localStorage.getItem('amaya_fastest_server_type'); // 'piped' or 'cobalt'
+    const cachedType = localStorage.getItem('amaya_fastest_server_type');
+
+    // Create a list of candidates excluding the cached one
+    const backupCandidates = [...COBALT_INSTANCES.map(url => ({ url, type: 'cobalt' })), ...PIPED_INSTANCES.map(url => ({ url, type: 'piped' }))]
+        .filter(inst => inst.url !== cachedInstance && !FAILED_INSTANCES.has(inst.url))
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 3); // Take top 3 random backups
 
     if (cachedInstance && !FAILED_INSTANCES.has(cachedInstance)) {
+        console.log(`⚡ Racing cached server: ${cachedInstance} with ${backupCandidates.length} backups...`);
+
         try {
-            let url = null;
-            if (cachedType === 'cobalt') {
-                url = await fetchFromCobalt(cachedInstance, videoId, 2500);
-            } else {
-                url = await fetchFromPiped(cachedInstance, videoId, 2000);
+            // Race the cached server with backups but give cached a slight "head start" 
+            // by using a shorter timeout for it if it fails.
+            const winner = await Promise.any([
+                (cachedType === 'cobalt' ? fetchFromCobalt(cachedInstance, videoId, 1500) : fetchFromPiped(cachedInstance, videoId, 1500))
+                    .then(url => ({ url, instance: cachedInstance, type: cachedType })),
+                ...backupCandidates.map(c =>
+                    (c.type === 'cobalt' ? fetchFromCobalt(c.url, videoId, 2500) : fetchFromPiped(c.url, videoId, 2500))
+                        .then(url => ({ url, instance: c.url, type: c.type }))
+                )
+            ]);
+
+            if (winner && winner.url) {
+                if (winner.instance !== cachedInstance) {
+                    localStorage.setItem('amaya_fastest_server', winner.instance);
+                    localStorage.setItem('amaya_fastest_server_type', winner.type);
+                }
+                return winner.url;
             }
-            if (url) return url;
         } catch (e) {
-            localStorage.removeItem('amaya_fastest_server');
-            localStorage.removeItem('amaya_fastest_server_type');
+            console.warn("Cached + Initial race failed, falling back to full batch race...");
             FAILED_INSTANCES.add(cachedInstance);
+            localStorage.removeItem('amaya_fastest_server');
         }
     }
 
@@ -2757,28 +2776,18 @@ async function playSong(song, list = [], fromQueue = false, singlePlay = false) 
         if (useNativeAudio && nativeAudio && !isVideoModeActive) {
             isCurrentlyUsingNative = true;
             try {
-                showToast("⏳ Verificando anuncios...", "info");
+                showToast("🚀 Iniciando reproducción...", "info");
 
-                // Fetch segments and URL in parallel, but wait for BOTH
-                const sponsorPromise = fetchSponsorSegments(song.id);
+                // Start fetching URL and segments in parallel
                 const audioPromise = getAudioUrl(song.id);
+                // We DON'T await fetchSponsorSegments here to avoid blocking playback start
+                fetchSponsorSegments(song.id);
 
-                // Wait for URL first as it's the bottleneck
                 const audioUrl = await audioPromise;
                 if (!audioUrl) throw new Error('No audio URL found');
 
-                // Wait for SponsorBlock data if fetch is pending
-                if (pendingSponsorFetch) {
-                    await pendingSponsorFetch;
-                }
-
-                // Feedback sobre protección
-                if (currentSponsorSegments.length > 0) {
-                    showToast(`🛡️ ${currentSponsorSegments.length} segmento(s) bloqueado(s)`, "success");
-                    console.log(`🛡️ Protección activa: ${currentSponsorSegments.length} anuncio(s) detectado(s)`);
-                } else {
-                    console.log("ℹ️ SponsorBlock: No se detectaron anuncios o servidor no disponible");
-                }
+                // If playback starts before SponsorBlock fetch finishes, the 'timeupdate' 
+                // handler in setupNativeAudioHandlers will catch segments as they arrive.
 
                 nativeAudio.src = audioUrl;
 
@@ -4033,8 +4042,8 @@ async function getTopUserInterests() {
         const stats = calculateStatistics(history);
 
         return {
-            genres: stats.topGenres.slice(0, 3).map(g => g.name),
-            artists: stats.topArtists.slice(0, 3).map(a => a.name)
+            genres: stats.topGenres.slice(0, 5).map(g => g.name),
+            artists: stats.topArtists.slice(0, 5).map(a => a.name)
         };
     } catch (error) {
         console.error("Error fetching user interests:", error);
@@ -4071,13 +4080,13 @@ async function loadNewReleases(force = false) {
         const queries = [
             ...interests.genres.map(g => `${g} music new releases`),
             ...interests.artists.map(a => `${a} official music video`)
-        ].slice(0, 5); // Limit to top 5 queries to avoid API quota drain
+        ].slice(0, 10); // Expanded to 10 queries for more variety
 
         if (queries.length > 0) {
             console.log("✨ Buscando sugerencias personalizadas para:", queries);
             for (const q of queries) {
                 try {
-                    const searchResp = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=5&q=${encodeURIComponent(q)}&type=video&videoCategoryId=10&key=${apiKey}`);
+                    const searchResp = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=10&q=${encodeURIComponent(q)}&type=video&videoCategoryId=10&key=${apiKey}`);
                     const searchData = await searchResp.json();
                     if (searchData.items) {
                         searchData.items.forEach(item => {
