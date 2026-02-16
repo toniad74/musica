@@ -3416,17 +3416,18 @@ function handleTrackEnded() {
 
 function toggleShuffle() {
     isShuffle = !isShuffle;
-    // Update all shuffle buttons (Desktop, Mobile Mini, Mobile Full)
     const btns = document.querySelectorAll('.shuffle-btn, #shuffleBtn');
     btns.forEach(btn => {
+        if (!btn) return;
+        
         if (isShuffle) {
-            btn.classList.add('text-green-500');
             btn.classList.remove('text-white', 'text-gray-400', 'text-[#b3b3b3]');
-            btn.style.setProperty('color', '', 'important');
+            btn.classList.add('text-green-500');
+            btn.style.color = '#22c55e';
         } else {
             btn.classList.remove('text-green-500');
-            // If it's in the mini player, default to white, otherwise to gray
-            if (btn.closest('.mobile-player-mini')) {
+            btn.style.color = '';
+            if (btn.closest('.mobile-player-mini') || btn.closest('#mobilePlayerMini')) {
                 btn.classList.add('text-white');
             } else {
                 btn.classList.add('text-[#b3b3b3]');
