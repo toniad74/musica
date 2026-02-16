@@ -129,7 +129,9 @@ const PIPED_INSTANCES = [
     'https://pipedapi.moe.xyz',
     'https://pipedapi.astartes.nl',
     'https://pipedapi.vube.app',
-    'https://pipedapi.hostux.net',
+    'https://piped-api.glauca.digital',
+    'https://piped-api.rivo.cc',
+    'https://piped-api.adminforge.de',
     'https://api.piped.video'
 ];
 
@@ -139,7 +141,9 @@ const COBALT_INSTANCES = [
     'https://cobalt.meowing.de',
     'https://api.cobalt.tools', // Official (has ratelimit, but good fallback)
     'https://cobalt.perennialte.ch',
-    'https://cobalt.asir.dev'
+    'https://cobalt.asir.dev',
+    'https://cobalt.hot-as.ice',
+    'https://cobalt.qwer.host'
 ];
 
 // --- INITIALIZATION ---
@@ -2800,8 +2804,8 @@ async function playSong(song, list = [], fromQueue = false, singlePlay = false) 
                     return;
                 }
 
-                console.log('📡 Fallback final a YouTube Player (Puede contener anuncios)...');
-                showToast('Usando reproductor de reserva...', 'info');
+                console.log('📡 Fallback final a YouTube Player...');
+                showToast('Buscando servidor alternativo...', 'info');
                 isCurrentlyUsingNative = false;
                 loadYouTubeIFrame(song.id);
                 // Track listening history even on fallback
@@ -2960,12 +2964,16 @@ function loadYouTubeIFrame(videoId) {
     isCurrentlyUsingNative = false;
     updateAdFreeStatus(false);
 
-    if (isVideoReady && player && player.loadVideoById) {
+    if (isVideoReady && player && typeof player.loadVideoById === 'function') {
         player.loadVideoById(videoId);
         player.playVideo();
     } else {
-        console.log("Player not ready, retrying in 500ms...");
-        setTimeout(() => loadYouTubeIFrame(videoId), 500);
+        console.log("YouTube Player no listo, reintentando...");
+        // Re-init if player missing
+        if (!player && typeof onYouTubeIframeAPIReady === 'function') {
+            onYouTubeIframeAPIReady();
+        }
+        setTimeout(() => loadYouTubeIFrame(videoId), 1000);
     }
 }
 
