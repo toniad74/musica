@@ -4015,6 +4015,33 @@ function renderHomePlaylists() {
     }
 }
 
+// Extract top genres and artists from history for personalization
+async function getTopUserInterests() {
+    if (!currentUserUid) return { genres: [], artists: [] };
+
+    try {
+        const historyRef = collection(db, "users", currentUserUid, "history");
+        // Get last 100 songs to keep it relevant and fast
+        const q = query(historyRef, orderBy("timestamp", "desc"), limit(100));
+        const querySnapshot = await getDocs(q);
+
+        const history = [];
+        querySnapshot.forEach((doc) => history.push(doc.data()));
+
+        if (history.length === 0) return { genres: [], artists: [] };
+
+        const stats = calculateStatistics(history);
+
+        return {
+            genres: stats.topGenres.slice(0, 3).map(g => g.name),
+            artists: stats.topArtists.slice(0, 3).map(a => a.name)
+        };
+    } catch (error) {
+        console.error("Error fetching user interests:", error);
+        return { genres: [], artists: [] };
+    }
+}
+
 async function loadNewReleases(force = false) {
     if (!currentUserUid) {
         showToast("Inicia sesión para ver novedades", "warning");
@@ -4036,29 +4063,87 @@ async function loadNewReleases(force = false) {
 
     try {
         const apiKey = getCurrentApiKey();
+        let totalVideos = [];
+        const seenIds = new Set();
 
-        // Loop to ensure we have enough initial items
-        while (newsVideos.length < 50) {
-            const pageTokenParam = newsNextPageToken ? `&pageToken=${newsNextPageToken}` : '';
-            const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&maxResults=50&videoCategoryId=10&regionCode=ES${pageTokenParam}&key=${apiKey}`);
-            const data = await response.json();
+        // 1. Fetch Personalized Suggestions (Top Artists and Genres)
+        const interests = await getTopUserInterests();
+        const queries = [
+            ...interests.genres.map(g => `${g} music new releases`),
+            ...interests.artists.map(a => `${a} official music video`)
+        ].slice(0, 5); // Limit to top 5 queries to avoid API quota drain
 
-            if (data.error) throw new Error(data.error.message);
-
-            const newBatch = data.items.map(item => ({
-                id: item.id,
-                title: decodeHtml(item.snippet.title),
-                channel: decodeHtml(item.snippet.channelTitle),
-                thumbnail: item.snippet.thumbnails.high ? item.snippet.thumbnails.high.url : item.snippet.thumbnails.default.url,
-                duration: parseISO8601Duration(item.contentDetails.duration),
-                durationSec: parseISO8601DurationInSeconds(item.contentDetails.duration)
-            })).filter(v => v.durationSec >= 120);
-
-            newsVideos = [...newsVideos, ...newBatch];
-            newsNextPageToken = data.nextPageToken || '';
-
-            if (!newsNextPageToken) break; // No more pages
+        if (queries.length > 0) {
+            console.log("✨ Buscando sugerencias personalizadas para:", queries);
+            for (const q of queries) {
+                try {
+                    const searchResp = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=5&q=${encodeURIComponent(q)}&type=video&videoCategoryId=10&key=${apiKey}`);
+                    const searchData = await searchResp.json();
+                    if (searchData.items) {
+                        searchData.items.forEach(item => {
+                            if (!seenIds.has(item.id.videoId)) {
+                                seenIds.add(item.id.videoId);
+                                totalVideos.push({
+                                    id: item.id.videoId,
+                                    title: decodeHtml(item.snippet.title),
+                                    channel: decodeHtml(item.snippet.channelTitle),
+                                    thumbnail: item.snippet.thumbnails.high ? item.snippet.thumbnails.high.url : item.snippet.thumbnails.medium.url,
+                                    isSuggested: true // Special flag for UI
+                                });
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.warn(`Error fetching suggestions for ${q}:`, e);
+                }
+            }
         }
+
+        // 2. Fetch Trending News (Standard)
+        const pageTokenParam = newsNextPageToken ? `&pageToken=${newsNextPageToken}` : '';
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&maxResults=50&videoCategoryId=10&regionCode=ES${pageTokenParam}&key=${apiKey}`);
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error.message);
+
+        data.items.forEach(item => {
+            if (!seenIds.has(item.id)) {
+                seenIds.add(item.id);
+                totalVideos.push({
+                    id: item.id,
+                    title: decodeHtml(item.snippet.title),
+                    channel: decodeHtml(item.snippet.channelTitle),
+                    thumbnail: item.snippet.thumbnails.high ? item.snippet.thumbnails.high.url : item.snippet.thumbnails.default.url,
+                    duration: parseISO8601Duration(item.contentDetails.duration),
+                    durationSec: parseISO8601DurationInSeconds(item.contentDetails.duration),
+                    isSuggested: false
+                });
+            }
+        });
+
+        newsNextPageToken = data.nextPageToken || '';
+
+        // 3. Metadata cleanup and Shuffle
+        // Fetch durations for search results (suggestions) that don't have them
+        const missingDurationIds = totalVideos.filter(v => !v.duration).map(v => v.id);
+        if (missingDurationIds.length > 0) {
+            const detailsResp = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${missingDurationIds.join(',')}&key=${apiKey}`);
+            const detailsData = await detailsResp.json();
+            if (detailsData.items) {
+                detailsData.items.forEach(item => {
+                    const video = totalVideos.find(v => v.id === item.id);
+                    if (video) {
+                        video.duration = parseISO8601Duration(item.contentDetails.duration);
+                        video.durationSec = parseISO8601DurationInSeconds(item.contentDetails.duration);
+                    }
+                });
+            }
+        }
+
+        // Filter and Shuffle
+        newsVideos = totalVideos.filter(v => (v.durationSec || 0) >= 120);
+        // Shuffle to mix suggestions and trends, but keep a balance
+        newsVideos.sort(() => Math.random() - 0.5);
 
         isNewsLoaded = true;
         renderNewsResults(newsVideos, false); // Initial render (replace)
@@ -4591,14 +4676,23 @@ function renderNewsResults(videos, append = false) {
     videos.forEach((video, index) => {
         const inQueue = isSongInQueue(video.id);
         const inQueueClass = inQueue ? 'in-queue-active' : '';
+        const isSuggested = video.isSuggested || false;
 
         const card = document.createElement('div');
-        card.className = 'news-card animate-fade-in group hover:scale-[1.02] transition-all duration-300';
+        card.className = `news-card animate-fade-in group hover:scale-[1.02] transition-all duration-300 ${isSuggested ? 'suggested-card' : ''}`;
         card.setAttribute('data-video-id', video.id);
         card.style.animationDelay = `${index * 50}ms`;
 
+        // Badge para sugerencias
+        const badgeHtml = isSuggested
+            ? `<div class="absolute top-2 left-1/2 -translate-x-1/2 z-20 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-tighter flex items-center gap-1 animate-bounce-subtle">
+                <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> Para ti
+               </div>`
+            : '';
+
         card.innerHTML = `
             <div class="thumbnail-container relative overflow-hidden rounded-xl shadow-2xl">
+                ${badgeHtml}
                 <img src="${video.thumbnail}" alt="${video.title}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy">
                 <button onclick="event.stopPropagation(); handleNewsPlay(${JSON.stringify(video).replace(/"/g, '&quot;')})" 
                     class="play-btn-overlay absolute bottom-4 right-4 bg-green-500 w-12 h-12 rounded-full flex items-center justify-center text-black opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 shadow-2xl transition-all duration-300 hover:scale-110 active:scale-90">
