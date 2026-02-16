@@ -144,12 +144,12 @@
                         <div class="p-4 border-b border-white/5">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Versión</p>
                             <p class="gold-edition-text text-sm flex items-center gap-2">
-                                v1.8.58
+                                v1.8.60
                             </p>
                             <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                 Actualizado
                             </p>
-                            <p class="text-white text-sm">16 feb 2026 20:59</p>
+                            <p class="text-white text-sm">16 feb 2026 21:15</p>
                         </div>
                         <button onclick="showReport()"
                             class="w-full text-left px-4 py-3 text-sm text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -263,11 +263,11 @@
                                     <div class="p-3 border-b border-white/5">
                                         <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">
                                             Versión</p>
-                                        <p class="gold-edition-text text-xs">v1.8.58</p>
+                                        <p class="gold-edition-text text-xs">v1.8.60</p>
                                         <p
                                             class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                             Actualizado</p>
-                                        <p class="text-white text-xs">16 feb 2026 20:59</p>
+                                        <p class="text-white text-xs">16 feb 2026 21:15</p>
                                     </div>
                                     <button onclick="showReport()"
                                         class="w-full text-left px-3 py-3 text-xs text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -941,41 +941,52 @@
         <div class="progress-bar-mini">
             <div id="progressFillMini" class="progress-fill-mini"></div>
         </div>
-        <div class="flex items-center justify-center w-full gap-4">
+        <div class="flex items-center justify-center w-full gap-2 sm:gap-4">
             <!-- Shuffle (Mini) -->
-            <button onclick="event.stopPropagation(); toggleShuffle()" class="text-white p-2 shuffle-btn">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <button onclick="event.stopPropagation(); toggleShuffle()" class="text-white p-1.5 sm:p-2 shuffle-btn">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path
                         d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z" />
                 </svg>
             </button>
+            <!-- DJ Mix (Mini) -->
+            <button id="mobileDjMixBtn" onclick="event.stopPropagation(); toggleDjMixMode()"
+                class="text-gray-400 p-1.5 sm:p-2 transition-colors">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                        d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4zM8 18H5v-7h3v7zm6 0h-3v-7h3v7zm6 0h-3v-7h3v7z" />
+                </svg>
+            </button>
             <!-- Prev (Mini) -->
-            <button onclick="event.stopPropagation(); playPrevious()" class="text-white p-2">
-                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+            <button onclick="event.stopPropagation(); playPrevious()" class="text-white p-1.5 sm:p-2">
+                <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
                 </svg>
             </button>
             <!-- Play/Pause (Mini) -->
             <button id="mobilePlayPauseBtn" onclick="event.stopPropagation(); togglePlayPause()"
-                class="w-10 h-10 flex items-center justify-center bg-white text-black rounded-full">
-                <svg id="mobilePlayPauseIcon" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                class="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-white text-black rounded-full">
+                <svg id="mobilePlayPauseIcon" class="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                 </svg>
             </button>
             <!-- Next (Mini) -->
-            <button onclick="event.stopPropagation(); playNext()" class="text-white p-2">
-                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+            <button onclick="event.stopPropagation(); playNext()" class="text-white p-1.5 sm:p-2">
+                <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
                 </svg>
             </button>
             <!-- Repeat (Mini) -->
-            <button onclick="event.stopPropagation(); toggleRepeat()" class="text-white p-2 repeat-btn">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <button onclick="event.stopPropagation(); toggleRepeat()" class="text-white p-1.5 sm:p-2 repeat-btn">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v6z" />
                 </svg>
             </button>
             <button onclick="event.stopPropagation(); showQueue()"
-                class="text-white p-2 flex items-center justify-center">
+                class="text-white p-1.5 sm:p-2 flex items-center justify-center">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18c-.31-.11-.65-.18-1-.18-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3V8h3V6h-5z"/>
+                </svg>
                 <span id="queueCountMini"
                     class="bg-green-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] hidden">0</span>
             </button>
