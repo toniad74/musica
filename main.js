@@ -5374,16 +5374,6 @@ function openMobilePlayer() {
     // Disable body scroll
     document.body.style.overflow = 'hidden';
 
-    // Desactivar modo mezcla al entrar en pantalla completa
-    if (isDjMixMode) {
-        isDjMixMode = false;
-        localStorage.setItem('amaya_dj_mix_mode', false);
-        if (isCrossfading) {
-            stopCrossfade();
-        }
-        updateDjMixButtonState();
-    }
-
     // Update marquees once visible
     setTimeout(updateMarquees, 600);
 }
@@ -5397,16 +5387,6 @@ function closeMobilePlayer() {
 
     // Re-enable body scroll
     document.body.style.overflow = '';
-
-    // Desactivar modo mezcla al salir de pantalla completa
-    if (isDjMixMode) {
-        isDjMixMode = false;
-        localStorage.setItem('amaya_dj_mix_mode', false);
-        if (isCrossfading) {
-            stopCrossfade();
-        }
-        updateDjMixButtonState();
-    }
 
     // Exit video mode if active
     if (isVideoModeActive) toggleVideoMode();
