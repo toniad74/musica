@@ -144,12 +144,12 @@
                         <div class="p-4 border-b border-white/5">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Versión</p>
                             <p class="gold-edition-text text-sm flex items-center gap-2">
-                                v1.8.69
+                                v1.8.70
                             </p>
                             <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                 Actualizado
                             </p>
-                            <p class="text-white text-sm">16 feb 2026 22:19</p>
+                            <p class="text-white text-sm">17 feb 2026 18:03</p>
                         </div>
                         <button onclick="showReport()"
                             class="w-full text-left px-4 py-3 text-sm text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -263,11 +263,11 @@
                                     <div class="p-3 border-b border-white/5">
                                         <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">
                                             Versión</p>
-                                        <p class="gold-edition-text text-xs">v1.8.69</p>
+                                        <p class="gold-edition-text text-xs">v1.8.70</p>
                                         <p
                                             class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                             Actualizado</p>
-                                        <p class="text-white text-xs">16 feb 2026 22:19</p>
+                                        <p class="text-white text-xs">17 feb 2026 18:03</p>
                                     </div>
                                     <button onclick="showReport()"
                                         class="w-full text-left px-3 py-3 text-xs text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -1164,21 +1164,16 @@
     <!-- Hidden Audio Engines -->
     <audio id="nativeAudioPlayer" preload="auto" class="hidden"></audio>
     <audio id="secondaryAudioPlayer" preload="auto" class="hidden"></audio>
-    <audio id="silentAudio" loop muted playsinline>
-        <source src="https://raw.githubusercontent.com/anars/blank-audio/master/10-seconds-to-silence.mp3"
-            type="audio/mp3">
-    </audio>
-    <div id="youtubePlayer" class="hidden"></div>
 
-
+    <div class="yt-stage">
+        <div id="youtubePlayer"></div>
+    </div>
 
     <!-- ERROR HANDLER -->
     <script>
-        /* SILENCED GLOBAL ERROR                 window.onerror = function (msg, url, line, col, e                    // ... (Si                    return                           */
-
-        // Catch Promise Rejections (Async errors)
+        /* SILENCED GLOBAL ERROR */
         window.addEventListener('unhandledrejection', function (event) {
-            console.error(event.reason); // Log full error object
+            console.error(event.reason);
         });
     </script>
     <script type="module" src="main.js?v=1.5.0"></script>
@@ -1337,7 +1332,7 @@
 
         <!-- Footer indicator -->
         <div class="mt-8 text-gray-500 text-[10px] font-black tracking-widest z-10">
-            Powered by LR uppercase opacity-40CLib, Musixmatch & Genius
+            Powered by LRCLib, Musixmatch & Genius
         </div>
     </div>
 </body>

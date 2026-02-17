@@ -1367,28 +1367,32 @@ function onPlayerReady(event) {
 
     // ===== AGGRESSIVE WATCHDOG =====
     // Check every second if engine is paused without user permission
+    let watchdogFailCount = 0;
     setInterval(() => {
-        if (!player) return;
+        if (!player || typeof player.getPlayerState !== 'function') return;
 
         try {
             const state = player.getPlayerState();
 
-            // If paused but user didn't pause it, force resume
-            // ONLY if we are NOT using any native audio for this track
-            if (!isCurrentlyUsingNative && state === YT.PlayerState.PAUSED && !isUserPaused) {
-                console.log("⚠️ Watchdog: Detected unwanted pause in YT. Force resuming...");
-                player.playVideo();
+            // Only act if YT is the current active engine
+            if (!isCurrentlyUsingNative && !isUserPaused) {
+                if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.CUED || state === -1) {
+                    watchdogFailCount++;
+                    if (watchdogFailCount < 10) {
+                        console.log(`⚠️ Watchdog: Detected YT issue (state: ${state}). Force resuming... [Attempt ${watchdogFailCount}]`);
+                        player.playVideo();
+                    } else if (watchdogFailCount === 10) {
+                        console.error("❌ Watchdog: YT stuck. Trying to re-sync...");
+                        const cur = player.getCurrentTime();
+                        player.seekTo(cur + 0.5, true);
+                        player.playVideo();
+                    }
+                } else if (state === YT.PlayerState.PLAYING) {
+                    watchdogFailCount = 0; // Reset on success
+                }
             }
-
-            // If somehow stopped or cued, also try to resume if we have a track
-            if (!isCurrentlyUsingNative && (state === YT.PlayerState.CUED || state === -1) && currentTrack && !isUserPaused) {
-                console.log("⚠️ Watchdog: YT Player stopped. Attempting recovery...");
-                player.playVideo();
-            }
-        } catch (e) {
-            // Ignore errors silently
-        }
-    }, 1000); // Check every second
+        } catch (e) { }
+    }, 1500);
 
     console.log("✅ Watchdog activated - monitoring playback state");
 }
@@ -1421,7 +1425,7 @@ function onPlayerStateChange(event) {
             if (!isUserPaused && !isCurrentlyUsingNative) {
                 console.log("Unwanted YT pause detected! Force resuming...");
                 player.playVideo();
-                return; // Exit early, don't update UI to paused state
+                return;
             }
             isMediaPlaying = false;
             playPauseIconsUpdate(path, false);
@@ -6126,7 +6130,6 @@ Object.assign(window, {
     backToDJInitial,
     createDJSessionTab,
     joinDJSessionTab,
-    leaveDJSession,
     showMySessionsTab,
     backToDJInitialTab,
     loadMySessionsTab,
