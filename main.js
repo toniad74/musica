@@ -3443,7 +3443,7 @@ function updateShuffleButtonState() {
         btn.style.setProperty('color', '', 'important');
 
         if (isShuffle) {
-            btn.classList.add('player-btn-active');
+            btn.classList.add('player-btn-active', 'text-green-500');
         } else {
             if (btn.closest('.mobile-player-mini') || btn.closest('#mobilePlayerMini')) {
                 btn.classList.add('text-white');
