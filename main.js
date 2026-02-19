@@ -1111,6 +1111,50 @@ async function loadPlaylistsFromCloud() {
     }
 }
 
+// Helper to extract clean artist name from video metadata
+function extractArtistFromMetadata(title, channel) {
+    if (!title) return channel || 'Desconocido';
+
+    // Clean title first to avoid noise
+    let cleanTitle = title
+        .replace(/\(Official Video\)/gi, '')
+        .replace(/\(Official Audio\)/gi, '')
+        .replace(/\(Lyrics\)/gi, '')
+        .replace(/\[.*\]/g, '')
+        .trim();
+
+    // 1. Try to split "Artist - Title"
+    // Standard separators: " - ", " – ", " — ", " : ", " | "
+    const separatorRegex = /\s+(?:-|–|—|:|\|)\s+/;
+    const parts = cleanTitle.split(separatorRegex);
+
+    if (parts.length >= 2) {
+        // Most music videos are "Artist - Title"
+        let potentialArtist = parts[0].trim();
+
+        // Remove quotes if present
+        potentialArtist = potentialArtist.replace(/^["']|["']$/g, '');
+
+        if (potentialArtist.length > 0 && potentialArtist.length < 40) {
+            return potentialArtist;
+        }
+    }
+
+    // 2. Fallback to Channel Name, but clean it
+    let cleanChannel = channel || '';
+
+    // Remove " - Topic"
+    cleanChannel = cleanChannel.replace(/ - Topic$/i, '');
+
+    // Remove "VEVO" suffix (case insensitive)
+    cleanChannel = cleanChannel.replace(/VEVO$/i, '');
+
+    // Remove "Official" suffix
+    cleanChannel = cleanChannel.replace(/Official$/i, '');
+
+    return cleanChannel.trim() || 'Desconocido';
+}
+
 async function addToHistory(song) {
     if (!currentUserUid || !song) return null;
 
@@ -1171,7 +1215,7 @@ async function addToHistory(song) {
         const docRef = await addDoc(historyRef, {
             songId: song.id,
             title: song.title,
-            artist: song.channel,
+            artist: extractArtistFromMetadata(song.title, song.channel),
             thumbnail: song.thumbnail,
             duration: song.duration,
             durationSeconds: parseDurationToSeconds(song.duration),
@@ -5862,10 +5906,14 @@ function calculateStatistics(history) {
         const listenedSecs = item.listenedSeconds || 0;
         const secs = listenedSecs > 0 ? listenedSecs : (item.durationSeconds || 0);
         console.log('📊 Using secs:', secs, 'for:', item.title);
-        stats.totalSeconds += secs;
-        stats.uniqueArtists.add(item.artist);
 
-        stats.artistsMap[item.artist] = (stats.artistsMap[item.artist] || 0) + secs;
+        // Extract clean artist name (fixes old data too)
+        const cleanArtist = extractArtistFromMetadata(item.title, item.artist);
+
+        stats.totalSeconds += secs;
+        stats.uniqueArtists.add(cleanArtist);
+
+        stats.artistsMap[cleanArtist] = (stats.artistsMap[cleanArtist] || 0) + secs;
 
         if (item.genre && item.genre !== "Unknown") {
             stats.genresMap[item.genre] = (stats.genresMap[item.genre] || 0) + 1;
@@ -5874,7 +5922,7 @@ function calculateStatistics(history) {
         // Store individual song data
         stats.songsData.push({
             title: item.title,
-            artist: item.artist,
+            artist: cleanArtist,
             listenedSeconds: listenedSecs,
             durationSeconds: item.durationSeconds || 0
         });
