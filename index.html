@@ -144,12 +144,12 @@
                         <div class="p-4 border-b border-white/5">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Versión</p>
                             <p class="gold-edition-text text-sm flex items-center gap-2">
-                                v1.9.1
+                                v1.9.2
                             </p>
                             <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                 Actualizado
                             </p>
-                            <p class="text-white text-sm">27 feb 2026 17:46</p>
+                            <p class="text-white text-sm">27 feb 2026 17:55</p>
                         </div>
                         <button onclick="showReport()"
                             class="w-full text-left px-4 py-3 text-sm text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -158,6 +158,14 @@
                                     d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                             </svg>
                             Reporte de escucha
+                        </button>
+                        <button id="adminProfileBtn" onclick="showAdmin()"
+                            class="hidden w-full text-left px-4 py-3 text-sm text-blue-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                            Administrar Usuarios
                         </button>
                         <button onclick="logout()"
                             class="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-white/5 flex items-center gap-2 transition-colors">
@@ -188,14 +196,6 @@
                             d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 001.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 00-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 005.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
                     </svg>
                     <span class="font-semibold">Buscar</span>
-                </button>
-                <button id="tab-sidebar-admin" onclick="switchTab('admin')"
-                    class="hidden flex items-center gap-4 text-[#b3b3b3] hover:text-white px-4 py-3 rounded-lg hover:bg-[#1a1a1a] w-full transition-colors">
-                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                        <path
-                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
-                    </svg>
-                    <span class="font-semibold">Usuarios</span>
                 </button>
             </nav>
 
@@ -271,11 +271,11 @@
                                     <div class="p-3 border-b border-white/5">
                                         <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">
                                             Versión</p>
-                                        <p class="gold-edition-text text-xs">v1.9.1</p>
+                                        <p class="gold-edition-text text-xs">v1.9.2</p>
                                         <p
                                             class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                             Actualizado</p>
-                                        <p class="text-white text-xs">27 feb 2026 17:46</p>
+                                        <p class="text-white text-xs">27 feb 2026 17:55</p>
                                     </div>
                                     <button onclick="showReport()"
                                         class="w-full text-left px-3 py-3 text-xs text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -284,6 +284,14 @@
                                                 d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                         </svg>
                                         Reporte de escucha
+                                    </button>
+                                    <button id="adminProfileBtnMobile" onclick="showAdmin()"
+                                        class="hidden w-full text-left px-3 py-3 text-xs text-blue-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                        </svg>
+                                        Administrar Usuarios
                                     </button>
                                     <button onclick="logout()"
                                         class="w-full text-left px-3 py-3 text-xs text-red-400 hover:bg-white/5 flex items-center gap-2 transition-colors">
@@ -376,9 +384,6 @@
                     </button>
                     <button id="tab-dj" onclick="switchTab('dj')" class="tab-btn">
                         🎧 DJ
-                    </button>
-                    <button id="tab-admin" onclick="switchTab('admin')" class="tab-btn hidden">
-                        👥 Usuarios
                     </button>
                 </div>
 
@@ -586,34 +591,6 @@
                             class="bg-white/5 hover:bg-white/10 text-white px-8 py-3 rounded-full font-bold transition-all border border-white/10">
                             Cargar más novedades
                         </button>
-                    </div>
-                </div>
-
-                <!-- Admin Section -->
-                <div id="adminSection" class="hidden px-1 md:px-6 pb-12">
-                    <div class="max-w-4xl mx-auto">
-                        <div class="flex items-center justify-between mb-8">
-                            <h2 class="text-3xl font-black">Gestión de Usuarios</h2>
-                            <button onclick="loadUserList()"
-                                class="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        <div class="bg-[#181818] rounded-2xl overflow-hidden border border-white/5">
-                            <div
-                                class="p-4 bg-white/5 border-b border-white/5 grid grid-cols-12 gap-4 text-xs font-black uppercase tracking-wider text-gray-400">
-                                <div class="col-span-5">Usuario</div>
-                                <div class="col-span-4">Caducidad</div>
-                                <div class="col-span-3 text-right">Acciones</div>
-                            </div>
-                            <div id="userListContainer" class="divide-y divide-white/5">
-                                <div class="p-8 text-center text-gray-500 italic">Cargando usuarios...</div>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -1226,6 +1203,47 @@
             navigator.serviceWorker.register('sw.js');
         }
     </script>
+    <!-- Admin Section -->
+    <div id="adminSection"
+        class="hidden fixed inset-0 z-[110] bg-black/95 backdrop-blur-md flex flex-col p-4 md:p-8 animate-fade-in overflow-y-auto">
+        <div class="max-w-4xl mx-auto w-full">
+            <div class="flex items-center justify-between mb-8">
+                <div>
+                    <h2 class="text-3xl md:text-5xl font-black text-white">Gestión de Usuarios</h2>
+                    <p class="text-gray-400 mt-2">Administra accesos y caducidades</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="loadUserList()"
+                        class="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-white">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </button>
+                    <button onclick="hideAdmin()"
+                        class="p-2 rounded-full bg-white/5 hover:bg-white/10 text-white transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-[#181818] rounded-2xl overflow-hidden border border-white/5 shadow-2xl">
+                <div
+                    class="p-4 bg-white/5 border-b border-white/5 grid grid-cols-12 gap-4 text-xs font-black uppercase tracking-wider text-gray-400">
+                    <div class="col-span-5">Usuario</div>
+                    <div class="col-span-4">Caducidad</div>
+                    <div class="col-span-3 text-right">Acciones</div>
+                </div>
+                <div id="userListContainer" class="divide-y divide-white/5">
+                    <div class="p-8 text-center text-gray-500 italic">Cargando usuarios...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Report Modal -->
     <div id="reportModal"
         class="hidden fixed inset-0 z-[110] bg-black/95 backdrop-blur-md flex flex-col p-4 md:p-8 animate-fade-in overflow-y-auto">

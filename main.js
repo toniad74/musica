@@ -388,16 +388,14 @@ function setupAuthListener() {
                 showBraveRecommendation();
 
                 // Handle Admin UI if applicable
+                const adminProfileBtn = document.getElementById('adminProfileBtn');
+                const adminProfileBtnMobile = document.getElementById('adminProfileBtnMobile');
                 if (userData.isAdmin) {
-                    const adminTab = document.getElementById('tab-admin');
-                    const sidebarAdminTab = document.getElementById('tab-sidebar-admin');
-                    if (adminTab) adminTab.classList.remove('hidden');
-                    if (sidebarAdminTab) sidebarAdminTab.classList.remove('hidden');
+                    if (adminProfileBtn) adminProfileBtn.classList.remove('hidden');
+                    if (adminProfileBtnMobile) adminProfileBtnMobile.classList.remove('hidden');
                 } else {
-                    const adminTab = document.getElementById('tab-admin');
-                    const sidebarAdminTab = document.getElementById('tab-sidebar-admin');
-                    if (adminTab) adminTab.classList.add('hidden');
-                    if (sidebarAdminTab) sidebarAdminTab.classList.add('hidden');
+                    if (adminProfileBtn) adminProfileBtn.classList.add('hidden');
+                    if (adminProfileBtnMobile) adminProfileBtnMobile.classList.add('hidden');
                 }
 
             } catch (error) {
@@ -427,11 +425,11 @@ function setupAuthListener() {
             playlists = [];
             renderPlaylists();
 
-            // Hide Admin Tab
-            const adminTab = document.getElementById('tab-admin');
-            const sidebarAdminTab = document.getElementById('tab-sidebar-admin');
-            if (adminTab) adminTab.classList.add('hidden');
-            if (sidebarAdminTab) sidebarAdminTab.classList.add('hidden');
+            // Hide Admin Buttons
+            const adminProfileBtn = document.getElementById('adminProfileBtn');
+            const adminProfileBtnMobile = document.getElementById('adminProfileBtnMobile');
+            if (adminProfileBtn) adminProfileBtn.classList.add('hidden');
+            if (adminProfileBtnMobile) adminProfileBtnMobile.classList.add('hidden');
         }
     });
 }
@@ -4283,9 +4281,6 @@ function switchTab(tab) {
     const tabSearch = document.getElementById('tab-search');
     const tabNews = document.getElementById('tab-news');
     const tabDj = document.getElementById('tab-dj');
-    const tabAdmin = document.getElementById('tab-admin');
-    const tabSidebarAdmin = document.getElementById('tab-sidebar-admin');
-    const adminSection = document.getElementById('adminSection');
 
     // RESTRICCIÓN: Login obligatorio para Buscar y Novedades
     if ((tab === 'search' || tab === 'news') && !currentUserUid) {
@@ -4298,9 +4293,6 @@ function switchTab(tab) {
     if (tabSearch) tabSearch.classList.toggle('active', tab === 'search');
     if (tabNews) tabNews.classList.toggle('active', tab === 'news');
     if (tabDj) tabDj.classList.toggle('active', tab === 'dj');
-    if (tabAdmin) tabAdmin.classList.toggle('active', tab === 'admin');
-    if (tabSidebarAdmin) tabSidebarAdmin.classList.toggle('bg-[#1a1a1a]', tab === 'admin');
-    if (tabSidebarAdmin) tabSidebarAdmin.classList.toggle('text-white', tab === 'admin');
 
     const searchInputSection = document.getElementById('searchInputSection');
     const mainElement = document.querySelector('main');
@@ -4312,7 +4304,6 @@ function switchTab(tab) {
         if (newsSection) newsSection.classList.add('hidden');
         if (searchInputSection) searchInputSection.classList.add('hidden');
         if (djSection) djSection.classList.add('hidden');
-        if (adminSection) adminSection.classList.add('hidden');
         if (mainElement) mainElement.style.overflowY = 'auto';
         renderHomePlaylists();
         activePlaylistId = null;
@@ -4321,7 +4312,6 @@ function switchTab(tab) {
         resultsSection.classList.remove('hidden');
         playlistView.classList.add('hidden');
         if (newsSection) newsSection.classList.add('hidden');
-        if (adminSection) adminSection.classList.add('hidden');
         if (searchInputSection) searchInputSection.classList.remove('hidden');
         if (djSection) djSection.classList.add('hidden');
         if (mainElement) mainElement.style.overflowY = 'auto';
@@ -4330,7 +4320,6 @@ function switchTab(tab) {
         resultsSection.classList.add('hidden');
         playlistView.classList.add('hidden');
         if (newsSection) newsSection.classList.remove('hidden');
-        if (adminSection) adminSection.classList.add('hidden');
         if (searchInputSection) searchInputSection.classList.add('hidden');
         if (djSection) djSection.classList.add('hidden');
         if (mainElement) mainElement.style.overflowY = 'auto';
@@ -4344,7 +4333,6 @@ function switchTab(tab) {
         resultsSection.classList.add('hidden');
         playlistView.classList.add('hidden');
         if (newsSection) newsSection.classList.add('hidden');
-        if (adminSection) adminSection.classList.add('hidden');
         if (searchInputSection) searchInputSection.classList.add('hidden');
         if (djSection) djSection.classList.remove('hidden');
         if (mainElement) {
@@ -4363,16 +4351,6 @@ function switchTab(tab) {
                 if (document.getElementById('djActiveViewTab')) document.getElementById('djActiveViewTab').classList.add('hidden');
             }
         }
-    } else if (tab === 'admin') {
-        homeSection.classList.add('hidden');
-        resultsSection.classList.add('hidden');
-        playlistView.classList.add('hidden');
-        if (newsSection) newsSection.classList.add('hidden');
-        if (adminSection) adminSection.classList.remove('hidden');
-        if (searchInputSection) searchInputSection.classList.add('hidden');
-        if (djSection) djSection.classList.add('hidden');
-        if (mainElement) mainElement.style.overflowY = 'auto';
-        loadUserList();
     }
 }
 
@@ -6390,6 +6368,27 @@ async function toggleUserAdmin(uid, currentStatus) {
     }
 }
 
+function showAdmin() {
+    if (!currentUserUid) return;
+    const adminSection = document.getElementById('adminSection');
+    if (adminSection) {
+        adminSection.classList.remove('hidden');
+        loadUserList();
+        // Close dropdowns
+        const profileDropdown = document.getElementById('profileDropdown');
+        const profileDropdownMobile = document.getElementById('profileDropdownMobile');
+        if (profileDropdown) profileDropdown.classList.add('hidden');
+        if (profileDropdownMobile) profileDropdownMobile.classList.add('hidden');
+    }
+}
+
+function hideAdmin() {
+    const adminSection = document.getElementById('adminSection');
+    if (adminSection) {
+        adminSection.classList.add('hidden');
+    }
+}
+
 Object.assign(window, {
     showHome,
     renderHomePlaylists,
@@ -6484,7 +6483,9 @@ Object.assign(window, {
     loadUserList,
     updateUserExpiry,
     toggleUserBlock,
-    toggleUserAdmin
+    toggleUserAdmin,
+    showAdmin,
+    hideAdmin
 });
 
 console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE");
