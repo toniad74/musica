@@ -312,6 +312,23 @@ function setupAuthListener() {
                 let userData = null;
                 if (userSnap.exists()) {
                     userData = userSnap.data();
+                    // Sync missing metadata (prevents empty names from previous bugs)
+                    if (!userData.email || !userData.displayName) {
+                        try {
+                            await updateDoc(userRef, {
+                                email: user.email,
+                                displayName: user.displayName,
+                                name: user.displayName,
+                                photoURL: user.photoURL
+                            });
+                            userData.email = user.email;
+                            userData.displayName = user.displayName;
+                            userData.name = user.displayName;
+                            userData.photoURL = user.photoURL;
+                        } catch (e) {
+                            console.warn("Could not sync user metadata:", e);
+                        }
+                    }
                 } else {
                     // Create basic user doc if it doesn't exist
                     userData = {
@@ -323,7 +340,8 @@ function setupAuthListener() {
                         createdAt: serverTimestamp(),
                         isBlocked: false,
                         expiryDate: null,
-                        isAdmin: false
+                        isAdmin: false,
+                        playlists: []
                     };
                     await setDoc(userRef, userData);
                 }
@@ -997,8 +1015,6 @@ function subscribeToDJSession(code) {
         }
 
         const data = doc.data();
-
-        // Sincronización de cola (Queue sync)
         const remoteQueue = data.queue || [];
         const localIds = queue.map(s => s.id).join(',');
         const remoteIds = remoteQueue.map(s => s.id).join(',');
@@ -6283,7 +6299,7 @@ async function loadUserList() {
             const expiryStr = expiryDate ? expiryDate.toLocaleDateString() : 'Sin fecha';
             const isExpired = expiryDate && expiryDate < new Date();
 
-            const userName = user.displayName || user.name || (user.email ? user.email.split('@')[0] : 'Usuario');
+            const userName = user.displayName || user.name || (user.email ? user.email.split('@')[0] : null) || `ID: ..${id.slice(-6)}`;
             console.log(`[Admin] Procesando usuario: ${userName}`, user);
 
             const userRow = document.createElement('div');

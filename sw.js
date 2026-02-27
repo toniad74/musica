@@ -1,5 +1,5 @@
-const CACHE_NAME = 'amaya-music-v1930';
-// SW Version: 1.9.3 - Time: 18:00 (GMT+1) - Mejora detección de nombres en panel admin
+const CACHE_NAME = 'amaya-music-v1940';
+// SW Version: 1.9.4 - Time: 18:07 (GMT+1) - Sincronización forzada de metadatos de usuario
 const urlsToCache = [
     './',
     './index.html',
