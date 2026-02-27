@@ -20,6 +20,7 @@ import { ui } from './ui-module.js';
 const googleProvider = new GoogleAuthProvider();
 
 export async function loginWithGoogle() {
+    console.log("👉 loginWithGoogle called from button");
     try {
         await signInWithPopup(auth, googleProvider);
     } catch (error) {

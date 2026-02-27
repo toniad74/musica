@@ -2,6 +2,19 @@
 
 <head>
     <script>
+        // Diagnostic: Catch ALL errors early
+        window.onerror = function (msg, url, lineNo, columnNo, error) {
+            const errStr = `❌ ERROR: ${msg}\nFile: ${url}\nLine: ${lineNo}`;
+            console.error(errStr);
+            // Show onscreen error if it's a fatal script load failure
+            setTimeout(() => {
+                const instructions = document.getElementById('loginInstructions');
+                if (instructions) instructions.innerHTML = `<span class="text-red-500 font-bold block bg-red-500/10 p-4 rounded-xl border border-red-500/20">${errStr}</span>`;
+            }, 1000);
+            return false;
+        };
+    </script>
+    <script>
         // ===== CRITICAL: EXECUTE FIRST - VISIBILITY SPOOFING =====
         // This MUST run before YouTube IFrame API loads to trick it into thinking page is always visible
         (function () {
@@ -145,12 +158,12 @@
                         <div class="p-4 border-b border-white/5">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Versión</p>
                             <p class="gold-edition-text text-sm flex items-center gap-2">
-                                v2.0.1
+                                v2.0.2
                             </p>
                             <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                 Actualizado
                             </p>
-                            <p class="text-white text-sm">27 feb 2026 23:35</p>
+                            <p class="text-white text-sm">27 feb 2026 23:45</p>
                         </div>
                         <button onclick="showReport()"
                             class="w-full text-left px-4 py-3 text-sm text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -273,11 +286,11 @@
                                     <div class="p-3 border-b border-white/5">
                                         <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">
                                             Versión</p>
-                                        <p class="gold-edition-text text-xs">v2.0.1</p>
+                                        <p class="gold-edition-text text-xs">v2.0.2</p>
                                         <p
                                             class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                             Actualizado</p>
-                                        <p class="text-white text-xs">27 feb 2026 23:35</p>
+                                        <p class="text-white text-xs">27 feb 2026 23:45</p>
                                     </div>
                                     <button onclick="showReport()"
                                         class="w-full text-left px-3 py-3 text-xs text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -1244,7 +1257,7 @@
             console.error(event.reason);
         });
     </script>
-    <script type="module" src="main.js?v=2.0.1"></script>
+    <script type="module" src="main.js?v=2.0.2"></script>
     <!-- Silent Audio Hack for Background Playback -->
     <audio id="silentAudio" loop preload="auto">
         <source src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAP8A/wD/"

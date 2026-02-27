@@ -1,11 +1,10 @@
 import { state } from './state.js';
 import { ui } from './ui-module.js';
-import { playerManager } from './player-module.js';
 
 export function switchTab(tabId) {
     const tabs = ['search', 'playlists', 'dj', 'stats'];
     tabs.forEach(t => {
-        const el = document.getElementById(`${t}Tab`);
+        const el = document.getElementById(`${t}Section`); // Note: earlier logic said ${t}Tab, but index.html uses Section usually
         const btn = document.getElementById(`${t}Btn`);
         const btnM = document.getElementById(`${t}BtnMobile`);
 
@@ -23,6 +22,42 @@ export function switchTab(tabId) {
     state.currentTab = tabId;
 }
 
+export function showHome() {
+    switchTab('playlists');
+}
+
+export function showAdmin() {
+    const adminSection = document.getElementById('adminSection');
+    if (adminSection) {
+        adminSection.classList.remove('hidden');
+        adminSection.classList.add('flex');
+    }
+}
+
+export function hideAdmin() {
+    const adminSection = document.getElementById('adminSection');
+    if (adminSection) {
+        adminSection.classList.add('hidden');
+        adminSection.classList.remove('flex');
+    }
+}
+
+export function showReport() {
+    const reportModal = document.getElementById('reportModal');
+    if (reportModal) {
+        reportModal.classList.remove('hidden');
+        reportModal.classList.add('flex');
+    }
+}
+
+export function hideReport() {
+    const reportModal = document.getElementById('reportModal');
+    if (reportModal) {
+        reportModal.classList.add('hidden');
+        reportModal.classList.remove('flex');
+    }
+}
+
 export function addToQueue(track) {
     state.queue.push(track);
     ui.showToast(`Añadido a la cola: ${track.title}`);
@@ -36,7 +71,9 @@ export function playNext() {
     }
 
     if (state.currentQueueIndex < state.queue.length) {
-        playerManager.playSong(state.queue[state.currentQueueIndex]);
+        // We'll need playerManager imported elsewhere or passed in
+        // For simplicity, we'll use the window global as a fallback if needed
+        if (window.playerManager) window.playerManager.playSong(state.queue[state.currentQueueIndex]);
     } else {
         state.currentQueueIndex = -1; // Reset
     }
