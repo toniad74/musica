@@ -7,6 +7,10 @@ let analyzer = null;
 let dataArray = null;
 
 export const playerManager = {
+    init() {
+        console.log("🎵 Player Module initialized");
+        // Placeholder for future init logic (e.g., volume setup)
+    },
     playSong(track, plId) {
         state.currentTrack = track;
         state.currentlyPlayingPlaylistId = plId;

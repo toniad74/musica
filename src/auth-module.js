@@ -10,7 +10,9 @@ import {
     getDoc,
     setDoc,
     updateDoc,
-    serverTimestamp
+    serverTimestamp,
+    addDoc,
+    collection
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { state } from './state.js';
 import { ui } from './ui-module.js';

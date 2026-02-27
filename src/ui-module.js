@@ -1,6 +1,15 @@
 import { state } from './state.js';
 
 export const ui = {
+    init() {
+        console.log("🎨 UI Module initialized");
+        // Initial visibility check
+        const loginOverlay = document.getElementById('loginOverlay');
+        const appContent = document.getElementById('appContent');
+        if (loginOverlay && !appContent.classList.contains('hidden')) {
+            loginOverlay.classList.add('hidden');
+        }
+    },
     showToast(message, type = 'success', duration = 3000) {
         const toast = document.createElement('div');
         toast.className = `fixed bottom-24 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full text-sm font-bold shadow-2xl z-[300] transition-all duration-300 transform translate-y-2 opacity-0 flex items-center gap-2 border border-white/10 backdrop-blur-md`;
