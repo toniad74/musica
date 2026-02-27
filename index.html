@@ -76,7 +76,7 @@
             <img src="https://raw.githubusercontent.com/handbolmolins/URLimagenes/refs/heads/main/LOGO%20MUSICA.png"
                 alt="Logo" class="w-32 h-32 object-contain rounded-full mb-8 shadow-2xl animate-pulse-slow">
             <h1 class="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight">Amaya's Music</h1>
-            <p class="text-gray-400 text-lg mb-10 leading-relaxed">
+            <p id="loginInstructions" class="text-gray-400 text-lg mb-10 leading-relaxed">
                 Tu música, tus listas y tus novedades en un solo lugar. <br>
                 <span class="text-green-500 font-semibold">Inicia sesión para continuar.</span>
             </p>
@@ -145,12 +145,12 @@
                         <div class="p-4 border-b border-white/5">
                             <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Versión</p>
                             <p class="gold-edition-text text-sm flex items-center gap-2">
-                                v1.9.7
+                                v2.0.0
                             </p>
                             <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                 Actualizado
                             </p>
-                            <p class="text-white text-sm">27 feb 2026 22:51</p>
+                            <p class="text-white text-sm">27 feb 2026 23:25</p>
                         </div>
                         <button onclick="showReport()"
                             class="w-full text-left px-4 py-3 text-sm text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -273,11 +273,11 @@
                                     <div class="p-3 border-b border-white/5">
                                         <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">
                                             Versión</p>
-                                        <p class="gold-edition-text text-xs">v1.9.7</p>
+                                        <p class="gold-edition-text text-xs">v2.0.0</p>
                                         <p
                                             class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider mb-1">
                                             Actualizado</p>
-                                        <p class="text-white text-xs">27 feb 2026 22:51</p>
+                                        <p class="text-white text-xs">27 feb 2026 23:25</p>
                                     </div>
                                     <button onclick="showReport()"
                                         class="w-full text-left px-3 py-3 text-xs text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors border-b border-white/5">
@@ -389,9 +389,9 @@
                     </button>
                 </div>
 
-                <!-- Search Section -->
                 <div id="searchInputSection" class="mb-4 px-1 md:px-6">
-                    <form onsubmit="event.preventDefault(); searchMusic();"
+                    <form
+                        onsubmit="event.preventDefault(); window.searchManager.performSearch(document.getElementById('searchInput').value);"
                         class="w-full lg:w-3/4 xl:w-2/3 mx-auto flex flex-col sm:flex-row gap-2">
                         <div class="flex-1 relative group">
                             <input type="text" id="searchInput"
@@ -416,6 +416,9 @@
                             Buscar
                         </button>
                     </form>
+
+                    <!-- Point 2: Search History -->
+                    <div id="searchHistoryContainer" class="hidden w-full lg:w-3/4 xl:w-2/3 mx-auto mt-4 px-4"></div>
                 </div>
 
 
@@ -1075,9 +1078,13 @@
                 </button>
             </div>
         </div>
-        <div class="flex-1 flex items-center justify-center px-4">
+        <div class="flex-1 flex flex-col items-center justify-center px-4 relative">
+            <!-- Point 4: Visualizer Canvas -->
+            <canvas id="visualizerCanvas"
+                class="absolute inset-0 w-full h-full z-0 opacity-50 pointer-events-none"></canvas>
+
             <div id="mobileArtworkContainer"
-                class="w-full aspect-square rounded-lg overflow-hidden shadow-2xl bg-black relative">
+                class="w-full aspect-square rounded-lg overflow-hidden shadow-2xl bg-black relative z-10">
                 <img id="mobileFullArt" src="" class="w-full h-full object-cover">
             </div>
         </div>
@@ -1285,6 +1292,13 @@
                 <div id="userListContainer" class="divide-y divide-white/5">
                     <div class="p-8 text-center text-gray-500 italic">Cargando usuarios...</div>
                 </div>
+            </div>
+
+            <!-- Point 5: Global Activity Logs -->
+            <div class="mt-8 pt-8 border-t border-white/10">
+                <h3 class="text-sm font-black uppercase tracking-tighter text-green-500 mb-4 px-4">Actividad Global
+                    Reciente</h3>
+                <div id="globalLogsContainer" class="space-y-1"></div>
             </div>
         </div>
     </div>
