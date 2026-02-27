@@ -1,5 +1,5 @@
-const CACHE_NAME = 'amaya-music-v1900';
-// SW Version: 1.9.0 - Time: 17:42 (GMT+1) - Gestión de caducidad y bloqueo de usuarios
+const CACHE_NAME = 'amaya-music-v1910';
+// SW Version: 1.9.1 - Time: 17:46 (GMT+1) - Fix visualización nombres admin panel
 const urlsToCache = [
     './',
     './index.html',
