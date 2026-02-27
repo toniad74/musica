@@ -358,11 +358,25 @@ function setupAuthListener() {
                 const isExpired = userData.expiryDate && userData.expiryDate.toDate() < now;
 
                 if (userData.isBlocked || isExpired) {
-                    const reason = userData.isBlocked ? "Tu cuenta ha sido bloqueada." : "Tu suscripción ha caducado.";
+                    const reason = userData.isBlocked ?
+                        "Tu cuenta ha sido bloqueada. Por favor, contacta con el administrador." :
+                        "Tu suscripción ha caducado. Por favor, contacta con el administrador.";
+
                     showToast(reason, "error", 10000);
 
                     // Show error in login overlay
+                    const loginOverlay = document.getElementById('loginOverlay');
                     const loginHint = document.getElementById('loginErrorHint');
+
+                    if (loginOverlay) {
+                        loginOverlay.classList.remove('hidden', 'opacity-0');
+                        // Reset background logic if necessary
+                        const loginText = loginOverlay.querySelector('p');
+                        if (loginText) {
+                            loginText.innerHTML = `<span class="text-red-500 font-bold">${reason}</span>`;
+                        }
+                    }
+
                     if (loginHint) {
                         loginHint.innerText = reason;
                         loginHint.classList.remove('hidden');
@@ -400,6 +414,15 @@ function setupAuthListener() {
                 if (userNameMobile) userNameMobile.innerText = user.displayName.split(' ')[0]; // First name only for mobile
                 if (userAvatarMobile) userAvatarMobile.src = user.photoURL;
                 if (userAvatarFull) userAvatarFull.src = user.photoURL;
+
+                // Avatar styling for admin
+                const adminClass = 'border-2 border-yellow-500 shadow-[0_0_10px_rgba(255,215,0,0.5)]';
+                [userAvatar, userAvatarMobile, userAvatarFull].forEach(img => {
+                    if (img) {
+                        if (userData.isAdmin) img.classList.add('border-2', 'border-yellow-500', 'shadow-[0_0_10px_rgba(255,215,0,0.5)]');
+                        else img.classList.remove('border-2', 'border-yellow-500', 'shadow-[0_0_10px_rgba(255,215,0,0.5)]');
+                    }
+                });
 
                 // Load cloud data (playlists are handled here)
                 loadPlaylistsFromCloud();
@@ -6327,11 +6350,16 @@ async function loadUserList() {
 
             const userRow = document.createElement('div');
             userRow.className = 'p-4 grid grid-cols-12 gap-4 items-center hover:bg-white/5 transition-colors relative';
+            const adminGlow = user.isAdmin ? 'border-2 border-yellow-500 shadow-[0_0_10px_rgba(255,215,0,0.5)]' : 'border border-white/10';
+
             userRow.innerHTML = `
                 <div class="col-span-5 flex items-center gap-3 min-w-0">
-                    <img src="${user.photoURL || ''}" class="w-8 h-8 rounded-full bg-white/10" onerror="this.src='https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'">
+                    <img src="${user.photoURL || ''}" class="w-10 h-10 rounded-full bg-white/10 object-cover ${adminGlow}" onerror="this.src='https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'">
                     <div class="min-w-0 flex-1">
-                        <p class="text-sm font-bold text-white truncate">${userName}</p>
+                        <p class="text-sm font-bold text-white truncate flex items-center gap-2">
+                            ${userName}
+                            ${user.isAdmin ? '<span class="text-[8px] bg-yellow-500 text-black px-1 rounded font-black">ADMIN</span>' : ''}
+                        </p>
                         <p class="text-[10px] text-gray-400 truncate opacity-60">${user.email || ''}</p>
                     </div>
                 </div>
