@@ -1,5 +1,5 @@
-const CACHE_NAME = 'amaya-music-v1822';
-// SW Version: 1.8.72 - Time: 23:55 (GMT+1) - Botón aleatorio verde activo
+const CACHE_NAME = 'amaya-music-v1900';
+// SW Version: 1.9.0 - Time: 17:42 (GMT+1) - Gestión de caducidad y bloqueo de usuarios
 const urlsToCache = [
     './',
     './index.html',

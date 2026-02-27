@@ -300,44 +300,109 @@ window.onload = () => {
 
 
 function setupAuthListener() {
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUserUid = user.uid;
 
-            // Toggle Desktop UI
-            const loggedOutUI = document.getElementById('loggedOutUI');
-            const loggedInUI = document.getElementById('loggedInUI');
-            if (loggedOutUI) loggedOutUI.classList.add('hidden');
-            if (loggedInUI) loggedInUI.classList.remove('hidden');
+            try {
+                // Fetch user document to check status
+                const userRef = doc(db, "users", user.uid);
+                const userSnap = await getDoc(userRef);
 
-            // Toggle Mobile UI
-            const loggedOutUIMobile = document.getElementById('loggedOutUIMobile');
-            const loggedInUIMobile = document.getElementById('loggedInUIMobile');
-            if (loggedOutUIMobile) loggedOutUIMobile.classList.add('hidden');
-            if (loggedInUIMobile) loggedInUIMobile.classList.remove('hidden');
+                let userData = null;
+                if (userSnap.exists()) {
+                    userData = userSnap.data();
+                } else {
+                    // Create basic user doc if it doesn't exist
+                    userData = {
+                        uid: user.uid,
+                        email: user.email,
+                        displayName: user.displayName,
+                        photoURL: user.photoURL,
+                        createdAt: serverTimestamp(),
+                        isBlocked: false,
+                        expiryDate: null,
+                        isAdmin: false
+                    };
+                    await setDoc(userRef, userData);
+                }
 
-            // Set Data
-            const userName = document.getElementById('userName');
-            const userAvatar = document.getElementById('userAvatar');
-            const userNameMobile = document.getElementById('userNameMobile');
-            const userAvatarMobile = document.getElementById('userAvatarMobile');
+                // CHECK STATUS: Blocked or Expired
+                const now = new Date();
+                const isExpired = userData.expiryDate && userData.expiryDate.toDate() < now;
 
-            if (userName) userName.innerText = user.displayName;
-            if (userAvatar) userAvatar.src = user.photoURL;
-            if (userNameMobile) userNameMobile.innerText = user.displayName.split(' ')[0]; // First name only for mobile
-            if (userAvatarMobile) userAvatarMobile.src = user.photoURL;
+                if (userData.isBlocked || isExpired) {
+                    const reason = userData.isBlocked ? "Tu cuenta ha sido bloqueada." : "Tu suscripción ha caducado.";
+                    showToast(reason, "error", 10000);
 
-            loadPlaylistsFromCloud();
+                    // Show error in login overlay
+                    const loginHint = document.getElementById('loginErrorHint');
+                    if (loginHint) {
+                        loginHint.innerText = reason;
+                        loginHint.classList.remove('hidden');
+                    }
 
-            // Unlock UI
-            document.getElementById('loginOverlay').classList.add('hidden', 'opacity-0');
-            document.getElementById('appContent').classList.remove('hidden');
+                    await signOut(auth);
+                    return;
+                }
 
-            // Redirect to Search on login
-            switchTab('search');
+                // If not blocked/expired, hide any previous error hints
+                const loginHint = document.getElementById('loginErrorHint');
+                if (loginHint) loginHint.classList.add('hidden');
 
-            // Show Brave browser recommendation (once per session)
-            showBraveRecommendation();
+                // Toggle Desktop UI
+                const loggedOutUI = document.getElementById('loggedOutUI');
+                const loggedInUI = document.getElementById('loggedInUI');
+                if (loggedOutUI) loggedOutUI.classList.add('hidden');
+                if (loggedInUI) loggedInUI.classList.remove('hidden');
+
+                // Toggle Mobile UI
+                const loggedOutUIMobile = document.getElementById('loggedOutUIMobile');
+                const loggedInUIMobile = document.getElementById('loggedInUIMobile');
+                if (loggedOutUIMobile) loggedOutUIMobile.classList.add('hidden');
+                if (loggedInUIMobile) loggedInUIMobile.classList.remove('hidden');
+
+                // Set Data
+                const userName = document.getElementById('userName');
+                const userAvatar = document.getElementById('userAvatar');
+                const userNameMobile = document.getElementById('userNameMobile');
+                const userAvatarMobile = document.getElementById('userAvatarMobile');
+
+                if (userName) userName.innerText = user.displayName;
+                if (userAvatar) userAvatar.src = user.photoURL;
+                if (userNameMobile) userNameMobile.innerText = user.displayName.split(' ')[0]; // First name only for mobile
+                if (userAvatarMobile) userAvatarMobile.src = user.photoURL;
+
+                // Load cloud data (playlists are handled here)
+                loadPlaylistsFromCloud();
+
+                // Unlock UI
+                document.getElementById('loginOverlay').classList.add('hidden', 'opacity-0');
+                document.getElementById('appContent').classList.remove('hidden');
+
+                // Redirect to Search on login
+                switchTab('search');
+
+                // Show Brave browser recommendation (once per session)
+                showBraveRecommendation();
+
+                // Handle Admin UI if applicable
+                if (userData.isAdmin) {
+                    const adminTab = document.getElementById('tab-admin');
+                    const sidebarAdminTab = document.getElementById('tab-sidebar-admin');
+                    if (adminTab) adminTab.classList.remove('hidden');
+                    if (sidebarAdminTab) sidebarAdminTab.classList.remove('hidden');
+                } else {
+                    const adminTab = document.getElementById('tab-admin');
+                    const sidebarAdminTab = document.getElementById('tab-sidebar-admin');
+                    if (adminTab) adminTab.classList.add('hidden');
+                    if (sidebarAdminTab) sidebarAdminTab.classList.add('hidden');
+                }
+
+            } catch (error) {
+                console.error("Error in auth listener:", error);
+                showToast("Error al verificar el estado de la cuenta", "error");
+            }
         } else {
             currentUserUid = null;
 
@@ -360,6 +425,12 @@ function setupAuthListener() {
             // Reset playlists - NO LOCAL PLAYLISTS ALLOWED
             playlists = [];
             renderPlaylists();
+
+            // Hide Admin Tab
+            const adminTab = document.getElementById('tab-admin');
+            const sidebarAdminTab = document.getElementById('tab-sidebar-admin');
+            if (adminTab) adminTab.classList.add('hidden');
+            if (sidebarAdminTab) sidebarAdminTab.classList.add('hidden');
         }
     });
 }
@@ -3547,7 +3618,7 @@ async function savePlaylists() {
         return;
     }
     try {
-        await setDoc(doc(db, "users", currentUserUid), {
+        await updateDoc(doc(db, "users", currentUserUid), {
             playlists: playlists,
             lastUpdate: new Date().toISOString()
         });
@@ -4211,6 +4282,9 @@ function switchTab(tab) {
     const tabSearch = document.getElementById('tab-search');
     const tabNews = document.getElementById('tab-news');
     const tabDj = document.getElementById('tab-dj');
+    const tabAdmin = document.getElementById('tab-admin');
+    const tabSidebarAdmin = document.getElementById('tab-sidebar-admin');
+    const adminSection = document.getElementById('adminSection');
 
     // RESTRICCIÓN: Login obligatorio para Buscar y Novedades
     if ((tab === 'search' || tab === 'news') && !currentUserUid) {
@@ -4223,6 +4297,9 @@ function switchTab(tab) {
     if (tabSearch) tabSearch.classList.toggle('active', tab === 'search');
     if (tabNews) tabNews.classList.toggle('active', tab === 'news');
     if (tabDj) tabDj.classList.toggle('active', tab === 'dj');
+    if (tabAdmin) tabAdmin.classList.toggle('active', tab === 'admin');
+    if (tabSidebarAdmin) tabSidebarAdmin.classList.toggle('bg-[#1a1a1a]', tab === 'admin');
+    if (tabSidebarAdmin) tabSidebarAdmin.classList.toggle('text-white', tab === 'admin');
 
     const searchInputSection = document.getElementById('searchInputSection');
     const mainElement = document.querySelector('main');
@@ -4234,6 +4311,7 @@ function switchTab(tab) {
         if (newsSection) newsSection.classList.add('hidden');
         if (searchInputSection) searchInputSection.classList.add('hidden');
         if (djSection) djSection.classList.add('hidden');
+        if (adminSection) adminSection.classList.add('hidden');
         if (mainElement) mainElement.style.overflowY = 'auto';
         renderHomePlaylists();
         activePlaylistId = null;
@@ -4242,6 +4320,7 @@ function switchTab(tab) {
         resultsSection.classList.remove('hidden');
         playlistView.classList.add('hidden');
         if (newsSection) newsSection.classList.add('hidden');
+        if (adminSection) adminSection.classList.add('hidden');
         if (searchInputSection) searchInputSection.classList.remove('hidden');
         if (djSection) djSection.classList.add('hidden');
         if (mainElement) mainElement.style.overflowY = 'auto';
@@ -4250,6 +4329,7 @@ function switchTab(tab) {
         resultsSection.classList.add('hidden');
         playlistView.classList.add('hidden');
         if (newsSection) newsSection.classList.remove('hidden');
+        if (adminSection) adminSection.classList.add('hidden');
         if (searchInputSection) searchInputSection.classList.add('hidden');
         if (djSection) djSection.classList.add('hidden');
         if (mainElement) mainElement.style.overflowY = 'auto';
@@ -4263,6 +4343,7 @@ function switchTab(tab) {
         resultsSection.classList.add('hidden');
         playlistView.classList.add('hidden');
         if (newsSection) newsSection.classList.add('hidden');
+        if (adminSection) adminSection.classList.add('hidden');
         if (searchInputSection) searchInputSection.classList.add('hidden');
         if (djSection) djSection.classList.remove('hidden');
         if (mainElement) {
@@ -4281,6 +4362,16 @@ function switchTab(tab) {
                 if (document.getElementById('djActiveViewTab')) document.getElementById('djActiveViewTab').classList.add('hidden');
             }
         }
+    } else if (tab === 'admin') {
+        homeSection.classList.add('hidden');
+        resultsSection.classList.add('hidden');
+        playlistView.classList.add('hidden');
+        if (newsSection) newsSection.classList.add('hidden');
+        if (adminSection) adminSection.classList.remove('hidden');
+        if (searchInputSection) searchInputSection.classList.add('hidden');
+        if (djSection) djSection.classList.add('hidden');
+        if (mainElement) mainElement.style.overflowY = 'auto';
+        loadUserList();
     }
 }
 
@@ -6184,6 +6275,215 @@ Object.assign(window, {
     rejoinSessionTab,
     syncDJToTab,
     updateDJMembersListTab
+});
+
+console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE");
+
+// --- ADMIN FUNCTIONS ---
+
+async function loadUserList() {
+    if (!currentUserUid) return;
+    const container = document.getElementById('userListContainer');
+    if (!container) return;
+    container.innerHTML = '<div class="p-8 text-center text-gray-500 italic">Cargando usuarios...</div>';
+
+    try {
+        const querySnapshot = await getDocs(collection(db, "users"));
+        container.innerHTML = '';
+
+        if (querySnapshot.empty) {
+            container.innerHTML = '<div class="p-8 text-center text-gray-400">No hay usuarios registrados.</div>';
+            return;
+        }
+
+        querySnapshot.forEach((docSnap) => {
+            const user = docSnap.data();
+            const id = docSnap.id;
+            const isBlocked = user.isBlocked || false;
+            const expiryDate = user.expiryDate ? user.expiryDate.toDate() : null;
+            const expiryStr = expiryDate ? expiryDate.toLocaleDateString() : 'Sin fecha';
+            const isExpired = expiryDate && expiryDate < new Date();
+
+            const userRow = document.createElement('div');
+            userRow.className = 'p-4 grid grid-cols-12 gap-4 items-center hover:bg-white/5 transition-colors';
+            userRow.innerHTML = `
+                <div class="col-span-5 flex items-center gap-3 min-w-0">
+                    <img src="${user.photoURL || ''}" class="w-8 h-8 rounded-full bg-white/10" onerror="this.src='https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'">
+                    <div class="min-w-0">
+                        <p class="text-sm font-bold truncate text-white">${user.displayName || 'Usuario'}</p>
+                        <p class="text-[10px] text-gray-400 truncate opacity-60">${user.email || ''}</p>
+                    </div>
+                </div>
+                <div class="col-span-4">
+                    <div class="flex flex-col">
+                        <span class="text-sm ${isExpired ? 'text-red-400 font-bold' : 'text-gray-300'}">${expiryStr}</span>
+                        <input type="date" value="${expiryDate ? expiryDate.toISOString().split('T')[0] : ''}" 
+                               onchange="updateUserExpiry('${id}', this.value)"
+                               class="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] mt-1 text-white focus:outline-none focus:border-green-500 w-full max-w-[120px]">
+                    </div>
+                </div>
+                <div class="col-span-3 text-right flex justify-end gap-2">
+                    <button onclick="toggleUserBlock('${id}', ${isBlocked})" 
+                            class="p-2 rounded-lg ${isBlocked ? 'bg-red-500/20 text-red-100 hover:bg-red-500/30' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'} transition-all"
+                            title="${isBlocked ? 'Desbloquear' : 'Bloquear'}">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                        </svg>
+                    </button>
+                    <button onclick="toggleUserAdmin('${id}', ${user.isAdmin || false})" 
+                            class="p-2 rounded-lg ${user.isAdmin ? 'bg-yellow-500/20 text-yellow-100 border border-yellow-500/30' : 'bg-white/5 text-gray-400 hover:bg-white/10'} transition-all"
+                            title="${user.isAdmin ? 'Quitar Admin' : 'Hacer Admin'}">
+                        <svg class="w-5 h-5 font-bold" viewBox="0 0 24 24" fill="currentColor">
+                           <path d="M11.69 2.02L12 2l.31.02a.75.75 0 01.31.11l1.5 1.5.02.04 2.87-1.15a.75.75 0 01.44.04l5 2.5a.75.75 0 01.4.67v8.5a.75.75 0 01-.4.67l-5 2.5a.75.75 0 01-.67 0l-4.11-2.06a.75.75 0 01-.67-1.34l3.53 1.77 4-2v-6.94l-4 2v.44a.75.75 0 01-1.5 0v-1.19l-1.5 1.5-.02.04-1.5-1.5-.02-.04v1.19a.75.75 0 01-1.5 0V11l-4-2v6.94l4 2 3.53-1.77a.75.75 0 01.67 1.34L12.33 21.6a.75.75 0 01-.67 0l-5-2.5a.75.75 0 01-.4-.67v-8.5a.75.75 0 01.4-.67l5-2.5a.75.75 0 01.44-.04l2.87 1.15.02-.04 1.5-1.5.02-.04z"/>
+                        </svg>
+                    </button>
+                </div>
+            `;
+            container.appendChild(userRow);
+        });
+    } catch (error) {
+        console.error("Error loading user list:", error);
+        container.innerHTML = '<div class="p-8 text-center text-red-400">Error al cargar. Asegúrate de tener permisos.</div>';
+    }
+}
+
+async function updateUserExpiry(uid, dateStr) {
+    if (!uid || !dateStr) return;
+    try {
+        const expiryDate = new Date(dateStr);
+        await updateDoc(doc(db, "users", uid), {
+            expiryDate: expiryDate
+        });
+        showToast("Fecha de caducidad actualizada");
+        loadUserList();
+    } catch (error) {
+        console.error("Error updating expiry:", error);
+        showToast("Error al actualizar la fecha", "error");
+    }
+}
+
+async function toggleUserBlock(uid, currentStatus) {
+    try {
+        await updateDoc(doc(db, "users", uid), {
+            isBlocked: !currentStatus
+        });
+        showToast(currentStatus ? "Usuario desbloqueado" : "Usuario bloqueado");
+        loadUserList();
+    } catch (error) {
+        console.error("Error toggling block status:", error);
+        showToast("Error al cambiar estado", "error");
+    }
+}
+
+async function toggleUserAdmin(uid, currentStatus) {
+    if (!confirm(`¿Estás seguro de que quieres ${currentStatus ? 'quitar' : 'dar'} permisos de administrador?`)) return;
+    try {
+        await updateDoc(doc(db, "users", uid), {
+            isAdmin: !currentStatus
+        });
+        showToast(currentStatus ? "Permisos revocados" : "Permisos de administrador concedidos");
+        loadUserList();
+    } catch (error) {
+        console.error("Error toggling admin status:", error);
+        showToast("Error al cambiar permisos", "error");
+    }
+}
+
+Object.assign(window, {
+    showHome,
+    renderHomePlaylists,
+    switchTab,
+    showCreatePlaylistModal,
+    hideCreatePlaylistModal,
+    createPlaylist,
+    searchMusic,
+    loadNewReleases,
+    toggleClearButton,
+    clearSearch,
+    searchPrevPage,
+    searchNextPage,
+    openPlaylist,
+    removeSongFromPlaylist,
+    showAddToPlaylistMenu,
+    hideAddToPlaylistMenu,
+    toggleShuffle,
+    playPrevious,
+    togglePlayPause,
+    playNext,
+    toggleRepeat,
+    showQueue,
+    hideQueue,
+    clearQueue,
+    toggleQueue,
+    saveQueueAsPlaylist,
+    playSong,
+    handleNewsPlay,
+    hideApiInstructions,
+    showApiInstructions,
+    toggleApiKeySection,
+    saveApiKey,
+    shareCurrentPlaylist,
+    importSharedPlaylist,
+    updateMarquees,
+    updateMarquee,
+    loginWithGoogle,
+    logout,
+    toggleProfileDropdown,
+    toggleProfileDropdownMobile,
+    onYouTubeIframeAPIReady,
+    onPlayerReady,
+    onPlayerStateChange,
+    onPlayerError,
+    playNativeAudio,
+    setupAuthListener,
+    openMobilePlayer,
+    closeMobilePlayer,
+    seekMobile,
+    showMobileMenu,
+    hideMobileMenu,
+    triggerPlaylistImport,
+    handlePlaylistImport,
+    triggerPlaylistCoverUpload,
+    handlePlaylistCoverChange,
+    openEditPlaylistModal,
+    showEditPlaylistModal,
+    savePlaylistEdits,
+    hideEditPlaylistModal,
+    showDeletePlaylistConfirm,
+    hideDeletePlaylistConfirm,
+    deleteCurrentPlaylist,
+    playCurrentPlaylist,
+    toggleMute,
+    removeFromQueue,
+    moveSongInPlaylist,
+    showReport,
+    hideReport,
+    updateReportPeriod,
+    updateReportCustomRange,
+    loadMoreNews,
+    toggleLyrics,
+    toggleVideoMode,
+    createDJSession,
+    joinDJSession,
+    leaveDJSession,
+    editDJSessionName,
+    loadMySessions,
+    rejoinSession,
+    deleteSavedSession,
+    showMySessions,
+    backToDJInitial,
+    createDJSessionTab,
+    joinDJSessionTab,
+    showMySessionsTab,
+    backToDJInitialTab,
+    loadMySessionsTab,
+    rejoinSessionTab,
+    syncDJToTab,
+    updateDJMembersListTab,
+    loadUserList,
+    updateUserExpiry,
+    toggleUserBlock,
+    toggleUserAdmin
 });
 
 console.log("🚀 MAIN.JS CARGADO CORRECTAMENTE");
