@@ -1,5 +1,5 @@
-const CACHE_NAME = 'amaya-music-v1940';
-// SW Version: 1.9.4 - Time: 18:07 (GMT+1) - Sincronización forzada de metadatos de usuario
+const CACHE_NAME = 'amaya-music-v1951';
+// SW Version: 1.9.5 - Time: 22:39 (GMT+1) - Auto-actualización
 const urlsToCache = [
     './',
     './index.html',

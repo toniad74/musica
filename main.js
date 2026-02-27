@@ -201,6 +201,8 @@ window.onload = () => {
         const trigger = document.getElementById('loggedInUI');
         const mobileDropdown = document.getElementById('profileDropdownMobile');
         const mobileTrigger = document.getElementById('loggedInUIMobile');
+        const fullDropdown = document.getElementById('profileDropdownFull');
+        const fullTrigger = document.getElementById('fullPlayerUserAvatarContainer');
 
         if (dropdown && !dropdown.classList.contains('hidden')) {
             if (!dropdown.contains(e.target) && !trigger.contains(e.target)) {
@@ -210,6 +212,11 @@ window.onload = () => {
         if (mobileDropdown && !mobileDropdown.classList.contains('hidden')) {
             if (!mobileDropdown.contains(e.target) && !mobileTrigger.contains(e.target)) {
                 mobileDropdown.classList.add('hidden');
+            }
+        }
+        if (fullDropdown && !fullDropdown.classList.contains('hidden')) {
+            if (!fullDropdown.contains(e.target) && !fullTrigger.contains(e.target)) {
+                fullDropdown.classList.add('hidden');
             }
         }
     });
@@ -386,11 +393,13 @@ function setupAuthListener() {
                 const userAvatar = document.getElementById('userAvatar');
                 const userNameMobile = document.getElementById('userNameMobile');
                 const userAvatarMobile = document.getElementById('userAvatarMobile');
+                const userAvatarFull = document.getElementById('userAvatarFull');
 
                 if (userName) userName.innerText = user.displayName;
                 if (userAvatar) userAvatar.src = user.photoURL;
                 if (userNameMobile) userNameMobile.innerText = user.displayName.split(' ')[0]; // First name only for mobile
                 if (userAvatarMobile) userAvatarMobile.src = user.photoURL;
+                if (userAvatarFull) userAvatarFull.src = user.photoURL;
 
                 // Load cloud data (playlists are handled here)
                 loadPlaylistsFromCloud();
@@ -408,12 +417,15 @@ function setupAuthListener() {
                 // Handle Admin UI if applicable
                 const adminProfileBtn = document.getElementById('adminProfileBtn');
                 const adminProfileBtnMobile = document.getElementById('adminProfileBtnMobile');
+                const adminProfileBtnFull = document.getElementById('adminProfileBtnFull');
                 if (userData.isAdmin) {
                     if (adminProfileBtn) adminProfileBtn.classList.remove('hidden');
                     if (adminProfileBtnMobile) adminProfileBtnMobile.classList.remove('hidden');
+                    if (adminProfileBtnFull) adminProfileBtnFull.classList.remove('hidden');
                 } else {
                     if (adminProfileBtn) adminProfileBtn.classList.add('hidden');
                     if (adminProfileBtnMobile) adminProfileBtnMobile.classList.add('hidden');
+                    if (adminProfileBtnFull) adminProfileBtnFull.classList.add('hidden');
                 }
 
             } catch (error) {
@@ -1156,8 +1168,10 @@ async function logout() {
 
         const dropdown = document.getElementById('profileDropdown');
         const mobileDropdown = document.getElementById('profileDropdownMobile');
+        const fullDropdown = document.getElementById('profileDropdownFull');
         if (dropdown) dropdown.classList.add('hidden');
         if (mobileDropdown) mobileDropdown.classList.add('hidden');
+        if (fullDropdown) fullDropdown.classList.add('hidden');
 
         showToast("Sesión cerrada");
     } catch (error) {
@@ -1174,6 +1188,13 @@ function toggleProfileDropdown() {
 
 function toggleProfileDropdownMobile() {
     const dropdown = document.getElementById('profileDropdownMobile');
+    if (dropdown) {
+        dropdown.classList.toggle('hidden');
+    }
+}
+
+function toggleProfileDropdownFull() {
+    const dropdown = document.getElementById('profileDropdownFull');
     if (dropdown) {
         dropdown.classList.toggle('hidden');
     }
@@ -5601,18 +5622,20 @@ function switchUser(userId) {
 }
 
 function updateUserUI() {
-    const nameEl = document.getElementById('currentUserName');
-    const avatarEl = document.getElementById('currentUserAvatar');
-    const avatarMobileEl = document.getElementById('currentUserAvatarMobile');
+    const nameEl = document.getElementById('userName');
+    const nameMobileEl = document.getElementById('userNameMobile');
+    const avatarEl = document.getElementById('userAvatar');
+    const avatarMobileEl = document.getElementById('userAvatarMobile');
+    const avatarFullEl = document.getElementById('userAvatarFull');
 
-    if (nameEl) nameEl.innerText = currentUser.name;
+    if (nameEl && currentUser) nameEl.innerText = currentUser.name;
+    if (nameMobileEl && currentUser) nameMobileEl.innerText = currentUser.name.split(' ')[0];
 
-    const avatarContent = currentUser.avatar
-        ? `< img src = "${currentUser.avatar}" > `
-        : currentUser.name.charAt(0).toUpperCase();
-
-    if (avatarEl) avatarEl.innerHTML = avatarContent;
-    if (avatarMobileEl) avatarMobileEl.innerHTML = avatarContent;
+    if (currentUser) {
+        if (avatarEl) avatarEl.src = currentUser.avatar || '';
+        if (avatarMobileEl) avatarMobileEl.src = currentUser.avatar || '';
+        if (avatarFullEl) avatarFullEl.src = currentUser.avatar || '';
+    }
 }
 
 // --- SHARING (IMPORT/EXPORT) ---
@@ -6315,9 +6338,20 @@ async function loadUserList() {
                 <div class="col-span-4">
                     <div class="flex flex-col">
                         <span class="text-sm ${isExpired ? 'text-red-400 font-bold' : 'text-gray-300'}">${expiryStr}</span>
-                        <input type="date" value="${expiryDate ? expiryDate.toISOString().split('T')[0] : ''}" 
-                               onchange="updateUserExpiry('${id}', this.value)"
-                               class="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] mt-1 text-white focus:outline-none focus:border-green-500 w-full max-w-[120px]">
+                        <div class="flex items-center gap-2 mt-1">
+                            <input type="date" value="${expiryDate ? expiryDate.toISOString().split('T')[0] : ''}" 
+                                   onchange="updateUserExpiry('${id}', this.value)"
+                                   class="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] text-white focus:outline-none focus:border-green-500 w-full max-w-[120px]">
+                            ${expiryDate ? `
+                            <button onclick="updateUserExpiry('${id}', null)" 
+                                    class="p-1 px-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all"
+                                    title="Eliminar caducidad">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                            ` : ''}
+                        </div>
                     </div>
                 </div>
                 <div class="col-span-3 text-right flex justify-end gap-2">
@@ -6346,13 +6380,13 @@ async function loadUserList() {
 }
 
 async function updateUserExpiry(uid, dateStr) {
-    if (!uid || !dateStr) return;
+    if (!uid) return;
     try {
-        const expiryDate = new Date(dateStr);
+        const expiryDate = dateStr ? new Date(dateStr) : null;
         await updateDoc(doc(db, "users", uid), {
             expiryDate: expiryDate
         });
-        showToast("Fecha de caducidad actualizada");
+        showToast(dateStr ? "Fecha de caducidad actualizada" : "Fecha de caducidad eliminada");
         loadUserList();
     } catch (error) {
         console.error("Error updating expiry:", error);
@@ -6396,8 +6430,10 @@ function showAdmin() {
         // Close dropdowns
         const profileDropdown = document.getElementById('profileDropdown');
         const profileDropdownMobile = document.getElementById('profileDropdownMobile');
+        const profileDropdownFull = document.getElementById('profileDropdownFull');
         if (profileDropdown) profileDropdown.classList.add('hidden');
         if (profileDropdownMobile) profileDropdownMobile.classList.add('hidden');
+        if (profileDropdownFull) profileDropdownFull.classList.add('hidden');
     }
 }
 
@@ -6449,6 +6485,7 @@ Object.assign(window, {
     logout,
     toggleProfileDropdown,
     toggleProfileDropdownMobile,
+    toggleProfileDropdownFull,
     onYouTubeIframeAPIReady,
     onPlayerReady,
     onPlayerStateChange,
