@@ -6326,7 +6326,7 @@ async function loadUserList() {
             console.log(`[Admin] Procesando usuario: ${userName}`, user);
 
             const userRow = document.createElement('div');
-            userRow.className = 'p-4 grid grid-cols-12 gap-4 items-center hover:bg-white/5 transition-colors';
+            userRow.className = 'p-4 grid grid-cols-12 gap-4 items-center hover:bg-white/5 transition-colors relative';
             userRow.innerHTML = `
                 <div class="col-span-5 flex items-center gap-3 min-w-0">
                     <img src="${user.photoURL || ''}" class="w-8 h-8 rounded-full bg-white/10" onerror="this.src='https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'">
@@ -6338,37 +6338,45 @@ async function loadUserList() {
                 <div class="col-span-4">
                     <div class="flex flex-col">
                         <span class="text-sm ${isExpired ? 'text-red-400 font-bold' : 'text-gray-300'}">${expiryStr}</span>
-                        <div class="flex items-center gap-2 mt-1">
-                            <input type="date" value="${expiryDate ? expiryDate.toISOString().split('T')[0] : ''}" 
-                                   onchange="updateUserExpiry('${id}', this.value)"
-                                   class="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] text-white focus:outline-none focus:border-green-500 w-full max-w-[120px]">
-                            ${expiryDate ? `
-                            <button onclick="updateUserExpiry('${id}', null)" 
-                                    class="p-1 px-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all"
-                                    title="Eliminar caducidad">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                            ` : ''}
-                        </div>
+                        <input type="date" value="${expiryDate ? expiryDate.toISOString().split('T')[0] : ''}" 
+                               onchange="updateUserExpiry('${id}', this.value)"
+                               class="bg-black/40 border border-white/10 rounded px-2 py-1 text-[10px] mt-1 text-white focus:outline-none focus:border-green-500 w-full max-w-[120px]">
                     </div>
                 </div>
-                <div class="col-span-3 text-right flex justify-end gap-2">
-                    <button onclick="toggleUserBlock('${id}', ${isBlocked})" 
-                            class="p-2 rounded-lg ${isBlocked ? 'bg-red-500/20 text-red-100 hover:bg-red-500/30' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'} transition-all"
-                            title="${isBlocked ? 'Desbloquear' : 'Bloquear'}">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                <div class="col-span-3 text-right relative">
+                    <button onclick="toggleUserActions('${id}')" 
+                            class="p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 transition-all ml-auto block">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
                         </svg>
                     </button>
-                    <button onclick="toggleUserAdmin('${id}', ${user.isAdmin || false})" 
-                            class="p-2 rounded-lg ${user.isAdmin ? 'bg-yellow-500/20 text-yellow-100 border border-yellow-500/30' : 'bg-white/5 text-gray-400 hover:bg-white/10'} transition-all"
-                            title="${user.isAdmin ? 'Quitar Admin' : 'Hacer Admin'}">
-                        <svg class="w-5 h-5 font-bold" viewBox="0 0 24 24" fill="currentColor">
-                           <path d="M11.69 2.02L12 2l.31.02a.75.75 0 01.31.11l1.5 1.5.02.04 2.87-1.15a.75.75 0 01.44.04l5 2.5a.75.75 0 01.4.67v8.5a.75.75 0 01-.4.67l-5 2.5a.75.75 0 01-.67 0l-4.11-2.06a.75.75 0 01-.67-1.34l3.53 1.77 4-2v-6.94l-4 2v.44a.75.75 0 01-1.5 0v-1.19l-1.5 1.5-.02.04-1.5-1.5-.02-.04v1.19a.75.75 0 01-1.5 0V11l-4-2v6.94l4 2 3.53-1.77a.75.75 0 01.67 1.34L12.33 21.6a.75.75 0 01-.67 0l-5-2.5a.75.75 0 01-.4-.67v-8.5a.75.75 0 01.4-.67l5-2.5a.75.75 0 01.44-.04l2.87 1.15.02-.04 1.5-1.5.02-.04z"/>
-                        </svg>
-                    </button>
+                    
+                    <!-- Dropdown de Acciones -->
+                    <div id="userActions-${id}" class="hidden absolute right-0 top-full mt-1 bg-[#282828] rounded-xl shadow-2xl border border-white/10 z-[120] min-w-[180px] overflow-hidden text-left animate-fade-in-up">
+                        <button onclick="toggleUserAdmin('${id}', ${user.isAdmin || false})" 
+                                class="w-full px-4 py-3 text-sm hover:bg-white/10 flex items-center gap-2 transition-colors border-b border-white/5 ${user.isAdmin ? 'text-yellow-400' : 'text-gray-300'}">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M11.69 2.02L12 2l.31.02a.75.75 0 01.31.11l1.5 1.5.02.04 2.87-1.15a.75.75 0 01.44.04l5 2.5a.75.75 0 01.4.67v8.5a.75.75 0 01-.4.67l-5 2.5a.75.75 0 01-.67 0l-4.11-2.06a.75.75 0 01-.67-1.34l3.53 1.77 4-2v-6.94l-4 2v.44a.75.75 0 01-1.5 0v-1.19l-1.5 1.5-.02.04-1.5-1.5-.02-.04v1.19a.75.75 0 01-1.5 0V11l-4-2v6.94l4 2 3.53-1.77a.75.75 0 01.67 1.34L12.33 21.6a.75.75 0 01-.67 0l-5-2.5a.75.75 0 01-.4-.67v-8.5a.75.75 0 01.4-.67l5-2.5a.75.75 0 01.44-.04l2.87 1.15.02-.04 1.5-1.5.02-.04z"/>
+                            </svg>
+                            ${user.isAdmin ? 'Quitar Admin' : 'Hacer Admin'}
+                        </button>
+                        <button onclick="toggleUserBlock('${id}', ${isBlocked})" 
+                                class="w-full px-4 py-3 text-sm hover:bg-white/10 flex items-center gap-2 transition-colors border-b border-white/5 ${isBlocked ? 'text-red-400 font-bold' : 'text-gray-300'}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                            </svg>
+                            ${isBlocked ? 'Desbloquear' : 'Bloquear'}
+                        </button>
+                        ${expiryDate ? `
+                        <button onclick="updateUserExpiry('${id}', null)" 
+                                class="w-full px-4 py-3 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Eliminar caducidad
+                        </button>
+                        ` : ''}
+                    </div>
                 </div>
             `;
             container.appendChild(userRow);
@@ -6377,6 +6385,18 @@ async function loadUserList() {
         console.error("Error loading user list:", error);
         container.innerHTML = '<div class="p-8 text-center text-red-400">Error al cargar. Asegúrate de tener permisos.</div>';
     }
+}
+
+function toggleUserActions(uid) {
+    const dropdown = document.getElementById(`userActions-${uid}`);
+    if (!dropdown) return;
+
+    // Cerrar otros dropdowns
+    document.querySelectorAll('[id^="userActions-"]').forEach(el => {
+        if (el.id !== `userActions-${uid}`) el.classList.add('hidden');
+    });
+
+    dropdown.classList.toggle('hidden');
 }
 
 async function updateUserExpiry(uid, dateStr) {
@@ -6540,6 +6560,7 @@ Object.assign(window, {
     updateUserExpiry,
     toggleUserBlock,
     toggleUserAdmin,
+    toggleUserActions,
     showAdmin,
     hideAdmin
 });
