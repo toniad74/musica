@@ -6283,13 +6283,16 @@ async function loadUserList() {
             const expiryStr = expiryDate ? expiryDate.toLocaleDateString() : 'Sin fecha';
             const isExpired = expiryDate && expiryDate < new Date();
 
+            const userName = user.displayName || user.name || (user.email ? user.email.split('@')[0] : 'Usuario');
+            console.log(`[Admin] Procesando usuario: ${userName}`, user);
+
             const userRow = document.createElement('div');
             userRow.className = 'p-4 grid grid-cols-12 gap-4 items-center hover:bg-white/5 transition-colors';
             userRow.innerHTML = `
                 <div class="col-span-5 flex items-center gap-3 min-w-0">
                     <img src="${user.photoURL || ''}" class="w-8 h-8 rounded-full bg-white/10" onerror="this.src='https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'">
-                    <div class="min-w-0">
-                        <p class="text-sm font-bold truncate text-white">${user.displayName || user.name || 'Usuario'}</p>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-bold text-white truncate">${userName}</p>
                         <p class="text-[10px] text-gray-400 truncate opacity-60">${user.email || ''}</p>
                     </div>
                 </div>

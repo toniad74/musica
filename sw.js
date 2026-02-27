@@ -1,5 +1,5 @@
-const CACHE_NAME = 'amaya-music-v1920';
-// SW Version: 1.9.2 - Time: 17:55 (GMT+1) - Panel admin movido al perfil de usuario
+const CACHE_NAME = 'amaya-music-v1930';
+// SW Version: 1.9.3 - Time: 18:00 (GMT+1) - Mejora detección de nombres en panel admin
 const urlsToCache = [
     './',
     './index.html',
