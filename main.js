@@ -318,6 +318,7 @@ function setupAuthListener() {
                         uid: user.uid,
                         email: user.email,
                         displayName: user.displayName,
+                        name: user.displayName,
                         photoURL: user.photoURL,
                         createdAt: serverTimestamp(),
                         isBlocked: false,
@@ -6310,7 +6311,7 @@ async function loadUserList() {
                 <div class="col-span-5 flex items-center gap-3 min-w-0">
                     <img src="${user.photoURL || ''}" class="w-8 h-8 rounded-full bg-white/10" onerror="this.src='https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'">
                     <div class="min-w-0">
-                        <p class="text-sm font-bold truncate text-white">${user.displayName || 'Usuario'}</p>
+                        <p class="text-sm font-bold truncate text-white">${user.displayName || user.name || 'Usuario'}</p>
                         <p class="text-[10px] text-gray-400 truncate opacity-60">${user.email || ''}</p>
                     </div>
                 </div>
