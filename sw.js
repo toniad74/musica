@@ -1,5 +1,5 @@
-const CACHE_NAME = 'amaya-music-v1956';
-// SW Version: 1.9.10 - Time: 19:11 (GMT+1) - Auto-actualización
+const CACHE_NAME = 'amaya-music-v1957';
+// SW Version: 1.9.11 - Time: 19:11 (GMT+1) - Eliminado botón importar imagen
 const urlsToCache = [
     './',
     './index.html',
